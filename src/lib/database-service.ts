@@ -153,17 +153,17 @@ export class DatabaseService {
 
       if (error) throw error
 
-      const categorySpending = data?.reduce((acc, transaction) => {
-        const categoryName = (transaction.categories as any)?.name || 'Uncategorized'
-        const amount = Math.abs(Number(transaction.current_amount))
-        
-        if (!acc[categoryName]) {
-          acc[categoryName] = {
-            total: 0,
-            count: 0,
-            icon: (transaction.categories as any)?.icon
-          }
-        }
+    const categorySpending = data?.reduce((acc, transaction) => {
+    const categoryName = (transaction.categories as { name?: string })?.name || 'Uncategorized'
+    const amount = Math.abs(Number(transaction.current_amount))
+    
+    if (!acc[categoryName]) {
+      acc[categoryName] = {
+        total: 0,
+        count: 0,
+        icon: (transaction.categories as { icon?: string })?.icon
+      }
+    }
         
         acc[categoryName].total += amount
         acc[categoryName].count += 1

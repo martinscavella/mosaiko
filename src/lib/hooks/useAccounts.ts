@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { createClientComponentClient } from '../supabase'
 import { useAuth } from '../auth'
 import { Database } from '../database.types'
@@ -16,107 +16,125 @@ export function useAccounts() {
   const [error, setError] = useState<string | null>(null)
   const supabase = createClientComponentClient()
 
-  useEffect(() => {
-    if (user) {
-      fetchAccounts()
-    } else {
-      setAccounts([])
-      setLoading(false)
-    }
-  }, [user])
-
-  const fetchAccounts = async () => {
+  const fetchAccounts = useCallback(async () => {
+    if (!user?.id) return
+    
     try {
       setLoading(true)
       const { data, error } = await supabase
         .from('accounts')
         .select('*')
-        .eq('user_id', user?.id)
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false })
-
+      
       if (error) throw error
-
       setAccounts(data || [])
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred')
+      console.error('Error fetching accounts:', err)
+      setError(err instanceof Error ? err.message : 'Failed to fetch accounts')
     } finally {
       setLoading(false)
     }
-  }
+  }, [user?.id, supabase])
 
-  const createAccount = async (accountData: Omit<AccountInsert, 'user_id'>) => {
+  useEffect(() => {
+    if (user?.id) {
+      fetchAccounts()
+    } else {
+      setAccounts([])
+      setLoading(false)
+    }
+  }, [user?.id, fetchAccounts])
+
+  const createAccount = async (account: AccountInsert) => {
+    if (!user?.id) throw new Error('User not authenticated')
+    
     try {
+      setError(null)
       const { data, error } = await supabase
         .from('accounts')
-        .insert([{ ...accountData, user_id: user?.id }])
+        .insert({
+          ...account,
+          user_id: user.id
+        })
         .select()
         .single()
-
+      
       if (error) throw error
-
+      
       setAccounts(prev => [data, ...prev])
-      return { data, error: null }
+      return data
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'An error occurred'
+      const errorMessage = err instanceof Error ? err.message : 'Failed to create account'
       setError(errorMessage)
-      return { data: null, error: errorMessage }
+      throw new Error(errorMessage)
     }
   }
 
   const updateAccount = async (id: string, updates: AccountUpdate) => {
+    if (!user?.id) throw new Error('User not authenticated')
+    
     try {
+      setError(null)
       const { data, error } = await supabase
         .from('accounts')
         .update(updates)
         .eq('id', id)
-        .eq('user_id', user?.id)
+        .eq('user_id', user.id)
         .select()
         .single()
-
+      
       if (error) throw error
-
-      setAccounts(prev => 
-        prev.map(account => account.id === id ? data : account)
-      )
-      return { data, error: null }
+      
+      setAccounts(prev => prev.map(account => 
+        account.id === id ? data : account
+      ))
+      return data
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'An error occurred'
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update account'
       setError(errorMessage)
-      return { data: null, error: errorMessage }
+      throw new Error(errorMessage)
     }
   }
 
   const deleteAccount = async (id: string) => {
+    if (!user?.id) throw new Error('User not authenticated')
+    
     try {
+      setError(null)
       const { error } = await supabase
         .from('accounts')
         .delete()
         .eq('id', id)
-        .eq('user_id', user?.id)
-
+        .eq('user_id', user.id)
+      
       if (error) throw error
-
+      
       setAccounts(prev => prev.filter(account => account.id !== id))
-      return { error: null }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'An error occurred'
+      const errorMessage = err instanceof Error ? err.message : 'Failed to delete account'
       setError(errorMessage)
-      return { error: errorMessage }
+      throw new Error(errorMessage)
     }
   }
 
+  const getAccountById = (id: string) => {
+    return accounts.find(account => account.id === id)
+  }
+
   const getTotalBalance = () => {
-    return accounts.reduce((total, account) => total + Number(account.current_balance), 0)
+    return accounts.reduce((total, account) => total + (account.current_balance || 0), 0)
   }
 
   return {
     accounts,
     loading,
     error,
+    fetchAccounts,
     createAccount,
     updateAccount,
     deleteAccount,
-    refetch: fetchAccounts,
+    getAccountById,
     getTotalBalance
   }
 }

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth";
+import MainNavigation from "@/components/MainNavigation";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -14,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Mosaiko - Financial Dashboard",
-  description: "Your personal financial management dashboard",
+  title: "Mosaiko - Personal Life Management",
+  description: "Your all-in-one platform for finance, fitness, and learning management",
 };
 
 export default function RootLayout({
@@ -26,10 +27,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900`}
       >
         <AuthProvider>
-          {children}
+          <MainNavigation />
+          <main className="min-h-screen">
+            {children}
+          </main>
         </AuthProvider>
       </body>
     </html>

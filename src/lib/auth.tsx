@@ -33,12 +33,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const supabase = createClientComponentClient()
 
   useEffect(() => {
+    let mounted = true;
+    
     // Get initial session
     const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      setSession(session)
-      setUser(session?.user ?? null)
-      setLoading(false)
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession()
+        
+        if (error) {
+          console.error('Error getting initial session:', error)
+        }
+        
+        if (mounted) {
+          setSession(session)
+          setUser(session?.user ?? null)
+          setLoading(false)
+        }
+      } catch (error) {
+        console.error('Exception getting initial session:', error)
+        if (mounted) {
+          setSession(null)
+          setUser(null)
+          setLoading(false)
+        }
+      }
     }
 
     getSession()
@@ -46,13 +64,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        setSession(session)
-        setUser(session?.user ?? null)
+        console.log('Auth state changed:', { event, userEmail: session?.user?.email || 'null' })
+        
+        if (!mounted) return;
+        
+        // Handle different auth events explicitly
+        switch (event) {
+          case 'SIGNED_OUT':
+            setSession(null)
+            setUser(null)
+            break
+          case 'SIGNED_IN':
+          case 'TOKEN_REFRESHED':
+          case 'USER_UPDATED':
+          default:
+            setSession(session)
+            setUser(session?.user ?? null)
+        }
+        
         setLoading(false)
       }
     )
 
-    return () => subscription.unsubscribe()
+    return () => {
+      mounted = false;
+      subscription.unsubscribe()
+    }
   }, [supabase.auth])
 
   const signUp = async (email: string, password: string, metadata?: UserMetadata) => {
@@ -75,8 +112,62 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut()
-    return { error }
+    try {
+      console.log('Starting logout process...')
+      
+      // Method 1: Try normal signOut first
+      let { error } = await supabase.auth.signOut()
+      
+      if (error) {
+        console.warn('Normal signOut failed, trying local scope:', error.message)
+        // Method 2: Try local scope signOut
+        const localResult = await supabase.auth.signOut({ scope: 'local' })
+        error = localResult.error
+      }
+      
+      if (error) {
+        console.error('Supabase signOut failed:', error)
+      }
+      
+      // Clear browser storage regardless of Supabase result
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.clear()
+          sessionStorage.clear()
+          
+          // Also clear any IndexedDB data related to Supabase
+          if ('indexedDB' in window) {
+            const databases = ['supabase-auth-token']
+            databases.forEach(async (dbName) => {
+              try {
+                indexedDB.deleteDatabase(dbName)
+              } catch (e) {
+                console.warn(`Could not clear IndexedDB ${dbName}:`, e)
+              }
+            })
+          }
+        } catch (e) {
+          console.warn('Error clearing storage:', e)
+        }
+      }
+      
+      // Force state update
+      setUser(null)
+      setSession(null)
+      
+      return { error }
+      
+    } catch (err) {
+      console.error('SignOut exception:', err)
+      // Emergency logout - clear everything
+      setUser(null)
+      setSession(null)
+      if (typeof window !== 'undefined') {
+        localStorage.clear()
+        sessionStorage.clear()
+      }
+      return { error: err as AuthError }
+    }
   }
 
   const updateProfile = async (data: UserMetadata) => {

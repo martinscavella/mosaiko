@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { createClientComponentClient } from '../supabase'
 import { useAuth } from '../auth'
 import { Database } from '../database.types'
@@ -16,105 +16,127 @@ export function useCategories() {
   const [error, setError] = useState<string | null>(null)
   const supabase = createClientComponentClient()
 
+  const fetchCategories = useCallback(async () => {
+    if (!user?.id) return
+    
+    try {
+      setLoading(true)
+      const { data, error } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('name')
+      
+      if (error) throw error
+      setCategories(data || [])
+    } catch (err) {
+      console.error('Error fetching categories:', err)
+      setError(err instanceof Error ? err.message : 'Failed to fetch categories')
+    } finally {
+      setLoading(false)
+    }
+  }, [user?.id, supabase])
+
   useEffect(() => {
-    if (user) {
+    if (user?.id) {
       fetchCategories()
     } else {
       setCategories([])
       setLoading(false)
     }
-  }, [user])
+  }, [user?.id, fetchCategories])
 
-  const fetchCategories = async () => {
+  const createCategory = async (category: CategoryInsert) => {
+    if (!user?.id) throw new Error('User not authenticated')
+    
     try {
-      setLoading(true)
+      setError(null)
       const { data, error } = await supabase
         .from('categories')
-        .select(`
-          *,
-          subcategories (*)
-        `)
-        .eq('user_id', user?.id)
-        .order('name', { ascending: true })
-
-      if (error) throw error
-
-      setCategories(data || [])
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const createCategory = async (categoryData: Omit<CategoryInsert, 'user_id'>) => {
-    try {
-      const { data, error } = await supabase
-        .from('categories')
-        .insert([{ ...categoryData, user_id: user?.id }])
+        .insert({
+          ...category,
+          user_id: user.id
+        })
         .select()
         .single()
-
+      
       if (error) throw error
-
-      setCategories(prev => [...prev, data])
-      return { data, error: null }
+      
+      setCategories(prev => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)))
+      return data
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'An error occurred'
+      const errorMessage = err instanceof Error ? err.message : 'Failed to create category'
       setError(errorMessage)
-      return { data: null, error: errorMessage }
+      throw new Error(errorMessage)
     }
   }
 
   const updateCategory = async (id: string, updates: CategoryUpdate) => {
+    if (!user?.id) throw new Error('User not authenticated')
+    
     try {
+      setError(null)
       const { data, error } = await supabase
         .from('categories')
         .update(updates)
         .eq('id', id)
-        .eq('user_id', user?.id)
+        .eq('user_id', user.id)
         .select()
         .single()
-
+      
       if (error) throw error
-
-      setCategories(prev => 
-        prev.map(category => category.id === id ? data : category)
-      )
-      return { data, error: null }
+      
+      setCategories(prev => prev.map(category => 
+        category.id === id ? data : category
+      ).sort((a, b) => a.name.localeCompare(b.name)))
+      return data
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'An error occurred'
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update category'
       setError(errorMessage)
-      return { data: null, error: errorMessage }
+      throw new Error(errorMessage)
     }
   }
 
   const deleteCategory = async (id: string) => {
+    if (!user?.id) throw new Error('User not authenticated')
+    
     try {
+      setError(null)
       const { error } = await supabase
         .from('categories')
         .delete()
         .eq('id', id)
-        .eq('user_id', user?.id)
-
+        .eq('user_id', user.id)
+      
       if (error) throw error
-
+      
       setCategories(prev => prev.filter(category => category.id !== id))
-      return { error: null }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'An error occurred'
+      const errorMessage = err instanceof Error ? err.message : 'Failed to delete category'
       setError(errorMessage)
-      return { error: errorMessage }
+      throw new Error(errorMessage)
     }
+  }
+
+  const getCategoryById = (id: string) => {
+    return categories.find(category => category.id === id)
+  }
+
+  const getCategoriesByType = (searchTerm: string) => {
+    return categories.filter(category => 
+      category.name.toLowerCase().includes(searchTerm.toLowerCase())
+    )
   }
 
   return {
     categories,
     loading,
     error,
+    fetchCategories,
     createCategory,
     updateCategory,
     deleteCategory,
-    refetch: fetchCategories
+    getCategoryById,
+    getCategoriesByType
   }
 }

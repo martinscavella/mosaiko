@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { createClientComponentClient } from '../supabase'
 import { useAuth } from '../auth'
 import { Database } from '../database.types'
@@ -16,109 +16,110 @@ export function useTransactions() {
   const [error, setError] = useState<string | null>(null)
   const supabase = createClientComponentClient()
 
+  const fetchTransactions = useCallback(async () => {
+    if (!user?.id) return
+    
+    try {
+      setLoading(true)
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('transaction_date', { ascending: false })
+      
+      if (error) throw error
+      setTransactions(data || [])
+    } catch (err) {
+      console.error('Error fetching transactions:', err)
+      setError(err instanceof Error ? err.message : 'Failed to fetch transactions')
+    } finally {
+      setLoading(false)
+    }
+  }, [user?.id, supabase])
+
   useEffect(() => {
-    if (user) {
+    if (user?.id) {
       fetchTransactions()
     } else {
       setTransactions([])
       setLoading(false)
     }
-  }, [user])
+  }, [user?.id, fetchTransactions])
 
-  const fetchTransactions = async (limit = 50) => {
+  const createTransaction = async (transaction: TransactionInsert) => {
+    if (!user?.id) throw new Error('User not authenticated')
+    
     try {
-      setLoading(true)
+      setError(null)
       const { data, error } = await supabase
         .from('transactions')
-        .select(`
-          *,
-          accounts (name, type),
-          categories (name, icon),
-          subcategories (name, icon)
-        `)
-        .eq('user_id', user?.id)
-        .order('transaction_date', { ascending: false })
-        .limit(limit)
-
-      if (error) throw error
-
-      setTransactions(data || [])
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const createTransaction = async (transactionData: Omit<TransactionInsert, 'user_id'>) => {
-    try {
-      const { data, error } = await supabase
-        .from('transactions')
-        .insert([{ ...transactionData, user_id: user?.id }])
-        .select(`
-          *,
-          accounts (name, type),
-          categories (name, icon),
-          subcategories (name, icon)
-        `)
+        .insert({
+          ...transaction,
+          user_id: user.id
+        })
+        .select()
         .single()
-
+      
       if (error) throw error
-
+      
       setTransactions(prev => [data, ...prev])
-      return { data, error: null }
+      return data
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'An error occurred'
+      const errorMessage = err instanceof Error ? err.message : 'Failed to create transaction'
       setError(errorMessage)
-      return { data: null, error: errorMessage }
+      throw new Error(errorMessage)
     }
   }
 
   const updateTransaction = async (id: string, updates: TransactionUpdate) => {
+    if (!user?.id) throw new Error('User not authenticated')
+    
     try {
+      setError(null)
       const { data, error } = await supabase
         .from('transactions')
         .update(updates)
         .eq('id', id)
-        .eq('user_id', user?.id)
-        .select(`
-          *,
-          accounts (name, type),
-          categories (name, icon),
-          subcategories (name, icon)
-        `)
+        .eq('user_id', user.id)
+        .select()
         .single()
-
+      
       if (error) throw error
-
-      setTransactions(prev => 
-        prev.map(transaction => transaction.id === id ? data : transaction)
-      )
-      return { data, error: null }
+      
+      setTransactions(prev => prev.map(transaction => 
+        transaction.id === id ? data : transaction
+      ))
+      return data
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'An error occurred'
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update transaction'
       setError(errorMessage)
-      return { data: null, error: errorMessage }
+      throw new Error(errorMessage)
     }
   }
 
   const deleteTransaction = async (id: string) => {
+    if (!user?.id) throw new Error('User not authenticated')
+    
     try {
+      setError(null)
       const { error } = await supabase
         .from('transactions')
         .delete()
         .eq('id', id)
-        .eq('user_id', user?.id)
-
+        .eq('user_id', user.id)
+      
       if (error) throw error
-
+      
       setTransactions(prev => prev.filter(transaction => transaction.id !== id))
-      return { error: null }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'An error occurred'
+      const errorMessage = err instanceof Error ? err.message : 'Failed to delete transaction'
       setError(errorMessage)
-      return { error: errorMessage }
+      throw new Error(errorMessage)
     }
+  }
+
+  const getTransactionById = (id: string) => {
+    return transactions.find(transaction => transaction.id === id)
   }
 
   const getTransactionsByDateRange = (startDate: string, endDate: string) => {
@@ -131,29 +132,22 @@ export function useTransactions() {
   const getTotalByType = (type: 'income' | 'expense') => {
     return transactions
       .filter(transaction => {
-        const amount = Number(transaction.current_amount)
+        const amount = transaction.current_amount
         return type === 'income' ? amount > 0 : amount < 0
       })
-      .reduce((total, transaction) => total + Math.abs(Number(transaction.current_amount)), 0)
-  }
-
-  const getMonthlyTotal = (year: number, month: number) => {
-    const monthStr = `${year}-${month.toString().padStart(2, '0')}`
-    return transactions
-      .filter(transaction => transaction.transaction_date.startsWith(monthStr))
-      .reduce((total, transaction) => total + Number(transaction.current_amount), 0)
+      .reduce((total, transaction) => total + Math.abs(transaction.current_amount), 0)
   }
 
   return {
     transactions,
     loading,
     error,
+    fetchTransactions,
     createTransaction,
     updateTransaction,
     deleteTransaction,
-    refetch: fetchTransactions,
+    getTransactionById,
     getTransactionsByDateRange,
-    getTotalByType,
-    getMonthlyTotal
+    getTotalByType
   }
 }
