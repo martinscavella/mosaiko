@@ -21,14 +21,31 @@ export function useTransactions() {
     
     try {
       setLoading(true)
-      const { data, error } = await supabase
-        .from('transactions')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('transaction_date', { ascending: false })
+      let allTransactions: Transaction[] = []
+      let from = 0
+      const limit = 1000
+      let hasMore = true
+
+      while (hasMore) {
+        const { data, error, count } = await supabase
+          .from('transactions')
+          .select('*', { count: 'exact' })
+          .eq('user_id', user.id)
+          .order('transaction_date', { ascending: false })
+          .range(from, from + limit - 1)
+        
+        if (error) throw error
+        
+        if (data) {
+          allTransactions = [...allTransactions, ...data]
+          from += limit
+          hasMore = data.length === limit && from < (count || 0)
+        } else {
+          hasMore = false
+        }
+      }
       
-      if (error) throw error
-      setTransactions(data || [])
+      setTransactions(allTransactions)
     } catch (err) {
       console.error('Error fetching transactions:', err)
       setError(err instanceof Error ? err.message : 'Failed to fetch transactions')

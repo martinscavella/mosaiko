@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Mosaiko - Personal Life Management",
-  description: "Your all-in-one platform for finance, fitness, and learning management",
+  title: "Mosaiko - Personal Finance Management",
+  description: "Your smart financial companion for tracking expenses, managing budgets, and achieving your financial goals",
 };
 
 export default function RootLayout({
@@ -27,11 +27,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50`}
       >
         <AuthProvider>
           <MainNavigation />
-          <main className="min-h-screen">
+          <main>
             {children}
           </main>
         </AuthProvider>

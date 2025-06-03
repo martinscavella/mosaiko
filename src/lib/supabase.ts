@@ -8,22 +8,23 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables. Please check your .env.local file.')
 }
 
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey)
+// Single client instance with optimized configuration
+const supabaseClient = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true
+  }
+})
+
+export const supabase = supabaseClient
 
 // Client-side Supabase instance for use in components
 export function createClientComponentClient() {
-  if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error('Missing Supabase environment variables. Please check your .env.local file.')
-  }
-  
-  return createClient<Database>(supabaseUrl, supabaseAnonKey)
+  return supabaseClient
 }
 
 // For server components and API routes
 export function createServerClient() {
-  if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error('Missing Supabase environment variables. Please check your .env.local file.')
-  }
-  
-  return createClient<Database>(supabaseUrl, supabaseAnonKey)
+  return supabaseClient
 }

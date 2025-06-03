@@ -77,30 +77,3 @@ export function QuickAction({ title, icon: Icon, onClick, className = '' }: Quic
     </button>
   )
 }
-
-interface StatsGridProps {
-  stats: Array<{
-    label: string
-    value: string | number
-    icon: React.ComponentType<{ className?: string }>
-    color: string
-  }>
-}
-
-export function StatsGrid({ stats }: StatsGridProps) {
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      {stats.map((stat, index) => (
-        <div key={index} className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-          <div className="flex items-center">
-            <stat.icon className={`h-8 w-8 text-${stat.color}-600`} />
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">{stat.label}</p>
-              <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}

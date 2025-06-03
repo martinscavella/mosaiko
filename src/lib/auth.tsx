@@ -3,10 +3,6 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { User, Session, AuthError } from '@supabase/supabase-js'
 import { createClientComponentClient } from './supabase'
-import { Database } from './database.types'
-
-type Profile = Database['public']['Tables']['profiles']['Row']
-type ProfileUpdate = Database['public']['Tables']['profiles']['Update']
 
 interface UserMetadata {
   first_name?: string
@@ -38,11 +34,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Get initial session
     const getSession = async () => {
       try {
-        const { data: { session }, error } = await supabase.auth.getSession()
-        
-        if (error) {
-          console.error('Error getting initial session:', error)
-        }
+        const { data: { session } } = await supabase.auth.getSession()
         
         if (mounted) {
           setSession(session)
@@ -50,7 +42,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setLoading(false)
         }
       } catch (error) {
-        console.error('Exception getting initial session:', error)
+        console.error('Error getting session:', error)
         if (mounted) {
           setSession(null)
           setUser(null)
@@ -63,25 +55,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth state changed:', { event, userEmail: session?.user?.email || 'null' })
-        
+      (event, session) => {
         if (!mounted) return;
         
-        // Handle different auth events explicitly
-        switch (event) {
-          case 'SIGNED_OUT':
-            setSession(null)
-            setUser(null)
-            break
-          case 'SIGNED_IN':
-          case 'TOKEN_REFRESHED':
-          case 'USER_UPDATED':
-          default:
-            setSession(session)
-            setUser(session?.user ?? null)
-        }
-        
+        setSession(session)
+        setUser(session?.user ?? null)
         setLoading(false)
       }
     )
@@ -113,59 +91,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
-      console.log('Starting logout process...')
+      const { error } = await supabase.auth.signOut()
       
-      // Method 1: Try normal signOut first
-      let { error } = await supabase.auth.signOut()
-      
-      if (error) {
-        console.warn('Normal signOut failed, trying local scope:', error.message)
-        // Method 2: Try local scope signOut
-        const localResult = await supabase.auth.signOut({ scope: 'local' })
-        error = localResult.error
-      }
-      
-      if (error) {
-        console.error('Supabase signOut failed:', error)
-      }
-      
-      // Clear browser storage regardless of Supabase result
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.clear()
-          sessionStorage.clear()
-          
-          // Also clear any IndexedDB data related to Supabase
-          if ('indexedDB' in window) {
-            const databases = ['supabase-auth-token']
-            databases.forEach(async (dbName) => {
-              try {
-                indexedDB.deleteDatabase(dbName)
-              } catch (e) {
-                console.warn(`Could not clear IndexedDB ${dbName}:`, e)
-              }
-            })
-          }
-        } catch (e) {
-          console.warn('Error clearing storage:', e)
-        }
-      }
-      
-      // Force state update
+      // Clear state immediately
       setUser(null)
       setSession(null)
+      
+      // Redirect to home
+      if (typeof window !== 'undefined') {
+        window.location.href = '/'
+      }
       
       return { error }
-      
     } catch (err) {
-      console.error('SignOut exception:', err)
-      // Emergency logout - clear everything
-      setUser(null)
-      setSession(null)
-      if (typeof window !== 'undefined') {
-        localStorage.clear()
-        sessionStorage.clear()
-      }
+      console.error('SignOut error:', err)
       return { error: err as AuthError }
     }
   }
@@ -200,53 +139,4 @@ export function useAuth() {
     throw new Error('useAuth must be used within an AuthProvider')
   }
   return context
-}
-
-// Custom hooks for database operations
-export function useProfile() {
-  const { user } = useAuth()
-  const [profile, setProfile] = useState<Profile | null>(null)
-  const [loading, setLoading] = useState(true)
-  const supabase = createClientComponentClient()
-
-  useEffect(() => {
-    if (user) {
-      const fetchProfile = async () => {
-        const { data } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single()
-
-        if (data) {
-          setProfile(data)
-        }
-        setLoading(false)
-      }
-
-      fetchProfile()
-    } else {
-      setProfile(null)
-      setLoading(false)
-    }
-  }, [user, supabase])
-
-  const updateProfile = async (updates: ProfileUpdate) => {
-    if (!user) return { error: new Error('No user') }
-
-    const { data, error } = await supabase
-      .from('profiles')
-      .update(updates)
-      .eq('id', user.id)
-      .select()
-      .single()
-
-    if (data) {
-      setProfile(data)
-    }
-
-    return { data, error }
-  }
-
-  return { profile, loading, updateProfile }
 }

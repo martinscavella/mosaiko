@@ -2,28 +2,33 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useAuth } from '@/lib/auth';
-import { useForceLogout } from '@/lib/force-logout';
 import {
   ChartBarIcon,
-  HeartIcon,
-  AcademicCapIcon,
+  CreditCardIcon,
+  CurrencyDollarIcon,
+  PresentationChartLineIcon,
   UserIcon,
   Bars3Icon,
   XMarkIcon,
   HomeIcon,
   ArrowRightOnRectangleIcon,
-  ArrowLeftOnRectangleIcon
+  ArrowLeftOnRectangleIcon,
+  FolderIcon,
+  FlagIcon,
+  CogIcon
 } from '@heroicons/react/24/outline';
 
 // Navigation items for authenticated users
 const authenticatedNavigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
-  { name: 'Accounts', href: '/accounts', icon: ChartBarIcon },
-  { name: 'Finance', href: '/finance/dashboard', icon: ChartBarIcon },
-  { name: 'Fitness', href: '/fitness/workouts', icon: HeartIcon },
-  { name: 'Learning', href: '/learning/courses', icon: AcademicCapIcon },
+  { name: 'Dashboard', href: '/', icon: HomeIcon },
+  { name: 'Accounts', href: '/finance/accounts', icon: CreditCardIcon },
+  { name: 'Transactions', href: '/finance/transactions', icon: CurrencyDollarIcon },
+  { name: 'Categories', href: '/finance/categories', icon: FolderIcon },
+  { name: 'Goals', href: '/finance/goals', icon: FlagIcon },
+  { name: 'Reports', href: '/finance/reports', icon: PresentationChartLineIcon },
+  { name: 'Settings', href: '/finance/settings', icon: CogIcon },
   { name: 'Profile', href: '/profile', icon: UserIcon },
 ];
 
@@ -35,7 +40,6 @@ const publicNavigation = [
 export default function MainNavigation() {
   const pathname = usePathname();
   const { user, signOut } = useAuth();
-  const { forceLogout } = useForceLogout();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
 
@@ -44,56 +48,36 @@ export default function MainNavigation() {
     return null;
   }
 
-  const navigation = user ? authenticatedNavigation : publicNavigation;
-
-  const handleSignOut = async () => {
+  const navigation = user ? authenticatedNavigation : publicNavigation;  const handleSignOut = async () => {
     if (isSigningOut) return;
     
     try {
       setIsSigningOut(true);
-      console.log('🚪 MainNavigation: Starting logout...');
-      
-      // Close mobile menu immediately
       setIsMobileMenuOpen(false);
       
-      // Try normal logout first
-      const { error } = await signOut();
-      
-      if (error) {
-        console.warn('⚠️ Normal logout failed, trying force logout...', error);
-        // If normal logout fails, use force logout
-        await forceLogout('Normal logout failed');
-      } else {
-        console.log('✅ Normal logout successful, redirecting...');
-        // Even on success, force a reload to ensure clean state
-        setTimeout(() => {
-          window.location.href = '/';
-        }, 100);
-      }
+      await signOut();
       
     } catch (error) {
-      console.error('❌ Logout error, forcing emergency logout:', error);
-      // Emergency fallback
-      await forceLogout('Exception during logout');
+      console.error('Logout error:', error);
     } finally {
       setIsSigningOut(false);
     }
   };
 
   return (
-    <nav className="bg-white/10 backdrop-blur-md border-b border-white/20 sticky top-0 z-50">
+    <nav className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex">
             <div className="flex-shrink-0 flex items-center">
-              <Link href="/" className="text-2xl font-bold text-white">
+              <Link href="/" className="text-2xl font-bold text-blue-600">
                 Mosaiko
               </Link>
             </div>
             <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
               {navigation.map((item) => {
                 const isActive = pathname === item.href || 
-                  (item.href !== '/' && pathname?.startsWith(item.href.split('/')[1]));
+                  (item.href !== '/' && pathname?.startsWith(item.href));
                 
                 return (
                   <Link
@@ -101,8 +85,8 @@ export default function MainNavigation() {
                     href={item.href}
                     className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors duration-200 ${
                       isActive
-                        ? 'border-blue-400 text-white'
-                        : 'border-transparent text-gray-300 hover:border-gray-400 hover:text-white'
+                        ? 'border-blue-500 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
                     }`}
                   >
                     <item.icon className="w-4 h-4 mr-2" />
@@ -118,7 +102,7 @@ export default function MainNavigation() {
               <button
                 onClick={handleSignOut}
                 disabled={isSigningOut}
-                className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-300 hover:text-white transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 hover:text-gray-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <ArrowLeftOnRectangleIcon className="w-4 h-4 mr-2" />
                 {isSigningOut ? 'Signing Out...' : 'Sign Out'}
@@ -127,14 +111,14 @@ export default function MainNavigation() {
               <div className="flex space-x-2">
                 <Link
                   href="/auth/login"
-                  className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-300 hover:text-white transition-colors duration-200"
+                  className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 hover:text-gray-700 transition-colors duration-200"
                 >
                   <ArrowRightOnRectangleIcon className="w-4 h-4 mr-2" />
                   Sign In
                 </Link>
                 <Link
                   href="/auth/register"
-                  className="inline-flex items-center px-4 py-2 border border-white/20 text-sm leading-4 font-medium rounded-md text-white bg-white/10 hover:bg-white/20 transition-colors duration-200"
+                  className="inline-flex items-center px-4 py-2 border border-blue-600 text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors duration-200"
                 >
                   Get Started
                 </Link>
@@ -145,7 +129,7 @@ export default function MainNavigation() {
           <div className="-mr-2 flex items-center sm:hidden">
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="inline-flex items-center justify-center p-2 rounded-md text-gray-300 hover:text-white hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
+              className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
             >
               <span className="sr-only">Open main menu</span>
               {isMobileMenuOpen ? (
@@ -161,10 +145,10 @@ export default function MainNavigation() {
       {/* Mobile menu */}
       {isMobileMenuOpen && (
         <div className="sm:hidden">
-          <div className="pt-2 pb-3 space-y-1 bg-white/10 backdrop-blur-md border-t border-white/20">
+          <div className="pt-2 pb-3 space-y-1 bg-white border-t border-gray-200">
             {navigation.map((item) => {
               const isActive = pathname === item.href || 
-                (item.href !== '/' && pathname?.startsWith(item.href.split('/')[1]));
+                (item.href !== '/' && pathname?.startsWith(item.href));
               
               return (
                 <Link
@@ -172,8 +156,8 @@ export default function MainNavigation() {
                   href={item.href}
                   className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium transition-colors duration-200 ${
                     isActive
-                      ? 'bg-blue-500/20 border-blue-400 text-white'
-                      : 'border-transparent text-gray-300 hover:bg-white/10 hover:border-gray-400 hover:text-white'
+                      ? 'bg-blue-50 border-blue-500 text-blue-700'
+                      : 'border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800'
                   }`}
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
@@ -190,7 +174,7 @@ export default function MainNavigation() {
               <button
                 onClick={handleSignOut}
                 disabled={isSigningOut}
-                className="block w-full text-left pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-300 hover:bg-white/10 hover:border-gray-400 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                className="block w-full text-left pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <div className="flex items-center">
                   <ArrowLeftOnRectangleIcon className="w-4 h-4 mr-3" />
@@ -201,7 +185,7 @@ export default function MainNavigation() {
               <>
                 <Link
                   href="/auth/login"
-                  className="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-300 hover:bg-white/10 hover:border-gray-400 hover:text-white"
+                  className="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   <div className="flex items-center">
@@ -211,7 +195,7 @@ export default function MainNavigation() {
                 </Link>
                 <Link
                   href="/auth/register"
-                  className="block mx-3 my-2 px-4 py-2 bg-white/10 border border-white/20 rounded-md text-base font-medium text-white hover:bg-white/20 text-center"
+                  className="block mx-3 my-2 px-4 py-2 bg-blue-600 border border-blue-600 rounded-md text-base font-medium text-white hover:bg-blue-700 text-center"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   Get Started
