@@ -86,19 +86,23 @@ CREATE TABLE public.funds_transfer (
 );
 
 CREATE TABLE public.profiles (
-  id uuid NOT NULL,
-  first_name character varying(100) NOT NULL,
-  last_name character varying(100) NOT NULL,
-  full_name character varying GENERATED ALWAYS AS ((((first_name)::text || ' '::text) || (last_name)::text)) STORED (200) NULL,
-  avatar_url character varying(255) NULL,
-  language character varying(20) NULL DEFAULT 'en'::character varying,
-  app_theme character varying(20) NULL DEFAULT 'light'::character varying,
-  notifications_enabled boolean NULL DEFAULT true,
-  created_at timestamp without time zone NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at timestamp without time zone NULL DEFAULT CURRENT_TIMESTAMP,
-  subscription_type text NULL,
-  CONSTRAINT profiles_pkey PRIMARY KEY (id),
-  CONSTRAINT profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE
+    id uuid NOT NULL,
+    first_name character varying(100) NOT NULL,
+    last_name character varying(100) NOT NULL,
+    birth_date date NULL,
+    phone_number text NULL,
+    address text NULL,
+    bio text NULL,
+    full_name character varying GENERATED ALWAYS AS ((((first_name)::text || ' '::text) || (last_name)::text)) STORED (200) NULL,
+    avatar_url character varying(255) NULL,
+    language character varying(20) NULL DEFAULT 'en'::character varying,
+    app_theme character varying(20) NULL DEFAULT 'light'::character varying,
+    notifications_enabled boolean NULL DEFAULT true,
+    created_at timestamp without time zone NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp without time zone NULL DEFAULT CURRENT_TIMESTAMP,
+    subscription_type text NULL,
+    CONSTRAINT profiles_pkey PRIMARY KEY (id),
+    CONSTRAINT profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE
 );
 
 CREATE TABLE public.refunds (
