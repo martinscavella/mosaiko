@@ -1,16 +1,16 @@
 'use client'
 
-import { useState } from 'react'
-import { useAuth, useProfile } from '@/lib/auth'
+import { useState, useEffect } from 'react'
+import { useAuth } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import ProtectedRoute from '@/components/ProtectedRoute'
 
 export default function ProfilePage() {
-  const { user, signOut } = useAuth()
-  const { profile, loading, updateProfile } = useProfile()
+  const { user, signOut, updateProfile } = useAuth()
   const router = useRouter()
   const [editing, setEditing] = useState(false)
+  const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
@@ -19,14 +19,40 @@ export default function ProfilePage() {
     notifications_enabled: true,
   })
 
+  // Initialize form data with user metadata
+  useEffect(() => {
+    if (user?.user_metadata) {
+      setFormData({
+        first_name: user.user_metadata.first_name || '',
+        last_name: user.user_metadata.last_name || '',
+        language: user.user_metadata.language || 'en',
+        app_theme: user.user_metadata.app_theme || 'dark',
+        notifications_enabled: user.user_metadata.notifications_enabled ?? true,
+      })
+    }
+  }, [user])
+
   const handleSignOut = async () => {
     await signOut()
     router.push('/auth/login')
   }
 
   const handleSave = async () => {
-    await updateProfile(formData)
-    setEditing(false)
+    setLoading(true)
+    try {
+      const { error } = await updateProfile(formData)
+      if (error) {
+        console.error('Error updating profile:', error)
+        // You could add a toast notification here
+      } else {
+        setEditing(false)
+        // You could add a success toast notification here
+      }
+    } catch (error) {
+      console.error('Error updating profile:', error)
+    } finally {
+      setLoading(false)
+    }
   }
 
   if (loading) {
@@ -100,7 +126,7 @@ export default function ProfilePage() {
                 <label className="block text-gray-300 text-sm mb-2">First Name</label>
                 <input
                   type="text"
-                  value={editing ? formData.first_name : (profile?.first_name || '')}
+                  value={editing ? formData.first_name : (user?.user_metadata?.first_name || '')}
                   onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
                   disabled={!editing}
                   className="w-full bg-black/20 text-white border border-white/20 rounded-lg px-4 py-3 disabled:text-gray-400"
@@ -112,7 +138,7 @@ export default function ProfilePage() {
                 <label className="block text-gray-300 text-sm mb-2">Last Name</label>
                 <input
                   type="text"
-                  value={editing ? formData.last_name : (profile?.last_name || '')}
+                  value={editing ? formData.last_name : (user?.user_metadata?.last_name || '')}
                   onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
                   disabled={!editing}
                   className="w-full bg-black/20 text-white border border-white/20 rounded-lg px-4 py-3 disabled:text-gray-400"
@@ -131,9 +157,10 @@ export default function ProfilePage() {
                 </button>
                 <button
                   onClick={handleSave}
-                  className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                  disabled={loading}
+                  className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Save Changes
+                  {loading ? 'Saving...' : 'Save Changes'}
                 </button>
               </div>
             )}
