@@ -7,6 +7,26 @@ ALTER DATABASE postgres SET "app.jwt_secret" TO 'your-jwt-secret';
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Create tables
+CREATE TABLE public.profiles (
+    id uuid NOT NULL,
+    first_name character varying(100) NOT NULL,
+    last_name character varying(100) NOT NULL,
+    birth_date date NULL,
+    phone_number text NULL,
+    address text NULL,
+    bio text NULL,
+    full_name character varying(200) GENERATED ALWAYS AS ((((first_name)::text || ' '::text) || (last_name)::text)) STORED,
+    avatar_url character varying(255) NULL,
+    language character varying(20) NULL DEFAULT 'en'::character varying,
+    app_theme character varying(20) NULL DEFAULT 'light'::character varying,
+    notifications_enabled boolean NULL DEFAULT true,
+    created_at timestamp without time zone NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp without time zone NULL DEFAULT CURRENT_TIMESTAMP,
+    subscription_type text NULL,
+    CONSTRAINT profiles_pkey PRIMARY KEY (id),
+    CONSTRAINT profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE
+);
+
 CREATE TABLE public.accounts (
   id uuid NOT NULL DEFAULT extensions.uuid_generate_v4(),
   user_id uuid NULL,
@@ -85,26 +105,6 @@ CREATE TABLE public.funds_transfer (
   CONSTRAINT funds_transfer_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );
 
-CREATE TABLE public.profiles (
-    id uuid NOT NULL,
-    first_name character varying(100) NOT NULL,
-    last_name character varying(100) NOT NULL,
-    birth_date date NULL,
-    phone_number text NULL,
-    address text NULL,
-    bio text NULL,
-    full_name character varying GENERATED ALWAYS AS ((((first_name)::text || ' '::text) || (last_name)::text)) STORED (200) NULL,
-    avatar_url character varying(255) NULL,
-    language character varying(20) NULL DEFAULT 'en'::character varying,
-    app_theme character varying(20) NULL DEFAULT 'light'::character varying,
-    notifications_enabled boolean NULL DEFAULT true,
-    created_at timestamp without time zone NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at timestamp without time zone NULL DEFAULT CURRENT_TIMESTAMP,
-    subscription_type text NULL,
-    CONSTRAINT profiles_pkey PRIMARY KEY (id),
-    CONSTRAINT profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE
-);
-
 CREATE TABLE public.refunds (
   id uuid NOT NULL DEFAULT extensions.uuid_generate_v4(),
   user_id uuid NULL,
@@ -131,8 +131,6 @@ CREATE TABLE public.refund_transaction (
   updated_at timestamp without time zone NULL DEFAULT now(),
   user_id uuid NULL,
   CONSTRAINT refund_transaction_pkey PRIMARY KEY (id),
-  CONSTRAINT refund_transaction_refund_id_fkey FOREIGN KEY (refund_id) REFERENCES refunds(id) ON DELETE CASCADE,
-  CONSTRAINT refund_transaction_transaction_id_fkey FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE CASCADE,
   CONSTRAINT refund_transaction_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );
 
@@ -199,3 +197,10 @@ CREATE POLICY "Users can only access their own records" ON refunds FOR ALL USING
 CREATE POLICY "Users can only access their own records" ON refund_transaction FOR ALL USING (auth.uid() = user_id);
 CREATE POLICY "Users can only access their own records" ON subcategories FOR ALL USING (auth.uid() = user_id);
 CREATE POLICY "Users can only access their own records" ON transactions FOR ALL USING (auth.uid() = user_id);
+
+-- Add foreign key constraints after all tables are created
+ALTER TABLE refund_transaction ADD CONSTRAINT refund_transaction_refund_id_fkey 
+  FOREIGN KEY (refund_id) REFERENCES refunds(id) ON DELETE CASCADE;
+  
+ALTER TABLE refund_transaction ADD CONSTRAINT refund_transaction_transaction_id_fkey 
+  FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE CASCADE;

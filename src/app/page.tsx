@@ -5,13 +5,12 @@ import Link from 'next/link'
 import { modules } from './modules'
 import { useState, useEffect } from 'react'
 import AnimatedBackground from '@/components/AnimatedBackground'
-import { useAnimation, useStaggeredAnimation } from '@/hooks/useAnimation'
+import { useStaggeredAnimation } from '@/hooks/useAnimation'
 
 export default function HomePage() {
   const { user, loading, signOut } = useAuth()
   const [mounted, setMounted] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
-  const headerVisible = useAnimation(300)
   const visibleModules = useStaggeredAnimation(modules.length, 100)
 
   const handleLogout = async () => {
