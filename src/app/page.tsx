@@ -6,6 +6,7 @@ import { modules } from './modules'
 import { useState, useEffect } from 'react'
 import AnimatedBackground from '@/components/AnimatedBackground'
 import { useStaggeredAnimation } from '@/hooks/useAnimation'
+import { MosaikoLogo } from '@/components/ui/MosaikoLogo'
 
 export default function HomePage() {
   const { user, loading, signOut } = useAuth()
@@ -36,7 +37,7 @@ export default function HomePage() {
           <div className="animate-spin rounded-full h-16 w-16 border-4 border-white border-opacity-30 border-t-white" />
           <div className="absolute inset-0 animate-ping rounded-full h-16 w-16 border-4 border-white border-opacity-20" />
           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-white font-semibold text-xl">
-            🌟
+            <MosaikoLogo size={32} />
           </div>
         </div>
       </div>
@@ -56,14 +57,10 @@ export default function HomePage() {
         <div className={`max-w-md w-full mx-auto p-8 text-center text-white relative z-10 transform transition-all duration-1000 ${mounted ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
           {/* Logo/Brand with animation */}
           <div className="mb-8 relative">
-            <div className="inline-block p-4 bg-white bg-opacity-25 rounded-2xl backdrop-filter backdrop-blur-lg border border-white border-opacity-40 transform hover:scale-110 transition-all duration-300 shadow-2xl">
-              <div className="text-4xl font-bold text-white">
-                🌟
-              </div>
-            </div>
+            <MosaikoLogo size={64} className="inline-block" />
           </div>
           
-          <h1 className="text-5xl font-bold mb-4 text-white drop-shadow-lg">
+          <h1 className="text-5xl font-debbie font-bold mb-4 text-white drop-shadow-lg">
             Benvenuto in Mosaiko
           </h1>
           <p className="text-xl mb-8 text-white text-opacity-90 leading-relaxed drop-shadow-md">
@@ -154,10 +151,7 @@ export default function HomePage() {
 
         {/* Header with improved animation */}
         <div className={`mb-12 text-center transform transition-all duration-1000 ${mounted ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`} style={{ transitionDelay: '300ms' }}>
-          <div className="inline-block p-3 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl mb-6 transform hover:scale-110 transition-all duration-300 shadow-xl">
-            <span className="text-3xl">🌟</span>
-          </div>
-          <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-purple-800 bg-clip-text text-transparent mb-3">
+          <h1 className="text-4xl md:text-5xl font-debbie font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-purple-800 bg-clip-text text-transparent mb-3">
             Ciao, {user.user_metadata?.firstName || user.user_metadata?.first_name || 'Utente'}! 👋
           </h1>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
@@ -234,7 +228,7 @@ export default function HomePage() {
           <div className="inline-flex items-center space-x-2 text-gray-500 text-sm mb-4">
             <span>Powered by</span>
             <div className="inline-flex items-center space-x-1 font-semibold text-blue-600">
-              <span>🌟</span>
+              <MosaikoLogo size={20} />
               <span>Mosaiko</span>
             </div>
           </div>

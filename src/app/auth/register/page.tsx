@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { MosaikoLogo } from '@/components/ui/MosaikoLogo'
 
 export default function RegisterPage() {
   const [email, setEmail] = useState('')
@@ -100,7 +101,7 @@ export default function RegisterPage() {
           <div className="text-center mb-8">
             <Link href="/" className="inline-block mb-6">
               <div className="inline-block p-4 bg-white bg-opacity-25 rounded-2xl backdrop-filter backdrop-blur-lg border border-white border-opacity-40 transform hover:scale-110 transition-all duration-300 shadow-2xl">
-                <div className="text-4xl font-bold text-white">🌟</div>
+                <MosaikoLogo size={64} />
               </div>
             </Link>
             <h1 className="text-4xl font-bold text-white drop-shadow-lg mb-2">

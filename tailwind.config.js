@@ -7,6 +7,11 @@ module.exports = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        'debbie': ['var(--font-debbie-bc)', 'serif'], // EB Garamond
+        'sans': ['var(--font-geist-sans)', 'sans-serif'],
+        'mono': ['var(--font-geist-mono)', 'monospace'],
+      },
       colors: {
         background: "var(--background)",
         foreground: "var(--foreground)",

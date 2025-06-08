@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, EB_Garamond } from "next/font/google";
 import { AuthProvider } from "@/lib/auth";
 import { Sidebar } from "@/components/ui/sidebar";
 import "./globals.css";
@@ -12,6 +12,13 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+// EB Garamond font configuration
+const ebGaramond = EB_Garamond({
+  variable: "--font-debbie-bc",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
 });
 
 export const metadata: Metadata = {
@@ -36,7 +43,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="it" className="scroll-smooth">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>        <AuthProvider>
+      <body className={`${geistSans.variable} ${geistMono.variable} ${ebGaramond.variable} antialiased`}>
+        <AuthProvider>
           <div className="flex h-screen bg-gray-50">
             <Sidebar />
             <main className="flex-1 overflow-y-auto">

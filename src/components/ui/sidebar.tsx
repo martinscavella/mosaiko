@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth";
+import { MosaikoLogo } from "@/components/ui/MosaikoLogo";
 import { 
   HomeIcon, 
   BanknotesIcon, 
@@ -150,12 +151,17 @@ export function Sidebar() {
   const handleLogout = async () => {
     await signOut();
     setProfileMenuOpen(false);
-  };return (
+  };
+
+  // Non mostrare la sidebar se l'utente non è autenticato
+  if (!user) {
+    return null;
+  }
+
+  return (
     <div className="flex h-full w-64 flex-col bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600">      {/* Header with logo */}
       <div className={`flex h-16 shrink-0 items-center px-4 transition-all duration-500 ease-in-out transform ${mounted ? 'translate-y-0 opacity-100' : '-translate-y-4 opacity-0'}`}>
-        <div className="w-8 h-8 bg-white bg-opacity-20 rounded-lg mr-3 flex items-center justify-center transition-all duration-300 ease-in-out hover:bg-opacity-30 hover:scale-105">
-          <div className="w-4 h-4 bg-white rounded-sm transition-all duration-300 ease-in-out"></div>
-        </div>
+        <MosaikoLogo size={40} className="mr-3" />
         <h1 className="text-lg font-semibold text-white transition-all duration-300 ease-in-out">Mosaiko</h1>
       </div>{/* Navigation */}
       <nav className="flex flex-1 flex-col px-3 py-4">
