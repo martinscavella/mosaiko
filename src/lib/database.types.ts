@@ -132,6 +132,108 @@ export interface Database {
           updated_at?: string
         }
       }
+      accounts: {
+        Row: {
+          id: string
+          user_id: string | null
+          name: string
+          type: string
+          initial_balance: number
+          current_balance: number
+          currency: string
+          color: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id?: string | null
+          name: string
+          type: string
+          initial_balance?: number
+          current_balance: number
+          currency?: string
+          color: string
+        }
+        Update: {
+          name?: string
+          type?: string
+          initial_balance?: number
+          current_balance?: number
+          currency?: string
+          color?: string
+          updated_at?: string
+        }
+      }
+      financial_goals: {
+        Row: {
+          id: string
+          name: string
+          description: string | null
+          current_amount: number
+          target_amount: number
+          currency: string | null
+          target_date: string | null
+          category: string | null
+          color: string | null
+          user_id: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          description?: string | null
+          current_amount?: number
+          target_amount: number
+          currency?: string | null
+          target_date?: string | null
+          category?: string | null
+          color?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          name?: string
+          description?: string | null
+          current_amount?: number
+          target_amount?: number
+          currency?: string | null
+          target_date?: string | null
+          category?: string | null
+          color?: string | null
+          updated_at?: string
+        }
+      }
+      assets: {
+        Row: {
+          id: string
+          user_id: string | null
+          name: string
+          type: string
+          amount: number
+          value: number
+          currency: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id?: string | null
+          name: string
+          type: string
+          amount: number
+          value: number
+          currency?: string
+        }
+        Update: {
+          name?: string
+          type?: string
+          amount?: number
+          value?: number
+          currency?: string
+          updated_at?: string
+        }
+      }
     }
   }
 }

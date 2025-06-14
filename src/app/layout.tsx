@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, EB_Garamond } from "next/font/google";
 import { AuthProvider } from "@/lib/auth";
+import { FinanceCacheProvider } from "@/lib/financeCache";
 import { Sidebar } from "@/components/ui/sidebar";
 import "./globals.css";
 
@@ -45,12 +46,14 @@ export default function RootLayout({
     <html lang="it" className="scroll-smooth">
       <body className={`${geistSans.variable} ${geistMono.variable} ${ebGaramond.variable} antialiased`}>
         <AuthProvider>
-          <div className="flex h-screen bg-gray-50">
-            <Sidebar />
-            <main className="flex-1 overflow-y-auto">
-              {children}
-            </main>
-          </div>
+          <FinanceCacheProvider>
+            <div className="flex h-screen bg-gray-50">
+              <Sidebar />
+              <main className="flex-1 overflow-y-auto">
+                {children}
+              </main>
+            </div>
+          </FinanceCacheProvider>
         </AuthProvider>
       </body>
     </html>

@@ -92,6 +92,46 @@
   20%, 40%, 60%, 80% { transform: translateX(4px); }
 }
 
+/* Modern UI animations */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes rotate-360 {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes glow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(59, 130, 246, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.8), 0 0 30px rgba(147, 51, 234, 0.5);
+  }
+}
+
+@keyframes float-orb {
+  0%, 100% {
+    transform: translateY(0px) translateX(0px);
+  }
+  33% {
+    transform: translateY(-10px) translateX(5px);
+  }
+  66% {
+    transform: translateY(5px) translateX(-5px);
+  }
+}
+
 .animate-float {
   animation: float 3s ease-in-out infinite;
 }
@@ -121,6 +161,23 @@
 
 .animate-shake {
   animation: shake 0.5s ease-in-out;
+}
+
+/* Utility classes */
+.animate-shimmer {
+  animation: shimmer 2s infinite;
+}
+
+.animate-rotate-360 {
+  animation: rotate-360 0.5s ease-in-out;
+}
+
+.animate-glow {
+  animation: glow 2s ease-in-out infinite;
+}
+
+.animate-float-orb {
+  animation: float-orb 6s ease-in-out infinite;
 }
 
 /* Delay utilities for staggered animations */
@@ -259,6 +316,16 @@ html {
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
+.glass-strong {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+/* Shadow utilities */
+.shadow-3xl {
+  box-shadow: 0 35px 60px -12px rgba(0, 0, 0, 0.25);
+}
+
 /* Dark mode support */
 @media (prefers-color-scheme: dark) {
   .glass {
@@ -339,4 +406,17 @@ html {
   .backdrop-blur-fallback {
     -webkit-backdrop-filter: blur(10px);
   }
+}
+
+/* Button-specific hover effects */
+.btn-refresh:hover .refresh-icon {
+  transform: rotate(180deg);
+}
+
+.btn-refresh:hover .shimmer-effect {
+  transform: translateX(100%);
+}
+
+.btn-refresh:hover .glow-effect {
+  opacity: 1;
 }
