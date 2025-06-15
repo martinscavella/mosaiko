@@ -5,16 +5,14 @@ import ModuleLayout from '@/components/ModuleLayout'
 import ModuleHeader from '@/components/ui/ModuleHeader'
 import CacheStatus from '@/components/ui/CacheStatus'
 import { useAuth } from '@/lib/auth'
-import { useFinanceCache, useAssets, useAssetStats, useAssetOperations, useAssetPurchaseTransactions, useAccounts, useAssetTransactions, type Asset } from '@/lib/financeCache'
+import { useFinanceCache, useAssets, useAssetStats, useAssetOperations, useAccounts, useAssetTransactions, type Asset } from '@/lib/financeCache'
 import AssetPerformanceChart from '@/components/ui/AssetPerformanceChart'
 import { 
   TrendingUp, 
   TrendingDown, 
   Plus, 
   MoreVertical, 
-  RefreshCw, 
-  Eye, 
-  EyeOff, 
+  RefreshCw,
   Edit2, 
   Trash2, 
   Search, 
@@ -31,14 +29,12 @@ import {
   Briefcase,
   Package,
   X,
-  Calendar,
-  Euro,
   FileText,
   BarChart3
 } from 'lucide-react'
 import type { HeaderAction, HeaderStat } from '@/components/ui/ModuleHeader'
 
-const ASSET_TYPES: Record<string, { label: string; icon: any; color: string }> = {
+const ASSET_TYPES: Record<string, { label: string; icon: React.ComponentType<{ className?: string }>; color: string }> = {
   real_estate: { label: 'Immobili', icon: Home, color: 'text-blue-600 bg-blue-100' },
   vehicle: { label: 'Veicoli', icon: Car, color: 'text-red-600 bg-red-100' },
   investment: { label: 'Investimenti', icon: TrendingUp, color: 'text-green-600 bg-green-100' },
@@ -51,25 +47,21 @@ const ASSET_TYPES: Record<string, { label: string; icon: any; color: string }> =
 
 export default function AssetsPage() {
   const { user, loading: authLoading } = useAuth()
-  const { data: financeData, loading, error, refetch, isDataStale, invalidateCache } = useFinanceCache()
+  const { data: financeData, loading, error, refetch, isDataStale } = useFinanceCache()
   const { assets } = useAssets()
   const { accounts } = useAccounts()
   const { totalValue, totalCost, totalPerformance } = useAssetStats()
-  const { createAsset, updateAsset, deleteAsset, updateAssetValue, linkAssetToTransaction } = useAssetOperations()
-  const { assetPurchaseTransactions, count: purchaseTransactionsCount, totalSpent } = useAssetPurchaseTransactions()
+  const { createAsset, updateAsset, deleteAsset } = useAssetOperations()
   
   const [showAddModal, setShowAddModal] = useState(false)
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null)
-  const [showValues, setShowValues] = useState(true)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [assetToEdit, setAssetToEdit] = useState<Asset | null>(null)
   const [assetToDelete, setAssetToDelete] = useState<Asset | null>(null)
   const [showChartModal, setShowChartModal] = useState(false)
   const [selectedChartAsset, setSelectedChartAsset] = useState<Asset | null>(null)
-  const [autoValuationLoading, setAutoValuationLoading] = useState(false)
   const [showDebugInfo, setShowDebugInfo] = useState(false)
-  const [showLinkModal, setShowLinkModal] = useState(false)
   const [showTransactionsModal, setShowTransactionsModal] = useState(false)
   const [selectedAssetForTransactions, setSelectedAssetForTransactions] = useState<Asset | null>(null)
   
@@ -93,19 +85,7 @@ export default function AssetsPage() {
   const [sortField, setSortField] = useState<'name' | 'type' | 'value' | 'performance'>('value')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
 
-  // Funzione per mappare i tipi del database a quelli locali
-  const mapDbTypeToLocalType = (dbType: string): Asset['type'] => {
-    const typeMapping: Record<string, string> = {
-      'real_estate': 'real_estate',
-      'vehicle': 'vehicle', 
-      'investment': 'investment',
-      'crypto': 'crypto',
-      'commodity': 'commodity',
-      'electronics': 'electronics',
-      'art': 'art'
-    }
-    return typeMapping[dbType] || 'other'
-  }
+
 
   // Effect per chiudere il dropdown quando si clicca fuori
   useEffect(() => {
@@ -164,7 +144,7 @@ export default function AssetsPage() {
       return matchesSearch && matchesType && matchesAccount
     })
     .sort((a, b) => {
-      let valueA: any, valueB: any
+      let valueA: string | number, valueB: string | number
       
       switch (sortField) {
         case 'name':
@@ -253,20 +233,6 @@ export default function AssetsPage() {
     setShowTransactionsModal(true)
   }
 
-  const handleAutoValuation = async () => {
-    if (!user) return
-    
-    setAutoValuationLoading(true)
-    try {
-      // Temporary implementation - replace with actual valuation service
-      console.log('Auto valuation requested')
-      await refetch()
-    } catch (error) {
-      console.error('Errore durante la valutazione automatica:', error)
-    } finally {
-      setAutoValuationLoading(false)
-    }
-  }
 
   const confirmDelete = async () => {
     if (assetToDelete) {
@@ -318,12 +284,12 @@ export default function AssetsPage() {
   const headerStats: HeaderStat[] = [
     {
       label: 'Valore Totale',
-      value: showValues ? formatCurrency(totalValue) : '••••••',
+      value: formatCurrency(totalValue),
       color: 'blue'
     },
     {
       label: 'Performance',
-      value: showValues ? `${totalPerformance.toFixed(2)}%` : '••••••',
+      value: `${totalPerformance.toFixed(2)}%`,
       color: totalPerformance >= 0 ? 'green' : 'orange'
     },
     {
@@ -343,16 +309,6 @@ export default function AssetsPage() {
       hideTextOnMobile: true
     },
     {
-      label: 'Force Refresh',
-      onClick: () => {
-        invalidateCache()
-        refetch()
-      },
-      icon: <RefreshCw className="w-4 h-4" />,
-      color: 'red',
-      hideTextOnMobile: true
-    },
-    {
       label: 'Aggiorna',
       onClick: refetch,
       icon: <RefreshCw className="w-4 h-4" />,
@@ -360,26 +316,16 @@ export default function AssetsPage() {
       disabled: loading,
       loading: loading,
       hideTextOnMobile: true
-    }
-  ]
-
+    }  ]
+  
   // Componente helper per visualizzare le transazioni dell'asset
   const AssetTransactionsContent = ({ assetId, formatCurrency }: { assetId: string, formatCurrency: (amount: number) => string }) => {
-    const { assetTransactions, totalSpentOnAsset, totalReceivedFromAsset, transactionCount, loading } = useAssetTransactions(assetId)
+    const { assetTransactions, totalSpentOnAsset, totalReceivedFromAsset, transactionCount, loading, refetch: refetchAssetTransactions } = useAssetTransactions(assetId)
     const { linkAssetToTransaction, unlinkAssetFromTransaction } = useAssetOperations()
     const [showLinkForm, setShowLinkForm] = useState(false)
     const [selectedTransactionId, setSelectedTransactionId] = useState('')
     const [linkingTransaction, setLinkingTransaction] = useState(false)
-    const [unlinkingTransaction, setUnlinkingTransaction] = useState<string | null>(null)
-
-    console.log('🚀 AssetTransactionsContent render:', {
-      assetId,
-      transactionCount,
-      loading,
-      assetTransactions: assetTransactions?.slice(0, 3)
-    })
-
-    // Get all transactions that are not yet linked to any asset
+    const [unlinkingTransaction, setUnlinkingTransaction] = useState<string | null>(null)    // Get all transactions that are not yet linked to any asset
     const unlinkedTransactions = financeData?.transactions?.filter(t => !t.asset_id) || []
 
     const handleLinkTransaction = async () => {
@@ -390,7 +336,8 @@ export default function AssetsPage() {
         await linkAssetToTransaction(assetId, selectedTransactionId)
         setShowLinkForm(false)
         setSelectedTransactionId('')
-        await refetch() // Refresh data
+        await refetchAssetTransactions() // Refresh asset transactions
+        await refetch() // Refresh general data
       } catch (error) {
         console.error('Errore nel collegare la transazione:', error)
       } finally {
@@ -402,7 +349,8 @@ export default function AssetsPage() {
       setUnlinkingTransaction(transactionId)
       try {
         await unlinkAssetFromTransaction(transactionId)
-        await refetch() // Refresh data
+        await refetchAssetTransactions() // Refresh asset transactions
+        await refetch() // Refresh general data
       } catch (error) {
         console.error('Errore nello scollegare la transazione:', error)
       } finally {
@@ -615,7 +563,7 @@ export default function AssetsPage() {
               <div>
                 <p className="text-sm font-medium text-gray-600">Costo Totale</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {showValues ? formatCurrency(totalCost) : '••••••'}
+                  {formatCurrency(totalCost)}
                 </p>
               </div>
               <div className="p-3 bg-orange-100 rounded-full">
@@ -848,14 +796,14 @@ export default function AssetsPage() {
                         <div className="flex justify-between items-center">
                           <span className="text-sm text-gray-600">Valore Attuale</span>
                           <span className="font-semibold text-gray-900">
-                            {showValues ? formatCurrency(asset.value) : '••••••'}
+                            {formatCurrency(asset.value)}
                           </span>
                         </div>
 
                         <div className="flex justify-between items-center">
                           <span className="text-sm text-gray-600">Costo di Acquisto</span>
                           <span className="text-sm text-gray-500">
-                            {showValues ? formatCurrency(asset.purchase_price) : '••••••'}
+                            {formatCurrency(asset.purchase_price)}
                           </span>
                         </div>
 
@@ -868,7 +816,7 @@ export default function AssetsPage() {
                               <TrendingDown className="w-4 h-4 text-red-600" />
                             )}
                             <span className={`text-sm font-medium ${performance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                              {showValues ? `${performance.toFixed(2)}%` : '••••••'}
+                              {`${performance.toFixed(2)}%`}
                             </span>
                           </div>
                         </div>

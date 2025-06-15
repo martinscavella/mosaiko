@@ -49,7 +49,7 @@ CREATE TABLE public.assets (
   user_id uuid NULL,
   name text NOT NULL,
   type text NOT NULL,
-  amount double precision NOT NULL,
+  quantity double precision NOT NULL,
   value numeric(15,2) NOT NULL,
   currency text NOT NULL DEFAULT 'EUR'::text,
   account_id uuid NULL,

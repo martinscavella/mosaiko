@@ -210,7 +210,7 @@ export interface Database {
           user_id: string | null
           name: string
           type: string
-          amount: number
+          quantity: number
           value: number
           currency: string
           created_at: string
@@ -221,14 +221,14 @@ export interface Database {
           user_id?: string | null
           name: string
           type: string
-          amount: number
+          quantity: number
           value: number
           currency?: string
         }
         Update: {
           name?: string
           type?: string
-          amount?: number
+          quantity?: number
           value?: number
           currency?: string
           updated_at?: string

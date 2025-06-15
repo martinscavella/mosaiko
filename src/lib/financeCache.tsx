@@ -219,53 +219,40 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
       }
 
       const accounts = accountsResult.data || []
-      const allTransactions = transactionsResult.data || []
+      const allTransactions = (transactionsResult.data as unknown as TransactionWithRelations[]) || []
       const goals = goalsResult.data || []
-      const rawAssets = assetsResult.data || []
+      const rawAssets = (assetsResult.data as RawAssetData[]) || []
 
       console.log('📊 Dati recuperati:', {
         accounts: accounts.length,
         transactions: allTransactions.length,
         goals: goals.length,
         assets: rawAssets.length
-      })
-
-      // Debug per verificare se asset_id è presente nelle transazioni
+      })      // Debug per verificare se asset_id è presente nelle transazioni
       if (allTransactions.length > 0) {
         console.log('🔍 Sample transaction with all fields:', allTransactions[0])
-        console.log('🔍 Transactions with asset_id:', allTransactions.filter((t: any) => t.asset_id).length)
-        console.log('🔍 First transaction with asset_id:', allTransactions.find((t: any) => t.asset_id))
+        const transactionsWithAssetId = allTransactions.filter((t: TransactionWithRelations) => t.asset_id)
+        console.log('🔍 Transactions with asset_id:', transactionsWithAssetId.length)
+        if (transactionsWithAssetId.length > 0) {
+          console.log('🔍 First transaction with asset_id:', transactionsWithAssetId[0])
+          console.log('🔍 All asset_ids found:', [...new Set(transactionsWithAssetId.map(t => t.asset_id))])
+        }
       }
 
       if (allTransactions.length === 0) {
         console.log('⚠️ Nessuna transazione trovata nel database')
       } else {
         // Debug: mostra tutti i tipi di account e categorie presenti
-        const accountTypes = [...new Set(allTransactions.map((t: any) => t.accounts?.type).filter(Boolean))]
-        const categoryNames = [...new Set(allTransactions.map((t: any) => t.categories?.name).filter(Boolean))]
+        const accountTypes = [...new Set(allTransactions.map((t: TransactionWithRelations) => t.accounts?.type).filter(Boolean))]
+        const categoryNames = [...new Set(allTransactions.map((t: TransactionWithRelations) => t.categories?.name).filter(Boolean))]
         
         console.log('📋 Tipi di account presenti:', accountTypes)
         console.log('📋 Categorie presenti:', categoryNames)
       }
 
       // Filtra transazioni di acquisto asset (saving_account + categoria "ASSET & INVESTIMENTI")
-      const assetPurchaseTransactions = allTransactions.filter((transaction: any) => {
-        const accountType = transaction.accounts?.type
-        const categoryName = transaction.categories?.name
-        const matches = accountType === 'saving_account' && categoryName === 'ASSET & INVESTIMENTI'
-        
-        // Debug logging per le prime 5 transazioni
-        if (allTransactions.indexOf(transaction) < 5) {
-          console.log(`🔍 Debug transazione ${allTransactions.indexOf(transaction)}:`, {
-            id: transaction.id,
-            details: transaction.transaction_details,
-            accountType,
-            categoryName,
-            matches
-          })
-        }
-        
-        return matches
+      const assetPurchaseTransactions = allTransactions.filter((transaction: TransactionWithRelations) => {
+        return transaction.asset_id != null
       })
 
       console.log('💎 Transazioni di acquisto asset trovate:', assetPurchaseTransactions.length)
@@ -277,15 +264,15 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
       })))
 
       // Arricchisci gli asset con i dati delle transazioni di acquisto
-      const assets = rawAssets.map((asset: any) => {
+      const assets = rawAssets.map((asset: RawAssetData) => {
         // Cerca transazioni di acquisto per questo asset
         // Metodo 1: Match per external_id se presente
         let purchaseTransaction = asset.external_id ? 
-          assetPurchaseTransactions.find((transaction: any) => transaction.id === asset.external_id) : null
+          assetPurchaseTransactions.find((transaction: TransactionWithRelations) => transaction.id === asset.external_id) : null
         
         // Metodo 2: Match per nome (se non trovato con external_id)
         if (!purchaseTransaction) {
-          purchaseTransaction = assetPurchaseTransactions.find((transaction: any) => {
+          purchaseTransaction = assetPurchaseTransactions.find((transaction: TransactionWithRelations) => {
             const transactionName = transaction.transaction_details?.toLowerCase() || ''
             const assetName = asset.name.toLowerCase()
             
@@ -334,7 +321,7 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
       }
 
       // Filtra transazioni per l'ultimo mese disponibile
-      const monthlyFilteredTransactions = monthYear ? allTransactions.filter((transaction: any) => {
+      const monthlyFilteredTransactions = monthYear ? allTransactions.filter((transaction: TransactionWithRelations) => {
         const transactionDate = new Date(transaction.transaction_date);
         const transactionMonthYear = `${transactionDate.getFullYear()}-${String(transactionDate.getMonth() + 1).padStart(2, '0')}`;
         return transactionMonthYear === monthYear;
@@ -342,9 +329,9 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
 
       let monthlyIncome = 0
       let monthlyExpenses = 0
-      const categoryAmounts: { [key: string]: number } = {}
+      const categoryAmounts: CategoryAmounts = {}
 
-      monthlyFilteredTransactions.forEach((transaction: any) => {
+      monthlyFilteredTransactions.forEach((transaction: TransactionWithRelations) => {
         const amount = Number(transaction.current_amount || 0)
         
         if (amount > 0) {
@@ -391,7 +378,7 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
       }
 
       // Processa transazioni per il formato corretto (solo le più recenti per la UI)
-      const processedTransactions: Transaction[] = allTransactions.slice(0, 20).map((item: any) => ({
+      const processedTransactions: Transaction[] = allTransactions.slice(0, 20).map((item: TransactionWithRelations) => ({
         ...item,
         accounts: item.accounts,
         categories: item.categories
@@ -613,30 +600,51 @@ export function useAssetPurchaseTransactions() {
 
 // Hook per recuperare le transazioni correlate a un asset
 export function useAssetTransactions(assetId: string | null) {
-  const { data, loading, error } = useFinanceCache()
-  
-  const assetTransactions = useMemo(() => {
-    if (!data?.transactions || !assetId) return []
-    
-    console.log('🔍 Debug useAssetTransactions:', {
-      assetId,
-      totalTransactions: data.transactions.length,
-      transactionsWithAssetId: data.transactions.filter(t => t.asset_id).length,
-      sampleTransactions: data.transactions.slice(0, 3).map(t => ({
-        id: t.id,
-        details: t.transaction_details,
-        asset_id: t.asset_id
-      }))
-    })
-    
-    const filtered = data.transactions.filter(transaction => 
-      transaction.asset_id === assetId
-    )
-    
-    console.log('🎯 Filtered transactions for asset:', assetId, filtered)
-    
-    return filtered
-  }, [data?.transactions, assetId])
+  const { user } = useAuth()
+  const supabase = createClientComponentClient()
+  const [assetTransactions, setAssetTransactions] = useState<Transaction[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const fetchAssetTransactions = useCallback(async () => {
+    if (!user || !assetId) {
+      setAssetTransactions([])
+      return
+    }    setLoading(true)
+    setError(null)
+
+    try {
+      const { data, error: queryError } = await supabase
+        .from('transactions')
+        .select(`
+          *,
+          categories (
+            id,
+            name
+          )
+        `)
+        .eq('user_id', user.id)
+        .eq('asset_id', assetId)
+        .order('transaction_date', { ascending: false })
+
+      if (queryError) {
+        console.error('Error fetching asset transactions:', queryError)
+        throw queryError
+      }
+
+      setAssetTransactions(data || [])
+    } catch (err) {
+      console.error('Error in fetchAssetTransactions:', err)
+      setError(err instanceof Error ? err.message : 'Errore nel caricamento delle transazioni')
+      setAssetTransactions([])
+    } finally {
+      setLoading(false)
+    }
+  }, [user, assetId, supabase])
+
+  useEffect(() => {
+    fetchAssetTransactions()
+  }, [fetchAssetTransactions])
 
   const totalSpentOnAsset = useMemo(() => {
     return assetTransactions.reduce((sum, transaction) => {
@@ -658,7 +666,8 @@ export function useAssetTransactions(assetId: string | null) {
     totalReceivedFromAsset,
     transactionCount: assetTransactions.length,
     loading,
-    error
+    error,
+    refetch: fetchAssetTransactions
   }
 }
 
@@ -749,13 +758,13 @@ export function useAssetOperations() {
 
     if (valuationError) {
       console.warn('Errore nel salvare la valutazione:', valuationError)
-    }
-
-    await refetch()
+    }    await refetch()
   }, [user, supabase, refetch])
 
   const linkAssetToTransaction = useCallback(async (assetId: string, transactionId: string) => {
     if (!user) throw new Error('User not authenticated')
+
+    console.log('🔗 linkAssetToTransaction called:', { assetId, transactionId, userId: user.id })
 
     // Aggiorna la transazione con l'asset_id
     const { error } = await supabase
@@ -767,9 +776,14 @@ export function useAssetOperations() {
       .eq('id', transactionId)
       .eq('user_id', user.id)
 
-    if (error) throw error
-
+    if (error) {
+      console.error('❌ Error linking transaction to asset:', error)
+      throw error
+    }    console.log('✅ Transaction successfully linked to asset in database')
+    
+    // Refresh cache data after linking
     await refetch()
+    console.log('🔄 Cache refreshed after linking')
   }, [user, supabase, refetch])
 
   const unlinkAssetFromTransaction = useCallback(async (transactionId: string) => {
@@ -798,4 +812,32 @@ export function useAssetOperations() {
     linkAssetToTransaction,
     unlinkAssetFromTransaction
   }
+}
+
+// Aggiungi queste interfacce dopo le interfacce esistenti
+interface TransactionWithRelations extends Transaction {
+  accounts: { type: string } | null
+  categories: { name: string } | null
+}
+
+interface RawAssetData {
+  id: string
+  name: string
+  type: string
+  value: number
+  purchase_price: number
+  purchase_date: string | null
+  description: string | null
+  currency: string
+  automatic_valuation: boolean
+  external_id: string | null
+  last_valuation_date: string | null
+  account_id: string | null
+  created_at: string
+  updated_at: string
+  user_id: string
+}
+
+interface CategoryAmounts {
+  [key: string]: number
 }

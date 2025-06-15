@@ -7,7 +7,7 @@ import CacheStatus from '@/components/ui/CacheStatus'
 import { useAuth } from '@/lib/auth'
 import { useAccounts, useFinanceCache } from '@/lib/financeCache'
 import type { Account } from '@/lib/financeCache'
-import { CreditCard, Plus, MoreVertical, TrendingUp, TrendingDown, Eye, EyeOff, Edit2, Trash2, RefreshCw, Wallet, PiggyBank, Building2, Search, Filter, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+import { CreditCard, Plus, MoreVertical, TrendingUp, TrendingDown, Edit2, Trash2, RefreshCw, Wallet, PiggyBank, Building2, Search, Filter, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 
 interface ExtendedAccount extends Account {
   lastTransaction?: {
@@ -403,7 +403,7 @@ export default function AccountsPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100/50">
-                    {filteredAndSortedAccounts.map((account, index) => (
+                    {filteredAndSortedAccounts.map((account) => (
                       <tr 
                         key={account.id} 
                         className="hover:bg-gradient-to-r hover:from-blue-50/30 hover:to-purple-50/30 transition-all duration-200 group/row"

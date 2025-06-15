@@ -86,6 +86,7 @@ export function Sidebar() {
   const [mounted, setMounted] = useState(false);
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set());
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [searchOpen, setSearchOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [isCompact, setIsCompact] = useState(false);
