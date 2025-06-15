@@ -25,6 +25,7 @@ export interface Transaction {
   transaction_type: string
   account_name?: string
   asset_id?: string | null
+  asset_quantity?: number | null
   accounts?: {
     type: string
   } | null
@@ -60,19 +61,14 @@ export interface Asset {
   id: string
   name: string
   type: string
+  quantity: number
   value: number
-  purchase_price: number
-  purchase_date: string | null
-  description: string | null
   currency: string
-  automatic_valuation: boolean
-  external_id: string | null
-  last_valuation_date: string | null
   account_id: string | null
   created_at: string
   updated_at: string
   user_id: string
-  transaction_id?: string // Riferimento alla transazione di acquisto
+  symbol?: string | null 
 }
 
 export interface AssetValuation {
@@ -261,36 +257,9 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
         details: t.transaction_details,
         amount: t.current_amount,
         date: t.transaction_date
-      })))
-
-      // Arricchisci gli asset con i dati delle transazioni di acquisto
+      })))      // Arricchisci gli asset con i dati delle transazioni correlate
       const assets = rawAssets.map((asset: RawAssetData) => {
-        // Cerca transazioni di acquisto per questo asset
-        // Metodo 1: Match per external_id se presente
-        let purchaseTransaction = asset.external_id ? 
-          assetPurchaseTransactions.find((transaction: TransactionWithRelations) => transaction.id === asset.external_id) : null
-        
-        // Metodo 2: Match per nome (se non trovato con external_id)
-        if (!purchaseTransaction) {
-          purchaseTransaction = assetPurchaseTransactions.find((transaction: TransactionWithRelations) => {
-            const transactionName = transaction.transaction_details?.toLowerCase() || ''
-            const assetName = asset.name.toLowerCase()
-            
-            // Match esatto o contenimento reciproco
-            return transactionName.includes(assetName) || assetName.includes(transactionName)
-          })
-        }
-
-        if (purchaseTransaction) {
-          return {
-            ...asset,
-            purchase_price: Math.abs(purchaseTransaction.current_amount), // Usa il valore assoluto
-            purchase_date: purchaseTransaction.transaction_date,
-            transaction_id: purchaseTransaction.id // Conserva il riferimento alla transazione
-          }
-        }
-
-        return asset
+        return asset as Asset
       })
 
       // Calcola statistiche
@@ -526,8 +495,9 @@ export function useAssetStats() {
   const assets = data?.assets || []
   
   const totalValue = assets.reduce((sum, asset) => sum + Number(asset.value || 0), 0)
-  const totalCost = assets.reduce((sum, asset) => sum + Number(asset.purchase_price || 0), 0)
-  const totalPerformance = totalCost > 0 ? ((totalValue - totalCost) / totalCost) * 100 : 0
+  // Dato che non abbiamo purchase_price nel db, usiamo il valore attuale per i calcoli
+  const totalCost = totalValue // Temporaneo - andrebbe calcolato dalle transazioni
+  const totalPerformance = 0 // Temporaneo - richiederebbe dati storici
   
   // Raggruppa per tipo
   const assetsByType = assets.reduce((acc, asset) => {
@@ -541,7 +511,7 @@ export function useAssetStats() {
     }
     acc[type].count++
     acc[type].totalValue += Number(asset.value || 0)
-    acc[type].totalCost += Number(asset.purchase_price || 0)
+    acc[type].totalCost += Number(asset.value || 0) // Temporaneo
     return acc
   }, {} as Record<string, { count: number; totalValue: number; totalCost: number }>)
   
@@ -551,32 +521,14 @@ export function useAssetStats() {
     totalPerformance,
     assetCount: assets.length,
     assetsByType,
-    topPerformingAsset: assets.length > 0 ? assets.reduce((prev, current) => {
-      const prevPerf = ((prev.value - prev.purchase_price) / prev.purchase_price) * 100
-      const currentPerf = ((current.value - current.purchase_price) / current.purchase_price) * 100
-      return prevPerf > currentPerf ? prev : current
-    }) : null
+    topPerformingAsset: assets.length > 0 ? assets[0] : null // Temporaneo - senza purchase_price non possiamo calcolare performance
   }
 }
 
-// Hook per asset con valutazione automatica
-export function useAutoValuationAssets() {
-  const { data } = useFinanceCache()
-  
-  const assets = data?.assets || []
-  const autoValuationAssets = assets.filter(asset => asset.automatic_valuation)
-  
-  return {
-    autoValuationAssets,
-    count: autoValuationAssets.length,
-    needsUpdate: autoValuationAssets.filter(asset => {
-      if (!asset.last_valuation_date) return true
-      const lastUpdate = new Date(asset.last_valuation_date)
-      const daysSinceUpdate = (Date.now() - lastUpdate.getTime()) / (1000 * 60 * 60 * 24)
-      return daysSinceUpdate > 7 // Considera aggiornamento necessario dopo 7 giorni
-    })
-  }
-}
+// Hook per asset con valutazione automatica - RIMOSSO: campo non presente nel database
+// export function useAutoValuationAssets() {
+//   ...
+// }
 
 // Hook per transazioni di acquisto asset
 export function useAssetPurchaseTransactions() {
@@ -729,7 +681,7 @@ export function useAssetOperations() {
     await refetch()
   }, [user, supabase, refetch])
 
-  const updateAssetValue = useCallback(async (id: string, newValue: number, source = 'manual') => {
+  const updateAssetValue = useCallback(async (id: string, newValue: number) => {
     if (!user) throw new Error('User not authenticated')
 
     // Aggiorna il valore dell'asset
@@ -737,7 +689,6 @@ export function useAssetOperations() {
       .from('assets')
       .update({
         value: newValue,
-        last_valuation_date: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
@@ -745,20 +696,10 @@ export function useAssetOperations() {
 
     if (assetError) throw assetError
 
-    // Crea un record di valutazione
-    const { error: valuationError } = await supabase
-      .from('asset_valuations')
-      .insert([{
-        asset_id: id,
-        value: newValue,
-        source,
-        valuation_date: new Date().toISOString(),
-        confidence_score: source === 'manual' ? 100 : null
-      }])
+    // Nota: rimozione della creazione del record di valutazione 
+    // dato che non abbiamo la tabella asset_valuations nel database
 
-    if (valuationError) {
-      console.warn('Errore nel salvare la valutazione:', valuationError)
-    }    await refetch()
+    await refetch()
   }, [user, supabase, refetch])
 
   const linkAssetToTransaction = useCallback(async (assetId: string, transactionId: string) => {
@@ -824,14 +765,9 @@ interface RawAssetData {
   id: string
   name: string
   type: string
+  quantity: number
   value: number
-  purchase_price: number
-  purchase_date: string | null
-  description: string | null
   currency: string
-  automatic_valuation: boolean
-  external_id: string | null
-  last_valuation_date: string | null
   account_id: string | null
   created_at: string
   updated_at: string

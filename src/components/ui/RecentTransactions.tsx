@@ -136,8 +136,7 @@ export default function RecentTransactions({ limit = 5 }: RecentTransactionsProp
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate transition-all duration-300 group-hover/item:text-gray-800">
                     {transaction.transaction_details || 'Transazione'}
-                  </p>
-                  <div className="flex items-center space-x-2 text-xs text-gray-500 transition-all duration-300 group-hover/item:text-gray-600">
+                  </p>                  <div className="flex items-center space-x-2 text-xs text-gray-500 transition-all duration-300 group-hover/item:text-gray-600">
                     <span>{formatDate(transaction.transaction_date)}</span>
                     {transaction.account_name && (
                       <>
@@ -149,6 +148,12 @@ export default function RecentTransactions({ limit = 5 }: RecentTransactionsProp
                       <>
                         <span>•</span>
                         <span>{transaction.categories.name}</span>
+                      </>
+                    )}
+                    {transaction.asset_quantity && (
+                      <>
+                        <span>•</span>
+                        <span>Qtà: {transaction.asset_quantity}</span>
                       </>
                     )}
                   </div>

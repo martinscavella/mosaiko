@@ -26,7 +26,7 @@ import {
   Smartphone,
   Car,
   Home,
-  Briefcase,
+  Briefcase, 
   Package,
   X,
   FileText,
@@ -50,7 +50,7 @@ export default function AssetsPage() {
   const { data: financeData, loading, error, refetch, isDataStale } = useFinanceCache()
   const { assets } = useAssets()
   const { accounts } = useAccounts()
-  const { totalValue, totalCost, totalPerformance } = useAssetStats()
+  const { totalValue, totalPerformance } = useAssetStats()
   const { createAsset, updateAsset, deleteAsset } = useAssetOperations()
   
   const [showAddModal, setShowAddModal] = useState(false)
@@ -64,17 +64,13 @@ export default function AssetsPage() {
   const [showDebugInfo, setShowDebugInfo] = useState(false)
   const [showTransactionsModal, setShowTransactionsModal] = useState(false)
   const [selectedAssetForTransactions, setSelectedAssetForTransactions] = useState<Asset | null>(null)
-  
   // Form states
   const [formData, setFormData] = useState({
     name: '',
     type: 'other' as Asset['type'],
+    quantity: '',
     value: '',
-    purchaseDate: '',
-    purchasePrice: '',
-    description: '',
-    automaticValuation: false,
-    externalId: '',
+    symbol: '',
     accountId: ''
   })
   
@@ -86,18 +82,23 @@ export default function AssetsPage() {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
 
 
-
-  // Effect per chiudere il dropdown quando si clicca fuori
+  // Debug: log dei dati per capire cosa sta succedendo
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (selectedAsset && !(event.target as Element).closest('.relative')) {
-        setSelectedAsset(null)
-      }
+    if (financeData) {
+      console.log('📊 Finance data loaded:', {
+        assets: financeData.assets?.length || 0,
+        transactions: financeData.transactions?.length || 0,
+        transactionsWithAssetId: financeData.transactions?.filter(t => t.asset_id)?.length || 0
+      })
+      
+      // Mostra tutti gli asset_id presenti nelle transazioni
+      const assetIds = [...new Set(financeData.transactions?.filter(t => t.asset_id).map(t => t.asset_id) || [])]
+      console.log('🔗 Asset IDs found in transactions:', assetIds)
+      
+      // Mostra tutti gli asset disponibili
+      console.log('💎 Available assets:', assets.map(a => ({ id: a.id, name: a.name })))
     }
-
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [selectedAsset])
+  }, [financeData, assets])
 
   // Loading states
   if (authLoading) {
@@ -120,23 +121,79 @@ export default function AssetsPage() {
         </div>
       </ModuleLayout>
     )
-  }
-
-  const formatCurrency = (amount: number) => {
+  }  const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('it-IT', {
       style: 'currency',
       currency: 'EUR'
     }).format(amount)
   }
 
-  const calculatePerformance = (currentValue: number, purchasePrice: number) => {
-    return ((currentValue - purchasePrice) / purchasePrice) * 100
+  // Helper function to get purchase data from transactions
+  const getAssetPurchaseData = (assetId: string) => {
+    const assetTransactions = financeData?.transactions?.filter(t => t.asset_id === assetId) || []
+    
+    if (assetTransactions.length === 0) {
+      return {
+        totalCost: 0,
+        totalQuantity: 0,
+        avgPurchasePrice: 0,
+        firstPurchaseDate: null,
+        hasTransactions: false
+      }
+    }
+
+    // Replica la stessa logica di AssetPerformanceChart per calcolare i totali
+    let totalQuantity = 0
+    let totalCostSpent = 0
+    let totalQuantityBought = 0
+    let firstPurchaseDate: string | null = null
+
+    // Simula la struttura dell'API /api/transactions
+    const formattedTransactions = assetTransactions
+      .filter(t => t.asset_quantity !== null && t.asset_quantity !== undefined)
+      .map(t => {
+        const isAcquisition = (t.asset_quantity || 0) > 0
+        return {
+          transaction_type: isAcquisition ? 'buy' : 'sell' as 'buy' | 'sell',
+          quantity: Math.abs(t.asset_quantity || 0),
+          unit_price: Math.abs(t.current_amount || 0) / Math.abs(t.asset_quantity || 1),
+          transaction_date: t.transaction_date
+        }
+      })
+      .sort((a, b) => new Date(a.transaction_date).getTime() - new Date(b.transaction_date).getTime())
+
+    formattedTransactions.forEach(t => {
+      if (t.transaction_type === 'buy') {
+        totalQuantity += t.quantity
+        totalCostSpent += t.quantity * t.unit_price
+        totalQuantityBought += t.quantity
+        if (!firstPurchaseDate) {
+          firstPurchaseDate = t.transaction_date
+        }
+      } else if (t.transaction_type === 'sell') {
+        totalQuantity -= t.quantity
+      }
+    })
+
+    const avgPurchasePrice = totalQuantityBought > 0 ? totalCostSpent / totalQuantityBought : 0
+    const currentCost = totalQuantity * avgPurchasePrice
+
+    return {
+      totalCost: Math.max(0, currentCost),
+      totalQuantity: Math.max(0, totalQuantity),
+      avgPurchasePrice: avgPurchasePrice,
+      firstPurchaseDate: firstPurchaseDate,
+      hasTransactions: formattedTransactions.length > 0
+    }
   }
 
+  const calculatePerformance = (currentValue: number, totalCost: number) => {
+    if (totalCost === 0) return 0
+    return ((currentValue - totalCost) / totalCost) * 100
+  }
   const filteredAndSortedAssets = assets
     .filter(asset => {
-      const matchesSearch = asset.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           asset.description?.toLowerCase().includes(searchTerm.toLowerCase())
+      const matchesSearch = asset.name.toLowerCase().includes(searchTerm.toLowerCase())
       const matchesType = selectedAssetType === 'all' || asset.type === selectedAssetType
       const matchesAccount = selectedAccountId === 'all' || 
                            (selectedAccountId === 'none' && !asset.account_id) ||
@@ -159,9 +216,10 @@ export default function AssetsPage() {
           valueA = a.value
           valueB = b.value
           break
-        case 'performance':
-          valueA = calculatePerformance(a.value, a.purchase_price)
-          valueB = calculatePerformance(b.value, b.purchase_price)
+        case 'performance':          const purchaseDataA = getAssetPurchaseData(a.id)
+          const purchaseDataB = getAssetPurchaseData(b.id)
+          valueA = calculatePerformance(a.value, purchaseDataA.totalCost)
+          valueB = calculatePerformance(b.value, purchaseDataB.totalCost)
           break
         default:
           return 0
@@ -180,7 +238,6 @@ export default function AssetsPage() {
       setSortDirection('desc')
     }
   }
-
   const getSortIcon = (field: typeof sortField) => {
     if (sortField !== field) return <ArrowUpDown className="w-4 h-4" />
     return sortDirection === 'asc' ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />
@@ -190,13 +247,9 @@ export default function AssetsPage() {
     setFormData({
       name: '',
       type: 'other',
+      quantity: '1',
       value: '',
-      purchaseDate: '',
-      purchasePrice: '',
-      description: '',
-      automaticValuation: false,
-      externalId: '',
-      accountId: ''
+      symbol: '',      accountId: ''
     })
     setAssetToEdit(null)
     setShowAddModal(true)
@@ -206,12 +259,9 @@ export default function AssetsPage() {
     setFormData({
       name: asset.name,
       type: asset.type,
+      quantity: asset.quantity.toString(),
       value: asset.value.toString(),
-      purchaseDate: asset.purchase_date || asset.created_at.split('T')[0],
-      purchasePrice: asset.purchase_price.toString(),
-      description: asset.description || '',
-      automaticValuation: asset.automatic_valuation || false,
-      externalId: asset.external_id || '',
+      symbol: asset.symbol || '',
       accountId: asset.account_id || ''
     })
     setAssetToEdit(asset)
@@ -245,25 +295,19 @@ export default function AssetsPage() {
       }
     }
   }
-
   const saveAsset = async () => {
-    if (!formData.name || !formData.value || !formData.purchaseDate || !formData.purchasePrice) {
+    if (!formData.name || !formData.value || !formData.quantity) {
       return
     }
 
-    try {
-      const assetData = {
+    try {      const assetData = {
         name: formData.name,
         type: formData.type,
+        quantity: parseFloat(formData.quantity),
         value: parseFloat(formData.value),
-        purchase_date: formData.purchaseDate,
-        purchase_price: parseFloat(formData.purchasePrice),
-        description: formData.description,
         currency: 'EUR',
-        automatic_valuation: formData.automaticValuation,
-        external_id: formData.externalId || null,
-        account_id: formData.accountId || null,
-        last_valuation_date: new Date().toISOString()
+        symbol: formData.symbol || null,
+        account_id: formData.accountId || null
       }
 
       if (assetToEdit) {
@@ -278,9 +322,7 @@ export default function AssetsPage() {
     } catch (error) {
       console.error('Errore nel salvare l\'asset:', error)
     }
-  }
-
-  // Header stats
+  }  // Header stats
   const headerStats: HeaderStat[] = [
     {
       label: 'Valore Totale',
@@ -291,11 +333,6 @@ export default function AssetsPage() {
       label: 'Performance',
       value: `${totalPerformance.toFixed(2)}%`,
       color: totalPerformance >= 0 ? 'green' : 'orange'
-    },
-    {
-      label: 'Acquisti Tracking',
-      value: `${assets.filter(a => a.transaction_id).length}/${assets.length}`,
-      color: 'purple'
     }
   ]
 
@@ -551,27 +588,8 @@ export default function AssetsPage() {
               show: !loading && !error && assets.length > 0
             }
           ]}
-          stats={headerStats}
-          actions={headerActions}
+          stats={headerStats}          actions={headerActions}
         />
-
-
-        {/* Statistiche Riassuntive - Solo costo totale rimane qui */}
-        <div className="mt-8 grid grid-cols-1 gap-6">
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Costo Totale</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {formatCurrency(totalCost)}
-                </p>
-              </div>
-              <div className="p-3 bg-orange-100 rounded-full">
-                <Package className="w-6 h-6 text-orange-600" />
-              </div>
-            </div>
-          </div>
-        </div>
 
         {/* Controlli */}
         <div className="mt-8 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
@@ -702,39 +720,40 @@ export default function AssetsPage() {
                 Aggiungi Asset
               </button>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          ) : (            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {filteredAndSortedAssets.map((asset) => {
                 const AssetIcon = ASSET_TYPES[asset.type]?.icon || ASSET_TYPES.other.icon
-                const performance = calculatePerformance(asset.value, asset.purchase_price)
+                const purchaseData = getAssetPurchaseData(asset.id)
+                const performance = calculatePerformance(asset.value, purchaseData.totalCost)
                 
                 return (
                   <div key={asset.id} className="bg-white rounded-lg border border-gray-200 hover:shadow-md transition-shadow">
                     <div className="p-6">
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex items-center gap-3">
-                          <div className={`p-2 rounded-lg ${ASSET_TYPES[asset.type]?.color || ASSET_TYPES.other.color}`}>
+                      {/* Header della card - Struttura ben definita */}
+                      <div className="flex items-start justify-between mb-6">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <div className={`p-2 rounded-lg flex-shrink-0 ${ASSET_TYPES[asset.type]?.color || ASSET_TYPES.other.color}`}>
                             <AssetIcon className="w-5 h-5" />
                           </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <h3 className="font-semibold text-gray-900">{asset.name}</h3>
-                              {asset.transaction_id && (
-                                <div className="flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-2">
+                              <h3 className="font-semibold text-gray-900 text-base leading-tight truncate">{asset.name}</h3>
+                              {purchaseData.hasTransactions && (
+                                <div className="flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full flex-shrink-0">
                                   <FileText className="w-3 h-3" />
                                   <span>Tracked</span>
                                 </div>
                               )}
                             </div>
-                            <p className="text-sm text-gray-500">{ASSET_TYPES[asset.type]?.label || 'Altri'}</p>
+                            <p className="text-sm text-gray-500 mb-2">{ASSET_TYPES[asset.type]?.label || 'Altri'}</p>
                             {asset.account_id && (
-                              <p className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-full inline-block mt-1">
+                              <p className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-full inline-block truncate max-w-full">
                                 {accounts.find(acc => acc.id === asset.account_id)?.name || 'Account sconosciuto'}
                               </p>
                             )}
                           </div>
                         </div>
-                        <div className="relative">
+                        <div className="relative flex-shrink-0 ml-2">
                           <button 
                             onClick={() => setSelectedAsset(selectedAsset?.id === asset.id ? null : asset)}
                             className="p-1 hover:bg-gray-100 rounded"
@@ -792,47 +811,70 @@ export default function AssetsPage() {
                         </div>
                       </div>
 
-                      <div className="space-y-3">
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-600">Valore Attuale</span>
-                          <span className="font-semibold text-gray-900">
-                            {formatCurrency(asset.value)}
-                          </span>
-                        </div>
-
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-600">Costo di Acquisto</span>
-                          <span className="text-sm text-gray-500">
-                            {formatCurrency(asset.purchase_price)}
-                          </span>
-                        </div>
-
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-600">Performance</span>
-                          <div className="flex items-center gap-1">
-                            {performance >= 0 ? (
-                              <TrendingUp className="w-4 h-4 text-green-600" />
-                            ) : (
-                              <TrendingDown className="w-4 h-4 text-red-600" />
-                            )}
-                            <span className={`text-sm font-medium ${performance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                              {`${performance.toFixed(2)}%`}
-                            </span>
+                      {/* Contenuto principale - Griglia strutturata */}
+                      <div className="space-y-4">
+                        {/* Prima sezione: Metriche principali */}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <span className="text-xs text-gray-500 uppercase tracking-wide">Valore Attuale</span>
+                            <p className="text-lg font-semibold text-gray-900">
+                              {formatCurrency(asset.value)}
+                            </p>
+                          </div>
+                          <div className="space-y-1">
+                            <span className="text-xs text-gray-500 uppercase tracking-wide">Quantità</span>
+                            <p className="text-lg font-semibold text-gray-900">
+                              {asset.quantity}
+                            </p>
                           </div>
                         </div>
 
-                        {asset.description && (
-                          <div className="pt-2 border-t border-gray-100">
-                            <p className="text-sm text-gray-600">{asset.description}</p>
+                        {/* Seconda sezione: Metriche di performance (sempre mostrate per uniformità) */}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <span className="text-xs text-gray-500 uppercase tracking-wide">Capitale Investito</span>
+                            <p className="text-sm font-medium text-gray-700">
+                              {purchaseData.hasTransactions ? formatCurrency(purchaseData.totalCost) : '—'}
+                            </p>
                           </div>
-                        )}
+                          <div className="space-y-1">
+                            <span className="text-xs text-gray-500 uppercase tracking-wide">Prezzo Medio</span>
+                            <p className="text-sm font-medium text-gray-700">
+                              {purchaseData.hasTransactions ? formatCurrency(purchaseData.avgPurchasePrice) : '—'}
+                            </p>
+                          </div>
+                        </div>
 
+                        {/* Terza sezione: Performance */}
                         <div className="pt-2 border-t border-gray-100">
-                          <p className="text-xs text-gray-400">
-                            Acquistato il {new Date(asset.purchase_date || asset.created_at).toLocaleDateString('it-IT')} • 
-                            Aggiornato il {new Date(asset.last_valuation_date || asset.updated_at).toLocaleDateString('it-IT')}
-                          </p>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-500 uppercase tracking-wide">Performance</span>
+                            <div className="flex items-center gap-2">
+                              {purchaseData.hasTransactions ? (
+                                <>
+                                  {performance >= 0 ? (
+                                    <TrendingUp className="w-4 h-4 text-green-600" />
+                                  ) : (
+                                    <TrendingDown className="w-4 h-4 text-red-600" />
+                                  )}
+                                  <span className={`text-sm font-semibold ${performance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                    {performance >= 0 ? '+' : ''}{performance.toFixed(2)}%
+                                  </span>
+                                </>
+                              ) : (
+                                <span className="text-sm text-gray-400">—</span>
+                              )}
+                            </div>
+                          </div>
                         </div>
+                      </div>
+
+                      {/* Footer della card - Informazioni aggiuntive */}
+                      <div className="mt-6 pt-4 border-t border-gray-100">
+                        <p className="text-xs text-gray-400 line-clamp-1">
+                          {purchaseData.firstPurchaseDate && `Acquistato il ${new Date(purchaseData.firstPurchaseDate).toLocaleDateString('it-IT')} • `}
+                          Aggiornato il {new Date(asset.updated_at).toLocaleDateString('it-IT')}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -906,6 +948,37 @@ export default function AssetsPage() {
                   <p className="text-xs text-gray-500 mt-1">
                     Associa questo asset a un account specifico (opzionale)
                   </p>
+                </div>                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Quantità *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={formData.quantity}
+                    onChange={(e) => setFormData({...formData, quantity: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="1.00"
+                    required
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Quantità di asset posseduti (es. 1 per immobile, 100 per azioni)
+                  </p>                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Simbolo/Ticker
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.symbol}
+                    onChange={(e) => setFormData({...formData, symbol: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Es. AAPL, BTC, IWDA.MI"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Simbolo di trading per recuperare quotazioni automatiche (opzionale)
+                  </p>
                 </div>
 
                 <div>
@@ -921,47 +994,9 @@ export default function AssetsPage() {
                     placeholder="0.00"
                     required
                   />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Data di Acquisto *
-                  </label>
-                  <input
-                    type="date"
-                    value={formData.purchaseDate}
-                    onChange={(e) => setFormData({...formData, purchaseDate: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Prezzo di Acquisto (€) *
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.purchasePrice}
-                    onChange={(e) => setFormData({...formData, purchasePrice: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="0.00"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Descrizione
-                  </label>
-                  <textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData({...formData, description: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Descrizione opzionale..."
-                    rows={3}
-                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Valore attuale dell'asset. Per dati di acquisto, crea una transazione collegata.
+                  </p>
                 </div>
 
                 <div className="flex gap-3 pt-4">
@@ -1048,6 +1083,37 @@ export default function AssetsPage() {
                   <p className="text-xs text-gray-500 mt-1">
                     Associa questo asset a un account specifico (opzionale)
                   </p>
+                </div>                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Quantità *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={formData.quantity}
+                    onChange={(e) => setFormData({...formData, quantity: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="1.00"
+                    required
+                  />                  <p className="text-xs text-gray-500 mt-1">
+                    Quantità di asset posseduti (es. 1 per immobile, 100 per azioni)
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Simbolo/Ticker
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.symbol}
+                    onChange={(e) => setFormData({...formData, symbol: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Es. AAPL, BTC, IWDA.MI"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Simbolo di trading per recuperare quotazioni automatiche (opzionale)
+                  </p>
                 </div>
 
                 <div>
@@ -1063,47 +1129,9 @@ export default function AssetsPage() {
                     placeholder="0.00"
                     required
                   />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Data di Acquisto *
-                  </label>
-                  <input
-                    type="date"
-                    value={formData.purchaseDate}
-                    onChange={(e) => setFormData({...formData, purchaseDate: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Prezzo di Acquisto (€) *
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.purchasePrice}
-                    onChange={(e) => setFormData({...formData, purchasePrice: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="0.00"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Descrizione
-                  </label>
-                  <textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData({...formData, description: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Descrizione opzionale..."
-                    rows={3}
-                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Valore attuale dell'asset. Per dati di acquisto, modifica le transazioni collegate.
+                  </p>
                 </div>
 
                 <div className="flex gap-3 pt-4">
@@ -1177,8 +1205,7 @@ export default function AssetsPage() {
         {/* Modal per Grafico Performance */}
         {showChartModal && selectedChartAsset && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between mb-6">
+            <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">              <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-semibold">
                   Performance - {selectedChartAsset.name}
                 </h3>
@@ -1193,40 +1220,10 @@ export default function AssetsPage() {
                 </button>
               </div>
 
-              <div className="mb-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <p className="text-sm text-gray-600">Valore Attuale</p>
-                    <p className="text-lg font-semibold">
-                      {formatCurrency(selectedChartAsset.value)}
-                    </p>
-                  </div>
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <p className="text-sm text-gray-600">Costo Acquisto</p>
-                    <p className="text-lg font-semibold">
-                      {formatCurrency(selectedChartAsset.purchase_price)}
-                    </p>
-                  </div>
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <p className="text-sm text-gray-600">Performance</p>
-                    <p className={`text-lg font-semibold ${
-                      calculatePerformance(selectedChartAsset.value, selectedChartAsset.purchase_price) >= 0 
-                        ? 'text-green-600' 
-                        : 'text-red-600'
-                    }`}>
-                      {calculatePerformance(selectedChartAsset.value, selectedChartAsset.purchase_price).toFixed(2)}%
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="h-96">
+              {/* Il grafico AssetPerformanceChart include già tutte le statistiche necessarie */}
+              <div className="min-h-[600px]">
                 <AssetPerformanceChart
-                  assetId={selectedChartAsset.id}
-                  assetName={selectedChartAsset.name}
-                  currentValue={selectedChartAsset.value}
-                  purchasePrice={selectedChartAsset.purchase_price}
-                  purchaseDate={selectedChartAsset.purchase_date || selectedChartAsset.created_at}
+                  asset={selectedChartAsset}
                 />
               </div>
 

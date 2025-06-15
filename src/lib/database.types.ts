@@ -67,6 +67,8 @@ export interface Database {
           current_amount: number
           subcategory_id: string | null
           account_name: string | null
+          asset_id: string | null
+          asset_quantity: number | null
         }
         Insert: {
           id?: string
@@ -84,6 +86,8 @@ export interface Database {
           current_amount: number
           subcategory_id?: string | null
           account_name?: string | null
+          asset_id?: string | null
+          asset_quantity?: number | null
         }
         Update: {
           transaction_date?: string
@@ -99,6 +103,8 @@ export interface Database {
           current_amount?: number
           subcategory_id?: string | null
           account_name?: string | null
+          asset_id?: string | null
+          asset_quantity?: number | null
           updated_at?: string
         }
       }
