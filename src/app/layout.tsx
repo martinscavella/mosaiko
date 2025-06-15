@@ -2,8 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, EB_Garamond } from "next/font/google";
 import { AuthProvider } from "@/lib/auth";
 import { FinanceCacheProvider } from "@/lib/financeCache";
-import { Sidebar } from "@/components/ui/sidebar";
 import "./globals.css";
+import { Sidebar } from "@/components/ui/Sidebar";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",

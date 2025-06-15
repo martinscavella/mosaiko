@@ -1,7 +1,7 @@
 'use client'
 
 import { useFinanceCache } from '@/lib/financeCache'
-import { Database, Clock, AlertCircle, Wifi } from 'lucide-react'
+import { Database, AlertCircle, Wifi } from 'lucide-react'
 
 export default function CacheStatus() {
   const { data, loading, isDataStale } = useFinanceCache()

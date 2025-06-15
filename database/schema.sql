@@ -52,10 +52,12 @@ CREATE TABLE public.assets (
   amount double precision NOT NULL,
   value numeric(15,2) NOT NULL,
   currency text NOT NULL DEFAULT 'EUR'::text,
+  account_id uuid NULL,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   updated_at timestamp with time zone NOT NULL DEFAULT now(),
   CONSTRAINT assets_pkey PRIMARY KEY (id),
-  CONSTRAINT assets_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+  CONSTRAINT assets_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE,
+  CONSTRAINT assets_account_id_fkey FOREIGN KEY (account_id) REFERENCES public.accounts(id) ON DELETE SET NULL
 );
 
 CREATE TABLE public.categories (
@@ -158,6 +160,7 @@ CREATE TABLE public.transactions (
   transaction_code text NULL,
   account_id uuid NULL,
   category_id uuid NULL,
+  asset_id uuid NULL,
   currency character varying(3) NOT NULL DEFAULT 'EUR'::character varying,
   initial_amount numeric(15,2) NOT NULL,
   is_refunded boolean NOT NULL DEFAULT false,
@@ -171,6 +174,7 @@ CREATE TABLE public.transactions (
   CONSTRAINT transactions_account_id_fkey FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE,
   CONSTRAINT transactions_category_id_fkey FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL,
   CONSTRAINT transactions_subcategory_id_fkey FOREIGN KEY (subcategory_id) REFERENCES subcategories(id),
+  CONSTRAINT transactions_asset_id_fkey FOREIGN KEY (asset_id) REFERENCES public.assets(id) ON DELETE SET NULL,
   CONSTRAINT transactions_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
 );
 
@@ -204,3 +208,7 @@ ALTER TABLE refund_transaction ADD CONSTRAINT refund_transaction_refund_id_fkey
   
 ALTER TABLE refund_transaction ADD CONSTRAINT refund_transaction_transaction_id_fkey 
   FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE CASCADE;
+
+-- Add indexes for performance
+CREATE INDEX idx_assets_account_id ON public.assets(account_id);
+CREATE INDEX idx_transactions_asset_id ON public.transactions(asset_id);
