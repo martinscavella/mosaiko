@@ -23,6 +23,7 @@ export interface Transaction {
   transaction_details: string
   current_amount: number
   transaction_type: string
+  is_refunded?: boolean
   account_name?: string
   asset_id?: string | null
   asset_quantity?: number | null
@@ -161,9 +162,7 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
           .from('accounts')
           .select('*')
           .eq('user_id', user.id)
-          .order('created_at', { ascending: false }),
-
-        // Query TUTTE le transazioni per calcoli accurati (senza limit)
+          .order('created_at', { ascending: false }),        // Query TUTTE le transazioni per calcoli accurati (senza limit)
         supabase
           .from('transactions')
           .select(`
@@ -172,6 +171,7 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
             transaction_details,
             current_amount,
             transaction_type,
+            is_refunded,
             account_name,
             asset_id,
             accounts(type),
@@ -744,6 +744,355 @@ export function useAssetOperations() {
 
     await refetch()
   }, [user, supabase, refetch])
+  const updateAssetFromTransactions = useCallback(async (assetId: string) => {
+    if (!user) throw new Error('User not authenticated')
+
+    console.log('📊 Aggiornamento asset da transazioni:', assetId)
+
+    try {
+      // 0. Verifica che l'asset esista
+      const { data: assetExists, error: assetCheckError } = await supabase
+        .from('assets')
+        .select('id, name')
+        .eq('id', assetId)
+        .eq('user_id', user.id)
+        .single()
+
+      if (assetCheckError || !assetExists) {
+        console.error('❌ Asset non trovato:', assetCheckError)
+        throw new Error(`Asset con ID ${assetId} non trovato`)
+      }
+
+      console.log(`📦 Asset trovato: ${assetExists.name}`)
+
+      // 1. Recupera tutte le transazioni collegate all'asset
+      const { data: transactions, error: transactionsError } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('asset_id', assetId)
+        .not('asset_quantity', 'is', null)
+        .order('transaction_date', { ascending: true })
+
+      if (transactionsError) {
+        console.error('❌ Errore nel recupero transazioni:', transactionsError)
+        throw transactionsError
+      }
+
+      if (!transactions || transactions.length === 0) {
+        console.log('⚠️ Nessuna transazione trovata per l\'asset:', assetId)
+        return { message: 'Nessuna transazione trovata per questo asset' }
+      }
+
+      console.log(`📈 Trovate ${transactions.length} transazioni per l'asset`)      // 2. Calcola quantity e value totali dalle transazioni
+      let totalQuantity = 0
+      let totalCostSpent = 0
+      let totalQuantityBought = 0
+
+      transactions.forEach((transaction, index) => {
+        const quantity = Math.abs(transaction.asset_quantity || 0)
+        const amount = Math.abs(transaction.current_amount || 0)
+        
+        // Validazione dei dati
+        if (quantity === 0) {
+          console.warn(`⚠️ Transazione ${index + 1} ignorata: quantity è 0`, transaction.id)
+          return
+        }
+        
+        if (amount === 0) {
+          console.warn(`⚠️ Transazione ${index + 1} ignorata: amount è 0`, transaction.id)
+          return
+        }
+        
+        const unitPrice = amount / quantity
+        
+        // Verifica che unitPrice sia valido
+        if (!isFinite(unitPrice) || unitPrice <= 0) {
+          console.warn(`⚠️ Transazione ${index + 1} ignorata: prezzo unitario non valido (${unitPrice})`, transaction.id)
+          return
+        }
+        
+        if ((transaction.asset_quantity || 0) > 0) {
+          // Acquisto: aggiungi alla quantità totale
+          totalQuantity += quantity
+          totalCostSpent += quantity * unitPrice
+          totalQuantityBought += quantity
+          console.log(`🟢 Acquisto: +${quantity} a ${unitPrice.toFixed(2)}€/unità`)
+        } else {
+          // Vendita: sottrai dalla quantità totale
+          totalQuantity -= quantity
+          console.log(`🔴 Vendita: -${quantity} a ${unitPrice.toFixed(2)}€/unità`)
+        }      })
+
+      // Verifica se abbiamo processato almeno una transazione valida
+      if (totalQuantityBought === 0 && totalQuantity === 0) {
+        console.log('⚠️ Nessuna transazione valida trovata per calcolare i valori')
+        return { 
+          success: true,
+          message: 'Nessuna transazione valida trovata per questo asset',
+          calculations: {
+            transactionsProcessed: 0,
+            totalQuantity: 0,
+            avgPurchasePrice: 0,
+            currentValue: 0
+          }
+        }
+      }
+
+      // 3. Calcola il prezzo medio di acquisto e il valore attuale dell'asset
+      const avgPurchasePrice = totalQuantityBought > 0 ? totalCostSpent / totalQuantityBought : 0
+      const currentValue = Math.max(0, totalQuantity * avgPurchasePrice)
+
+      console.log('📊 Calcoli finali:', {
+        totalQuantity: totalQuantity.toFixed(4),
+        avgPurchasePrice: avgPurchasePrice.toFixed(2),
+        currentValue: currentValue.toFixed(2)
+      })      // 4. Aggiorna l'asset nel database
+      const { data: updatedAssets, error: updateError } = await supabase
+        .from('assets')
+        .update({
+          quantity: Math.max(0, totalQuantity),
+          value: currentValue,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', assetId)
+        .eq('user_id', user.id)
+        .select()
+
+      if (updateError) {
+        console.error('❌ Errore nell\'aggiornamento asset:', updateError)
+        throw updateError
+      }
+
+      if (!updatedAssets || updatedAssets.length === 0) {
+        console.error('❌ Nessun asset aggiornato - possibile problema con i filtri')
+        throw new Error('Asset non trovato o non aggiornato')
+      }
+
+      const updatedAsset = updatedAssets[0]
+
+      console.log('✅ Asset aggiornato con successo:', {
+        id: assetId,
+        quantity: updatedAsset.quantity,
+        value: updatedAsset.value
+      })
+
+      // 5. Refresh della cache
+      await refetch()
+
+      return {
+        success: true,
+        message: 'Asset aggiornato con successo',
+        asset: updatedAsset,
+        calculations: {
+          transactionsProcessed: transactions.length,
+          totalQuantity: Math.max(0, totalQuantity),
+          avgPurchasePrice,
+          currentValue
+        }
+      }
+
+    } catch (error) {
+      console.error('❌ Errore in updateAssetFromTransactions:', error)
+      throw error
+    }
+  }, [user, supabase, refetch])
+
+  const updateAllAssetsFromTransactions = useCallback(async () => {
+    if (!user) throw new Error('User not authenticated')
+
+    console.log('🔄 Aggiornamento di tutti gli asset da transazioni')
+
+    try {
+      // Recupera tutti gli asset dell'utente
+      const { data: assets, error: assetsError } = await supabase
+        .from('assets')
+        .select('id, name')
+        .eq('user_id', user.id)
+
+      if (assetsError) throw assetsError
+
+      if (!assets || assets.length === 0) {
+        return { message: 'Nessun asset trovato' }
+      }
+
+      console.log(`📦 Aggiornamento di ${assets.length} asset`)
+
+      const results = []
+      
+      // Aggiorna ogni asset
+      for (const asset of assets) {
+        try {
+          console.log(`🔄 Aggiornamento asset: ${asset.name} (${asset.id})`)
+          const result = await updateAssetFromTransactions(asset.id)
+          results.push({
+            assetId: asset.id,
+            assetName: asset.name,
+            ...result
+          })        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Errore sconosciuto'
+          console.error(`❌ Errore nell'aggiornamento asset ${asset.name} (${asset.id}):`, error)
+          console.error(`   Dettagli errore: ${errorMessage}`)
+          
+          results.push({
+            assetId: asset.id,
+            assetName: asset.name,
+            success: false,
+            error: errorMessage,
+            message: `Errore durante l'aggiornamento di ${asset.name}: ${errorMessage}`
+          })
+        }
+      }
+
+      const successful = results.filter(r => r.success).length
+      const failed = results.filter(r => !r.success).length
+
+      console.log(`✅ Aggiornamento completato: ${successful} successi, ${failed} errori`)
+
+      return {
+        success: true,
+        message: `Aggiornati ${successful}/${assets.length} asset`,
+        results
+      }
+
+    } catch (error) {
+      console.error('❌ Errore in updateAllAssetsFromTransactions:', error)
+      throw error
+    }  }, [user, supabase, updateAssetFromTransactions])
+
+  // Funzione di debug per verificare lo stato delle transazioni asset
+  const debugAssetTransactions = useCallback(async (assetId?: string) => {
+    if (!user) throw new Error('User not authenticated')
+
+    console.log('🔍 Debug transazioni asset...')
+
+    try {
+      // Se assetId è specificato, mostra solo quello, altrimenti tutti
+      const assetsQuery = supabase
+        .from('assets')
+        .select('id, name, quantity, value')
+        .eq('user_id', user.id)
+
+      if (assetId) {
+        assetsQuery.eq('id', assetId)
+      }
+
+      const { data: assets, error: assetsError } = await assetsQuery
+
+      if (assetsError) throw assetsError
+
+      for (const asset of assets || []) {
+        console.log(`\n📦 Asset: ${asset.name} (${asset.id})`)
+        console.log(`   Quantità attuale: ${asset.quantity}`)
+        console.log(`   Valore attuale: ${asset.value}€`)
+
+        // Recupera tutte le transazioni per questo asset
+        const { data: transactions, error: transError } = await supabase
+          .from('transactions')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('asset_id', asset.id)
+          .order('transaction_date', { ascending: true })
+
+        if (transError) {
+          console.error(`❌ Errore nel recupero transazioni per ${asset.name}:`, transError)
+          continue
+        }
+
+        console.log(`   📊 Transazioni totali: ${transactions?.length || 0}`)
+        
+        if (transactions && transactions.length > 0) {
+          transactions.forEach((t, i) => {
+            console.log(`   ${i + 1}. Data: ${t.transaction_date}`)
+            console.log(`      Amount: ${t.current_amount}€`)
+            console.log(`      Asset Quantity: ${t.asset_quantity}`)
+            console.log(`      Dettagli: ${t.transaction_details}`)
+          })
+        }
+      }
+
+      return { success: true, message: 'Debug completato' }
+    } catch (error) {
+      console.error('❌ Errore durante il debug:', error)
+      throw error
+    }
+  }, [user, supabase])
+
+  // Funzione per aggiornare il valore di un asset con il prezzo di mercato corrente
+  const updateAssetMarketValue = useCallback(async (assetId: string) => {
+    if (!user) throw new Error('User not authenticated')
+
+    console.log('💰 Aggiornamento valore asset con prezzo di mercato:', assetId)
+
+    try {
+      // 1. Recupera l'asset con simbolo e quantità
+      const { data: asset, error: assetError } = await supabase
+        .from('assets')
+        .select('id, name, symbol, type, quantity')
+        .eq('id', assetId)
+        .eq('user_id', user.id)
+        .single()
+
+      if (assetError || !asset) {
+        console.error('❌ Asset non trovato:', assetError)
+        throw new Error('Asset non trovato')
+      }
+
+      if (!asset.symbol) {
+        console.log('⚠️ Asset senza simbolo, impossibile recuperare prezzo di mercato')
+        throw new Error('Asset non ha un simbolo per il prezzo di mercato')
+      }
+
+      // 2. Recupera il prezzo di mercato corrente
+      console.log(`🌐 Recupero prezzo di mercato per ${asset.symbol}...`)
+      const priceResponse = await fetch(`/api/market-price?symbol=${encodeURIComponent(asset.symbol)}&type=${encodeURIComponent(asset.type)}`)
+      
+      if (!priceResponse.ok) {
+        throw new Error('Prezzo di mercato non disponibile')
+      }
+
+      const priceData = await priceResponse.json()
+      const currentMarketPrice = priceData.price || 0
+
+      if (currentMarketPrice <= 0) {
+        throw new Error('Prezzo di mercato non valido')
+      }
+
+      // 3. Calcola il nuovo valore
+      const newValue = asset.quantity * currentMarketPrice
+      console.log(`💰 Nuovo valore calcolato: ${asset.quantity} * ${currentMarketPrice} = ${newValue} EUR`)
+
+      // 4. Aggiorna l'asset nel database
+      const { error: updateError } = await supabase
+        .from('assets')
+        .update({
+          value: newValue,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', assetId)
+        .eq('user_id', user.id)
+
+      if (updateError) {
+        console.error('❌ Errore nell\'aggiornamento:', updateError)
+        throw updateError
+      }
+
+      console.log(`✅ Asset "${asset.name}" aggiornato con successo`)
+      
+      // 5. Refresh della cache
+      await refetch()
+
+      return {
+        success: true,
+        message: `Valore aggiornato a ${newValue.toFixed(2)} EUR`,
+        newValue
+      }
+
+    } catch (error) {
+      console.error('❌ Errore in updateAssetMarketValue:', error)
+      throw error
+    }
+  }, [user, supabase, refetch])
 
   return {
     createAsset,
@@ -751,7 +1100,11 @@ export function useAssetOperations() {
     deleteAsset,
     updateAssetValue,
     linkAssetToTransaction,
-    unlinkAssetFromTransaction
+    unlinkAssetFromTransaction,
+    updateAssetFromTransactions,
+    updateAllAssetsFromTransactions,
+    debugAssetTransactions,
+    updateAssetMarketValue
   }
 }
 
@@ -776,4 +1129,83 @@ interface RawAssetData {
 
 interface CategoryAmounts {
   [key: string]: number
+}
+
+// Hook per recuperare le transazioni non collegate ad asset con categoria specifica
+export function useUnlinkedAssetTransactions() {
+  const { user } = useAuth()
+  const supabase = createClientComponentClient()
+  const [unlinkedTransactions, setUnlinkedTransactions] = useState<Transaction[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const fetchUnlinkedTransactions = useCallback(async () => {
+    if (!user) {
+      setUnlinkedTransactions([])
+      return
+    }    setLoading(true)
+    setError(null)
+
+    try {
+      // Prima trova l'ID della categoria 'ASSET & INVESTIMENTI'
+      const { data: categoryData, error: categoryError } = await supabase
+        .from('categories')
+        .select('id')
+        .eq('name', 'ASSET & INVESTIMENTI')
+        .single()
+
+      if (categoryError) {
+        console.error('Error finding category:', categoryError)
+        throw new Error('Categoria ASSET & INVESTIMENTI non trovata')
+      }
+
+      if (!categoryData) {
+        console.log('⚠️ Categoria ASSET & INVESTIMENTI non esiste')
+        setUnlinkedTransactions([])
+        return
+      }
+
+      // Poi cerca le transazioni con quella categoria e senza asset_id
+      const { data, error: queryError } = await supabase
+        .from('transactions')
+        .select(`
+          *,
+          categories (
+            id,
+            name
+          )
+        `)
+        .eq('user_id', user.id)
+        .is('asset_id', null)
+        .eq('category_id', categoryData.id)
+        .order('transaction_date', { ascending: false })
+        .limit(200) // Limite ragionevole ma alto per trovare le transazioni
+
+      if (queryError) {
+        console.error('Error fetching unlinked asset transactions:', queryError)
+        throw queryError
+      }
+
+      console.log('🔍 Unlinked asset transactions found:', data?.length || 0)
+      setUnlinkedTransactions(data || [])
+    } catch (err) {
+      console.error('Error in fetchUnlinkedTransactions:', err)
+      setError(err instanceof Error ? err.message : 'Errore nel caricamento delle transazioni')
+      setUnlinkedTransactions([])
+    } finally {
+      setLoading(false)
+    }
+  }, [user, supabase])
+
+  useEffect(() => {
+    fetchUnlinkedTransactions()
+  }, [fetchUnlinkedTransactions])
+
+  return {
+    unlinkedTransactions,
+    loading,
+    error,
+    refetch: fetchUnlinkedTransactions,
+    count: unlinkedTransactions.length
+  }
 }

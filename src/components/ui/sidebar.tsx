@@ -30,8 +30,7 @@ const navigation = [
     href: "/", 
     icon: Home,
     type: "single"
-  },
-  { 
+  },  { 
     name: "Finanze", 
     icon: Banknote,
     type: "module",
@@ -40,6 +39,7 @@ const navigation = [
       { name: "Dashboard", href: "/finance/dashboard" },
       { name: "Account", href: "/finance/accounts" },
       { name: "Asset", href: "/finance/assets" },
+      { name: "Rimborsi", href: "/finance/refunds" },
       // Qui puoi aggiungere altre sottopagine come:
       // { name: "Budget", href: "/finance/budget" },
       // { name: "Spese", href: "/finance/expenses" },

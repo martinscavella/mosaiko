@@ -5,7 +5,7 @@ import ModuleLayout from '@/components/ModuleLayout'
 import ModuleHeader from '@/components/ui/ModuleHeader'
 import CacheStatus from '@/components/ui/CacheStatus'
 import { useAuth } from '@/lib/auth'
-import { useFinanceCache, useAssets, useAssetStats, useAssetOperations, useAccounts, useAssetTransactions, type Asset } from '@/lib/financeCache'
+import { useFinanceCache, useAssets, useAssetStats, useAssetOperations, useAccounts, useAssetTransactions, useUnlinkedAssetTransactions, type Asset } from '@/lib/financeCache'
 import AssetPerformanceChart from '@/components/ui/AssetPerformanceChart'
 import { 
   TrendingUp, 
@@ -51,7 +51,7 @@ export default function AssetsPage() {
   const { assets } = useAssets()
   const { accounts } = useAccounts()
   const { totalValue, totalPerformance } = useAssetStats()
-  const { createAsset, updateAsset, deleteAsset } = useAssetOperations()
+  const { createAsset, updateAsset, deleteAsset, updateAssetMarketValue } = useAssetOperations()
   
   const [showAddModal, setShowAddModal] = useState(false)
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null)
@@ -80,7 +80,8 @@ export default function AssetsPage() {
   const [selectedAccountId, setSelectedAccountId] = useState<string>('all')
   const [sortField, setSortField] = useState<'name' | 'type' | 'value' | 'performance'>('value')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
-
+  // Stati per l'aggiornamento dei valori degli asset
+  const [isUpdatingValues, setIsUpdatingValues] = useState(false)
 
   // Debug: log dei dati per capire cosa sta succedendo
   useEffect(() => {
@@ -282,8 +283,39 @@ export default function AssetsPage() {
     setSelectedAssetForTransactions(asset)
     setShowTransactionsModal(true)
   }
-
-
+  // Funzione per aggiornare tutti gli asset con i valori di mercato
+  const handleUpdateAllAssetsValues = async () => {
+    setIsUpdatingValues(true)
+    
+    try {
+      console.log('🔄 Aggiornamento valori di tutti gli asset...')
+      
+      // Recupera tutti gli asset che hanno un simbolo
+      const assetsWithSymbol = assets.filter(asset => asset.symbol)
+      
+      if (assetsWithSymbol.length === 0) {
+        console.log('⚠️ Nessun asset con simbolo trovato')
+        return
+      }
+      
+      // Aggiorna ogni asset
+      for (const asset of assetsWithSymbol) {
+        try {
+          await updateAssetMarketValue(asset.id)
+          console.log(`✅ Aggiornato ${asset.name}`)
+        } catch (error) {
+          console.error(`❌ Errore aggiornamento ${asset.name}:`, error)
+        }
+      }
+      
+      console.log('✅ Aggiornamento completato')
+      
+    } catch (error) {
+      console.error('❌ Errore durante l\'aggiornamento:', error)
+    } finally {
+      setIsUpdatingValues(false)
+    }
+  }
   const confirmDelete = async () => {
     if (assetToDelete) {
       try {
@@ -333,9 +365,7 @@ export default function AssetsPage() {
       label: 'Performance',
       value: `${totalPerformance.toFixed(2)}%`,
       color: totalPerformance >= 0 ? 'green' : 'orange'
-    }
-  ]
-
+    }  ]
   // Header actions
   const headerActions: HeaderAction[] = [
     {
@@ -344,26 +374,25 @@ export default function AssetsPage() {
       icon: <Plus className="w-4 h-4" />,
       color: 'green',
       hideTextOnMobile: true
-    },
-    {
+    },    {
       label: 'Aggiorna',
-      onClick: refetch,
+      onClick: handleUpdateAllAssetsValues,
       icon: <RefreshCw className="w-4 h-4" />,
       color: 'blue',
-      disabled: loading,
-      loading: loading,
+      disabled: isUpdatingValues,
+      loading: isUpdatingValues,
       hideTextOnMobile: true
-    }  ]
-  
+    }
+  ]
   // Componente helper per visualizzare le transazioni dell'asset
   const AssetTransactionsContent = ({ assetId, formatCurrency }: { assetId: string, formatCurrency: (amount: number) => string }) => {
     const { assetTransactions, totalSpentOnAsset, totalReceivedFromAsset, transactionCount, loading, refetch: refetchAssetTransactions } = useAssetTransactions(assetId)
     const { linkAssetToTransaction, unlinkAssetFromTransaction } = useAssetOperations()
+    const { unlinkedTransactions, refetch: refetchUnlinkedTransactions } = useUnlinkedAssetTransactions() // Usa il nuovo hook per transazioni senza limiti
     const [showLinkForm, setShowLinkForm] = useState(false)
     const [selectedTransactionId, setSelectedTransactionId] = useState('')
     const [linkingTransaction, setLinkingTransaction] = useState(false)
-    const [unlinkingTransaction, setUnlinkingTransaction] = useState<string | null>(null)    // Get all transactions that are not yet linked to any asset
-    const unlinkedTransactions = financeData?.transactions?.filter(t => !t.asset_id) || []
+    const [unlinkingTransaction, setUnlinkingTransaction] = useState<string | null>(null)
 
     const handleLinkTransaction = async () => {
       if (!selectedTransactionId) return
@@ -374,6 +403,7 @@ export default function AssetsPage() {
         setShowLinkForm(false)
         setSelectedTransactionId('')
         await refetchAssetTransactions() // Refresh asset transactions
+        await refetchUnlinkedTransactions() // Refresh unlinked transactions
         await refetch() // Refresh general data
       } catch (error) {
         console.error('Errore nel collegare la transazione:', error)
@@ -387,6 +417,7 @@ export default function AssetsPage() {
       try {
         await unlinkAssetFromTransaction(transactionId)
         await refetchAssetTransactions() // Refresh asset transactions
+        await refetchUnlinkedTransactions() // Refresh unlinked transactions
         await refetch() // Refresh general data
       } catch (error) {
         console.error('Errore nello scollegare la transazione:', error)
@@ -407,53 +438,102 @@ export default function AssetsPage() {
             <h3 className="text-lg font-medium text-gray-900 mb-2">Nessuna transazione collegata</h3>
             <p className="text-gray-500 mb-4">
               Non ci sono transazioni collegate a questo asset.
-            </p>
-            {unlinkedTransactions.length > 0 && (
-              <button
-                onClick={() => setShowLinkForm(true)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Collega transazione esistente
-              </button>
-            )}
-          </div>
-
-          {/* Form per collegare transazione esistente */}
+            </p>            <button
+              onClick={() => setShowLinkForm(true)}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Collega transazione esistente
+            </button>
+          </div>          {/* Form per collegare transazione esistente */}
           {showLinkForm && (
             <div className="border border-gray-200 rounded-lg p-4">
               <h4 className="font-medium text-gray-900 mb-3">Collega transazione esistente</h4>
-              <div className="space-y-3">
-                <select
-                  value={selectedTransactionId}
-                  onChange={(e) => setSelectedTransactionId(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">Seleziona una transazione</option>
-                  {unlinkedTransactions.map((transaction) => (
-                    <option key={transaction.id} value={transaction.id}>
-                      {transaction.transaction_details} - {formatCurrency(transaction.current_amount)} ({new Date(transaction.transaction_date).toLocaleDateString('it-IT')})
-                    </option>
-                  ))}
-                </select>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => {
-                      setShowLinkForm(false)
-                      setSelectedTransactionId('')
-                    }}
-                    className="px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    Annulla
-                  </button>
-                  <button
-                    onClick={handleLinkTransaction}
-                    disabled={!selectedTransactionId || linkingTransaction}
-                    className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {linkingTransaction ? 'Collegando...' : 'Collega'}
-                  </button>
+              {unlinkedTransactions.length === 0 ? (
+                <div className="text-center py-4">
+                  <p className="text-gray-500">
+                    Non ci sono transazioni disponibili per il collegamento.
+                  </p>
+                  <p className="text-sm text-gray-400 mt-1">
+                    Le transazioni devono avere categoria "ASSET & INVESTIMENTI" e non essere già collegate ad altri asset.
+                  </p>
                 </div>
-              </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-lg">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50 sticky top-0">
+                        <tr>
+                          <th className="text-left p-3 font-medium text-gray-700">Seleziona</th>
+                          <th className="text-left p-3 font-medium text-gray-700">Data</th>
+                          <th className="text-left p-3 font-medium text-gray-700">Descrizione</th>
+                          <th className="text-right p-3 font-medium text-gray-700">Importo</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {unlinkedTransactions.map((transaction) => (
+                          <tr 
+                            key={transaction.id}
+                            className={`border-t border-gray-200 hover:bg-blue-50 cursor-pointer transition-colors ${
+                              selectedTransactionId === transaction.id ? 'bg-blue-100' : ''
+                            }`}
+                            onClick={() => setSelectedTransactionId(
+                              selectedTransactionId === transaction.id ? '' : transaction.id
+                            )}
+                          >
+                            <td className="p-3">
+                              <input
+                                type="radio"
+                                name="selectedTransaction"
+                                checked={selectedTransactionId === transaction.id}
+                                onChange={() => setSelectedTransactionId(transaction.id)}
+                                className="text-blue-600 focus:ring-blue-500"
+                              />
+                            </td>
+                            <td className="p-3 text-gray-700">
+                              {new Date(transaction.transaction_date).toLocaleDateString('it-IT')}
+                            </td>
+                            <td className="p-3">
+                              <div>
+                                <p className="font-medium text-gray-900 truncate">
+                                  {transaction.transaction_details}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {transaction.transaction_type}
+                                </p>
+                              </div>
+                            </td>
+                            <td className="p-3 text-right">
+                              <span className={`font-semibold ${
+                                transaction.current_amount >= 0 ? 'text-green-600' : 'text-red-600'
+                              }`}>
+                                {transaction.current_amount >= 0 ? '+' : ''}{formatCurrency(transaction.current_amount)}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        setShowLinkForm(false)
+                        setSelectedTransactionId('')
+                      }}
+                      className="px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      Annulla
+                    </button>
+                    <button
+                      onClick={handleLinkTransaction}
+                      disabled={!selectedTransactionId || linkingTransaction}
+                      className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {linkingTransaction ? 'Collegando...' : 'Collega Transazione Selezionata'}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -481,15 +561,12 @@ export default function AssetsPage() {
         {/* Lista Transazioni */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <h4 className="font-medium text-gray-900">Transazioni Correlate</h4>
-            {unlinkedTransactions.length > 0 && (
-              <button
-                onClick={() => setShowLinkForm(true)}
-                className="px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-              >
-                + Collega altra transazione
-              </button>
-            )}
+            <h4 className="font-medium text-gray-900">Transazioni Correlate</h4>            <button
+              onClick={() => setShowLinkForm(true)}
+              className="px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+            >
+              + Collega altra transazione
+            </button>
           </div>
           <div className="space-y-2">
             {assetTransactions.map((transaction) => (
@@ -523,44 +600,96 @@ export default function AssetsPage() {
                 </div>
               </div>
             ))}
-          </div>
-
-          {/* Form per collegare transazione esistente */}
+          </div>          {/* Form per collegare transazione esistente */}
           {showLinkForm && (
             <div className="border border-gray-200 rounded-lg p-4 mt-4">
               <h4 className="font-medium text-gray-900 mb-3">Collega transazione esistente</h4>
-              <div className="space-y-3">
-                <select
-                  value={selectedTransactionId}
-                  onChange={(e) => setSelectedTransactionId(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">Seleziona una transazione</option>
-                  {unlinkedTransactions.map((transaction) => (
-                    <option key={transaction.id} value={transaction.id}>
-                      {transaction.transaction_details} - {formatCurrency(transaction.current_amount)} ({new Date(transaction.transaction_date).toLocaleDateString('it-IT')})
-                    </option>
-                  ))}
-                </select>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => {
-                      setShowLinkForm(false)
-                      setSelectedTransactionId('')
-                    }}
-                    className="px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    Annulla
-                  </button>
-                  <button
-                    onClick={handleLinkTransaction}
-                    disabled={!selectedTransactionId || linkingTransaction}
-                    className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {linkingTransaction ? 'Collegando...' : 'Collega'}
-                  </button>
+              {unlinkedTransactions.length === 0 ? (
+                <div className="text-center py-4">
+                  <p className="text-gray-500">
+                    Non ci sono transazioni disponibili per il collegamento.
+                  </p>
+                  <p className="text-sm text-gray-400 mt-1">
+                    Le transazioni devono avere categoria "ASSET & INVESTIMENTI" e non essere già collegate ad altri asset.
+                  </p>
                 </div>
-              </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-lg">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50 sticky top-0">
+                        <tr>
+                          <th className="text-left p-3 font-medium text-gray-700">Seleziona</th>
+                          <th className="text-left p-3 font-medium text-gray-700">Data</th>
+                          <th className="text-left p-3 font-medium text-gray-700">Descrizione</th>
+                          <th className="text-right p-3 font-medium text-gray-700">Importo</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {unlinkedTransactions.map((transaction) => (
+                          <tr 
+                            key={transaction.id}
+                            className={`border-t border-gray-200 hover:bg-blue-50 cursor-pointer transition-colors ${
+                              selectedTransactionId === transaction.id ? 'bg-blue-100' : ''
+                            }`}
+                            onClick={() => setSelectedTransactionId(
+                              selectedTransactionId === transaction.id ? '' : transaction.id
+                            )}
+                          >
+                            <td className="p-3">
+                              <input
+                                type="radio"
+                                name="selectedTransaction"
+                                checked={selectedTransactionId === transaction.id}
+                                onChange={() => setSelectedTransactionId(transaction.id)}
+                                className="text-blue-600 focus:ring-blue-500"
+                              />
+                            </td>
+                            <td className="p-3 text-gray-700">
+                              {new Date(transaction.transaction_date).toLocaleDateString('it-IT')}
+                            </td>
+                            <td className="p-3">
+                              <div>
+                                <p className="font-medium text-gray-900 truncate">
+                                  {transaction.transaction_details}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {transaction.transaction_type}
+                                </p>
+                              </div>
+                            </td>
+                            <td className="p-3 text-right">
+                              <span className={`font-semibold ${
+                                transaction.current_amount >= 0 ? 'text-green-600' : 'text-red-600'
+                              }`}>
+                                {transaction.current_amount >= 0 ? '+' : ''}{formatCurrency(transaction.current_amount)}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        setShowLinkForm(false)
+                        setSelectedTransactionId('')
+                      }}
+                      className="px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      Annulla
+                    </button>
+                    <button
+                      onClick={handleLinkTransaction}
+                      disabled={!selectedTransactionId || linkingTransaction}
+                      className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {linkingTransaction ? 'Collegando...' : 'Collega Transazione Selezionata'}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -774,8 +903,7 @@ export default function AssetsPage() {
                                 >
                                   <BarChart3 className="w-4 h-4" />
                                   Grafico Performance
-                                </button>
-                                <button
+                                </button>                                <button
                                   onClick={() => {
                                     handleShowTransactions(asset)
                                     setSelectedAsset(null)
@@ -1282,8 +1410,7 @@ export default function AssetsPage() {
 
               <pre className="text-xs text-gray-500 whitespace-pre-wrap">
                 {JSON.stringify(financeData, null, 2)}
-              </pre>
-            </div>
+              </pre>            </div>
           </div>
         )}
       </div>
