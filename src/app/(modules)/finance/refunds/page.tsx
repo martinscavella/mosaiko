@@ -115,7 +115,7 @@ export default function RefundsPage() {
     "refund_date" | "refund_details" | "current_amount" | "linked_amount"
   >("refund_date");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
-  const [showActiveOnly, setShowActiveOnly] = useState(false);
+  const [showActiveOnly, setShowActiveOnly] = useState(true);
   // Link modal states
   const [selectedTransactionId, setSelectedTransactionId] = useState("");
   const [linkAmount, setLinkAmount] = useState("");
@@ -499,7 +499,8 @@ export default function RefundsPage() {
       const matchesAccount =
         selectedAccountId === "all" ||
         (selectedAccountId === "none" && !refund.account_id) ||
-        refund.account_id === selectedAccountId;      const matchesActiveFilter =
+        refund.account_id === selectedAccountId;
+      const matchesActiveFilter =
         !showActiveOnly || refund.current_amount !== 0;
       return matchesSearch && matchesAccount && matchesActiveFilter;
     })
@@ -670,7 +671,8 @@ export default function RefundsPage() {
                     </option>
                   ))}
                 </select>
-              </div>              {/* Toggle per rimborsi attivi */}
+              </div>
+              {/* Toggle per rimborsi attivi */}
               <div className="flex items-center gap-2">
                 <label className="flex items-center cursor-pointer">
                   <input
@@ -1399,13 +1401,17 @@ export default function RefundsPage() {
         {showLinkModal && refundToLink && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-              {" "}              <div className="flex items-center justify-between mb-4">
+              {" "}
+              <div className="flex items-center justify-between mb-4">
                 <div>
                   <h3 className="text-lg font-semibold">
                     Collega Transazioni - {refundToLink.refund_details}
                   </h3>
                   <p className="text-sm text-gray-600 mt-1">
-                    Data rimborso: {new Date(refundToLink.refund_date).toLocaleDateString('it-IT')}
+                    Data rimborso:{" "}
+                    {new Date(refundToLink.refund_date).toLocaleDateString(
+                      "it-IT"
+                    )}
                   </p>
                 </div>
                 <button

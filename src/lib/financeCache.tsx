@@ -33,6 +33,9 @@ export interface Transaction {
   categories?: {
     name: string
   } | null
+  subcategories?: {
+    name: string
+  } | null
 }
 
 export interface FinancialGoal {
@@ -153,32 +156,14 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true)
       setError(null)
-      console.log('📊 Caricamento dati finanziari...')
-
-      // Esegui tutte le query in parallelo per ottimizzare le performance
-      const [accountsResult, transactionsResult, goalsResult, assetsResult] = await Promise.all([
+      console.log('📊 Caricamento dati finanziari...')      // Esegui query per accounts, goals e assets
+      const [accountsResult, goalsResult, assetsResult] = await Promise.all([
         // Query accounts - recupera tutti i dati degli account
         supabase
           .from('accounts')
           .select('*')
           .eq('user_id', user.id)
-          .order('created_at', { ascending: false }),        // Query TUTTE le transazioni per calcoli accurati (senza limit)
-        supabase
-          .from('transactions')
-          .select(`
-            id,
-            transaction_date,
-            transaction_details,
-            current_amount,
-            transaction_type,
-            is_refunded,
-            account_name,
-            asset_id,
-            accounts(type),
-            categories(name)
-          `)
-          .eq('user_id', user.id)
-          .order('transaction_date', { ascending: false }),
+          .order('created_at', { ascending: false }),
 
         // Query obiettivi finanziari
         supabase
@@ -196,14 +181,51 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
           .order('created_at', { ascending: false })
       ])
 
-      // Controllo errori
+      // Query separata per transazioni con paginazione per recuperare TUTTE le transazioni
+      let allTransactions: TransactionWithRelations[] = []
+      let hasMore = true
+      let offset = 0
+      const batchSize = 1000
+
+      console.log('🔄 Inizio recupero transazioni con paginazione...')
+      
+      while (hasMore) {        const transactionsBatch = await supabase
+          .from('transactions')
+          .select(`
+            id,
+            transaction_date,
+            transaction_details,
+            current_amount,
+            transaction_type,
+            is_refunded,
+            account_name,
+            asset_id,
+            accounts(type),
+            categories(name),
+            subcategories(name)
+          `)
+          .eq('user_id', user.id)
+          .order('transaction_date', { ascending: false })
+          .range(offset, offset + batchSize - 1)
+
+        if (transactionsBatch.error) {
+          console.error('❌ Errore nella query transactions:', transactionsBatch.error)
+          throw transactionsBatch.error
+        }
+
+        const batchData = (transactionsBatch.data as unknown as TransactionWithRelations[]) || []
+        allTransactions = [...allTransactions, ...batchData]
+        
+        console.log(`📦 Batch ${Math.floor(offset/batchSize) + 1}: ${batchData.length} transazioni (totale: ${allTransactions.length})`)
+        
+        hasMore = batchData.length === batchSize
+        offset += batchSize
+      }      console.log(`✅ Recupero completato: ${allTransactions.length} transazioni totali`)
+
+      // Controllo errori per le altre query
       if (accountsResult.error) {
         console.error('❌ Errore nella query accounts:', accountsResult.error)
         throw accountsResult.error
-      }
-      if (transactionsResult.error) {
-        console.error('❌ Errore nella query transactions:', transactionsResult.error)
-        throw transactionsResult.error
       }
       if (goalsResult.error) {
         console.error('❌ Errore nella query goals:', goalsResult.error)
@@ -215,16 +237,18 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
       }
 
       const accounts = accountsResult.data || []
-      const allTransactions = (transactionsResult.data as unknown as TransactionWithRelations[]) || []
       const goals = goalsResult.data || []
       const rawAssets = (assetsResult.data as RawAssetData[]) || []
 
-      console.log('📊 Dati recuperati:', {
+      console.log('📊 Dati recuperati dal database:', {
         accounts: accounts.length,
         transactions: allTransactions.length,
         goals: goals.length,
         assets: rawAssets.length
-      })      // Debug per verificare se asset_id è presente nelle transazioni
+      })
+      
+      // Log specifico per verificare il numero totale di transazioni
+      console.log(`🔢 Transazioni caricate: ${allTransactions.length} (dovrebbero essere 1598)`)// Debug per verificare se asset_id è presente nelle transazioni
       if (allTransactions.length > 0) {
         console.log('🔍 Sample transaction with all fields:', allTransactions[0])
         const transactionsWithAssetId = allTransactions.filter((t: TransactionWithRelations) => t.asset_id)
@@ -305,12 +329,13 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
         
         if (amount > 0) {
           monthlyIncome += Math.abs(amount)
-        } else {
+        } else if(transaction.asset_id === null) {
           monthlyExpenses += Math.abs(amount)
+          
+          // Aggiungi ai categoryAmounts solo se è una spesa (importo negativo)
+          const categoryName = transaction.categories?.name || 'Altro'
+          categoryAmounts[categoryName] = (categoryAmounts[categoryName] || 0) + Math.abs(amount)
         }
-
-        const categoryName = transaction.categories?.name || 'Altro'
-        categoryAmounts[categoryName] = (categoryAmounts[categoryName] || 0) + Math.abs(amount)
       })
 
       const topCategory = Object.keys(categoryAmounts).length > 0 
@@ -344,10 +369,8 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
         goalProgress: Math.max(0, Math.min(100, goalProgress)),
         currentMonth,
         monthYear
-      }
-
-      // Processa transazioni per il formato corretto (solo le più recenti per la UI)
-      const processedTransactions: Transaction[] = allTransactions.slice(0, 20).map((item: TransactionWithRelations) => ({
+      }      // Processa transazioni per il formato corretto
+      const processedTransactions: Transaction[] = allTransactions.map((item: TransactionWithRelations) => ({
         ...item,
         accounts: item.accounts,
         categories: item.categories
@@ -450,6 +473,18 @@ export function useTransactions(limit = 10) {
     transactions: data?.transactions.slice(0, limit) || [],
     loading,
     error
+  }
+}
+
+// Hook per tutte le transazioni (senza limite)
+export function useAllTransactions() {
+  const { data, loading, error, refetch } = useFinanceCache()
+  
+  return {
+    transactions: data?.transactions || [],
+    loading,
+    error,
+    refetch
   }
 }
 
@@ -565,12 +600,15 @@ export function useAssetTransactions(assetId: string | null) {
     }    setLoading(true)
     setError(null)
 
-    try {
-      const { data, error: queryError } = await supabase
+    try {      const { data, error: queryError } = await supabase
         .from('transactions')
         .select(`
           *,
           categories (
+            id,
+            name
+          ),
+          subcategories (
             id,
             name
           )
@@ -1163,14 +1201,16 @@ export function useUnlinkedAssetTransactions() {
         console.log('⚠️ Categoria ASSET & INVESTIMENTI non esiste')
         setUnlinkedTransactions([])
         return
-      }
-
-      // Poi cerca le transazioni con quella categoria e senza asset_id
+      }      // Poi cerca le transazioni con quella categoria e senza asset_id
       const { data, error: queryError } = await supabase
         .from('transactions')
         .select(`
           *,
           categories (
+            id,
+            name
+          ),
+          subcategories (
             id,
             name
           )

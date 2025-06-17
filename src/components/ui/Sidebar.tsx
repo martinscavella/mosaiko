@@ -8,9 +8,9 @@ import { MosaikoLogo } from "@/components/ui/MosaikoLogo";
 import { 
   Home, 
   Banknote, 
-  Heart, 
+  /* Heart, 
   BookOpen,
-  CheckSquare,
+  CheckSquare, */
   User,
   ChevronRight,
   Settings,
@@ -38,13 +38,14 @@ const navigation = [
     children: [
       { name: "Dashboard", href: "/finance/dashboard" },
       { name: "Account", href: "/finance/accounts" },
+      { name: "Transazioni", href: "/finance/transactions" },
       { name: "Asset", href: "/finance/assets" },
       { name: "Rimborsi", href: "/finance/refunds" },
       // Qui puoi aggiungere altre sottopagine come:
       // { name: "Budget", href: "/finance/budget" },
       // { name: "Spese", href: "/finance/expenses" },
     ]
-  },
+  }/*  ,
   { 
     name: "Salute", 
     icon: Heart,
@@ -77,7 +78,7 @@ const navigation = [
       // { name: "Progetti", href: "/tasks/projects" },
       // { name: "Calendario", href: "/tasks/calendar" },
     ]
-  },
+  },*/
 ];
 
 export function Sidebar() {
