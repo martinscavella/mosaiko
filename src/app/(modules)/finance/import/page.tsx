@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { useAuth } from '@/lib/auth'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import ModuleLayout from '@/components/ModuleLayout'
@@ -9,15 +9,11 @@ import * as XLSX from 'xlsx'
 import { 
   Upload, 
   FileSpreadsheet, 
-  Download, 
-  AlertCircle, 
+  Download,
   CheckCircle,
   FileText,
   RefreshCw,
   X,
-  Database,
-  ArrowRightLeft,
-  RotateCcw,
   Info,
   Plus
 } from 'lucide-react'
@@ -59,7 +55,6 @@ interface BankParser {
   parseRow: (headers: string[], values: string[]) => Partial<ImportRow>
   transformAmount?: (amount: string) => string
   transformDate?: (date: string) => string
-  parseEdenredMultiRow?: (dataLines: string[][]) => ImportRow[]
 }
 
 // Funzione helper per trovare valori nelle colonne
@@ -169,74 +164,12 @@ const BANK_PARSERS: BankParser[] = [
       }
       
       // Se è già in formato YYYY-MM-DD, restituiscilo così com'è
-      if (typeof date === 'string' && date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      if (typeof date === 'string' && date.match(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/)) {
         return date
       }
       
       return date
     }
-  },
-  
-  // UniCredit
-  {
-    name: 'UniCredit',
-    identifier: 'unicredit',
-    detectFormat: (headers: string[]) => {
-      return headers.some(h => 
-        h.includes('data registrazione') || 
-        h.includes('data operazione') || 
-        h.includes('dettaglio') ||
-        h.includes('addebiti') ||
-        h.includes('accrediti')
-      )
-    },
-    parseRow: (headers: string[], values: string[]) => ({
-      date: findValue(headers, values, ['data registrazione', 'data operazione', 'data']) || '',
-      description: findValue(headers, values, ['dettaglio', 'descrizione', 'causale']) || '',
-      amount: findValue(headers, values, ['addebiti', 'accrediti', 'importo']) || '',
-      type: 'Spesa'
-    }),
-    transformAmount: (amount: string) => {
-      return amount.replace(/\./g, '').replace(',', '.')
-    }
-  },
-
-  // Banco BPM
-  {
-    name: 'Banco BPM',
-    identifier: 'bpm',
-    detectFormat: (headers: string[]) => {
-      return headers.some(h => 
-        h.includes('data movimento') || 
-        h.includes('descrizione movimento') || 
-        h.includes('importo movimento')
-      )
-    },
-    parseRow: (headers: string[], values: string[]) => ({
-      date: findValue(headers, values, ['data movimento', 'data']) || '',
-      description: findValue(headers, values, ['descrizione movimento', 'descrizione']) || '',
-      amount: findValue(headers, values, ['importo movimento', 'importo']) || '',
-      type: 'Spesa'
-    })
-  },
-
-  // Fineco
-  {
-    name: 'Fineco',
-    identifier: 'fineco',
-    detectFormat: (headers: string[]) => {
-      return headers.some(h => 
-        h.includes('data') && h.includes('valuta') ||
-        h.includes('entrate') ||
-        h.includes('uscite')
-      )
-    },
-    parseRow: (headers: string[], values: string[]) => ({
-      date: findValue(headers, values, ['data', 'data valuta']) || '',
-      description: findValue(headers, values, ['causale', 'descrizione']) || '',
-      amount: findValue(headers, values, ['entrate', 'uscite', 'importo']) || '',
-      type: 'Spesa'
-    })
   },
 
   // Revolut
@@ -258,7 +191,6 @@ const BANK_PARSERS: BankParser[] = [
       const type = findValue(headers, values, ['type']) || '';
       const description = findValue(headers, values, ['description']) || '';
       const amount = findValue(headers, values, ['amount']) || '';
-      const state = findValue(headers, values, ['state']) || '';
       const completedDate = findValue(headers, values, ['completed date']) || '';
       const amountNum = parseFloat(amount);
       
@@ -328,7 +260,7 @@ const BANK_PARSERS: BankParser[] = [
       }
       
       // Se è già in formato YYYY-MM-DD, restituiscilo così com'è
-      if (typeof date === 'string' && date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      if (typeof date === 'string' && date.match(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/)) {
         return date
       }
       
@@ -396,209 +328,12 @@ const BANK_PARSERS: BankParser[] = [
       }
       
       // Se è già in formato YYYY-MM-DD, restituiscilo così com'è
-      if (typeof date === 'string' && date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      if (typeof date === 'string' && date.match(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/)) {
         return date
       }
       
       return date
-    }
-  },
-
-  // Edenred - Gestione formato multi-riga speciale
-  {
-    name: 'Edenred',
-    identifier: 'edenred',
-    detectFormat: (headers: string[]) => {
-      console.log('Checking Edenred format with headers:', headers) // Debug
-      // Edenred usa una struttura speciale dove gli header si ripetono
-      // Cerchiamo la presenza di "Data e ora" che è specifico di Edenred
-      const hasDataOra = headers.some(h => h.toLowerCase().includes('data e ora'))
-      const hasTipo = headers.some(h => h.toLowerCase().includes('tipo movimento'))
-      
-      console.log('Edenred detection:', { hasDataOra, hasTipo }) // Debug
-      
-      return hasDataOra && hasTipo
-    },
-    parseRow: (headers: string[], values: string[]) => {
-      // Questo parser non verrà mai chiamato per Edenred
-      // perché useremo una logica speciale in parseCSV/parseExcel
-      return {
-        date: '',
-        description: '',
-        amount: '',
-        type: 'Spesa',
-        targetTable: 'transactions' as const
-      }
-    },
-    transformAmount: (amount: string) => {
-      return amount.replace(/€/g, '').replace(',', '.').trim()
-    },
-    transformDate: (date: string) => {
-      // Converte da "18/06/2025 18:46:00" a "2025-06-18"
-      if (typeof date === 'string' && date.includes('/')) {
-        const datePart = date.split(' ')[0]; // Rimuove la parte dell'ora
-        const parts = datePart.split('/');
-        if (parts.length === 3) {
-          const day = parts[0].padStart(2, '0');
-          const month = parts[1].padStart(2, '0');
-          const year = parts[2];
-          return `${year}-${month}-${day}`;
-        }
-      }
-      
-      // Se è già in formato YYYY-MM-DD, restituiscilo così com'è
-      if (typeof date === 'string' && date.match(/^\d{4}-\d{2}-\d{2}$/)) {
-        return date;
-      }
-      
-      return date;
-    },
-    // Funzione speciale per parsare il formato multi-riga di Edenred
-    parseEdenredMultiRow: (allLines: string[][]): ImportRow[] => {
-      if (allLines.length < 2) {
-        console.log('❌ File Edenred troppo corto - servono almeno header + una riga dati')
-        return []
-      }
-      
-      console.log(`🔄 EDENRED PARSER STARTED - Nuovo pattern`) // Debug
-      console.log(`� Total lines: ${allLines.length}`) // Debug
-      console.log(`🔍 Pattern: Riga 1=header, poi righe 2,6,10,14,18,22... per i dati`) // Debug
-      
-      // Riga 1 = Header (indice 0)
-      const headerRow = allLines[0]
-      console.log(`📋 Header (riga 1):`, headerRow) // Debug
-      
-      // Raccoglie le righe dati: 2, 6, 10, 14, 18, 22...
-      // In termini di indici: 1, 5, 9, 13, 17, 21...
-      const dataRows: string[][] = []
-      const tempTransactions: {[key: string]: ImportRow} = {} // Per raggruppare per data/ora
-      
-      for (let i = 1; i < allLines.length; i += 4) { // Partendo da indice 1 (riga 2), poi +4
-        const dataRow = allLines[i]
-        if (dataRow && dataRow.some(cell => cell && cell.trim())) {
-          dataRows.push(dataRow)
-          console.log(`📊 Riga dati ${i + 1}:`, dataRow) // Debug (i+1 per human-readable)
-        }
-      }
-      
-      console.log(`✅ Trovate ${dataRows.length} righe dati valide`) // Debug
-      
-      // Processa ogni riga dati
-      dataRows.forEach((dataRow, index) => {
-        // Mappa i dati assumendo l'ordine delle colonne dell'header
-        const [dataOra, tipoMovimento, supporto, importoBuoni, dettaglio, ...rest] = dataRow
-        
-        console.log(`\n🔍 === RIGA DATI ${index + 1} ===`) // Debug
-        console.log(`📅 Data e ora: "${dataOra}"`) // Debug
-        console.log(`🏷️ Tipo movimento: "${tipoMovimento}"`) // Debug
-        console.log(`💳 Supporto: "${supporto}"`) // Debug
-        console.log(`💰 N.e importo buoni: "${importoBuoni}"`) // Debug
-        console.log(`📝 Dettaglio: "${dettaglio}"`) // Debug
-        
-        // Estrae l'importo da stringhe come "1 da €4,50"
-        let amount = '0'
-        const importoMatch = importoBuoni?.match(/€\s*(\d+[,\.]\d+)/)
-        if (importoMatch) {
-          amount = importoMatch[1].replace(',', '.')
-          console.log(`✅ Importo estratto: €${amount}`) // Debug
-        } else {
-          console.log(`❌ Impossibile estrarre importo da: "${importoBuoni}"`) // Debug
-        }
-        
-        // Determina il tipo di transazione e segno dell'importo
-        let transactionType = 'expense'
-        let finalAmount = amount
-        
-        if (tipoMovimento?.toLowerCase().includes('utilizzo')) {
-          transactionType = 'expense'
-          finalAmount = `-${amount}` // Negativo per le spese
-        } else if (tipoMovimento?.toLowerCase().includes('ordine') || tipoMovimento?.toLowerCase().includes('ricarica')) {
-          transactionType = 'income'
-          finalAmount = amount // Positivo per le entrate
-        }
-        
-        // Determina categoria intelligente dal dettaglio
-        let category = undefined
-        const dettaglioLower = dettaglio?.toLowerCase() || ''
-        
-        if (dettaglioLower.includes('conad') || dettaglioLower.includes('despar') || 
-            dettaglioLower.includes('supermercato') || dettaglioLower.includes('supermarket')) {
-          category = 'Grocery'
-        } else if (dettaglioLower.includes('ristorante') || dettaglioLower.includes('restaurant') ||
-                   dettaglioLower.includes('bar') || dettaglioLower.includes('pizzeria') ||
-                   dettaglioLower.includes('trattoria') || dettaglioLower.includes('osteria')) {
-          category = 'Food & Drinks'
-        }
-        
-        // Crea la chiave per raggruppare per data/ora
-        const dateTimeKey = dataOra || `unknown-${index}`
-        
-        console.log(`🔑 Chiave data/ora: "${dateTimeKey}"`) // Debug
-        
-        if (tempTransactions[dateTimeKey]) {
-          // Esiste già una transazione con la stessa data/ora - somma gli importi
-          const existingAmount = parseFloat(tempTransactions[dateTimeKey].amount)
-          const newAmount = parseFloat(finalAmount)
-          const summedAmount = existingAmount + newAmount
-          
-          console.log(`� SOMMANDO transazioni con stessa data/ora:`) // Debug
-          console.log(`   Importo esistente: ${existingAmount}`) // Debug
-          console.log(`   Nuovo importo: ${newAmount}`) // Debug  
-          console.log(`   Somma: ${summedAmount}`) // Debug
-          
-          // Aggiorna la transazione esistente
-          tempTransactions[dateTimeKey].amount = summedAmount.toFixed(2)
-          tempTransactions[dateTimeKey].initialAmount = summedAmount.toFixed(2)
-          tempTransactions[dateTimeKey].currentAmount = summedAmount.toFixed(2)
-          
-          // Combina le descrizioni se diverse
-          if (!tempTransactions[dateTimeKey].description.includes(dettaglio)) {
-            tempTransactions[dateTimeKey].description += ` + ${dettaglio}`
-          }
-          
-          // Combina i codici supporto se diversi
-          if (supporto && !tempTransactions[dateTimeKey].code?.includes(supporto)) {
-            tempTransactions[dateTimeKey].code = tempTransactions[dateTimeKey].code 
-              ? `${tempTransactions[dateTimeKey].code}, ${supporto}` 
-              : supporto
-          }
-          
-        } else {
-          // Prima transazione con questa data/ora
-          console.log(`✨ NUOVA transazione per data/ora: ${dateTimeKey}`) // Debug
-          
-          tempTransactions[dateTimeKey] = {
-            id: `edenred-${dateTimeKey.replace(/[^a-zA-Z0-9]/g, '-')}`,
-            date: dataOra || '',
-            description: dettaglio || 'Pagamento Edenred',
-            amount: finalAmount,
-            type: transactionType === 'income' ? 'Entrata' : 'Spesa',
-            category: category,
-            subcategory: undefined,
-            targetTable: 'transactions',
-            status: 'pending',
-            code: supporto || '',
-            currency: 'EUR',
-            initialAmount: finalAmount,
-            currentAmount: finalAmount,
-            note: supporto ? `Supporto: ${supporto}` : '',
-            transactionType: transactionType
-          }
-        }
-      })
-      
-      // Converte l'oggetto in array
-      const finalRows = Object.values(tempTransactions)
-      
-      console.log(`\n🎯 === EDENRED PARSING COMPLETATO ===`) // Debug
-      console.log(`📋 Righe totali nel file: ${allLines.length}`) // Debug
-      console.log(`📊 Righe dati processate: ${dataRows.length}`) // Debug
-      console.log(`✅ Transazioni finali (dopo raggruppamento): ${finalRows.length}`) // Debug
-      console.log(`🔄 Transazioni sommate per data/ora uguale`) // Debug
-      
-      return finalRows
-    }
-  },
+    }  },
 
   // Postepay
   {
@@ -667,7 +402,7 @@ const BANK_PARSERS: BankParser[] = [
       }
       
       // Se è già in formato YYYY-MM-DD, restituiscilo così com'è
-      if (typeof date === 'string' && date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      if (typeof date === 'string' && date.match(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/)) {
         return date
       }
       
@@ -741,7 +476,7 @@ const BANK_PARSERS: BankParser[] = [
       }
       
       // Se è già in formato YYYY-MM-DD, restituiscilo così com'è
-      if (typeof date === 'string' && date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      if (typeof date === 'string' && date.match(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/)) {
         return date
       }
       
@@ -763,6 +498,50 @@ const BANK_PARSERS: BankParser[] = [
       category: findValue(headers, values, ['categoria', 'category']),
       subcategory: findValue(headers, values, ['sottocategoria', 'subcategory'])
     })
+  },
+
+  // Aggiunta del parser per Edenred
+  {
+    name: 'Edenred',
+    identifier: 'edenred',
+    detectFormat: (headers: string[]) => {
+      return headers.some(h => 
+        h.toLowerCase().includes('data e ora') && 
+        headers.some(h2 => h2.toLowerCase().includes('tipo movimento')) &&
+        headers.some(h3 => h3.toLowerCase().includes('dettaglio')) &&
+        headers.some(h4 => h4.toLowerCase().includes('numero buoni'))
+      );
+    },
+    parseRow: (headers: string[], values: string[]) => {
+      const amount = findValue(headers, values, ['n. e importo buoni']) || '';
+      const description = findValue(headers, values, ['dettaglio']) || '';
+      const date = findValue(headers, values, ['data e ora']) || '';
+      const type = findValue(headers, values, ['tipo movimento']) || '';
+      const code = findValue(headers, values, ['numero buoni']) || '';
+
+      return {
+        date: date,
+        description: description,
+        amount: amount,
+        type: type,
+        code: code,
+        targetTable: 'transactions' // Supponiamo che Edenred gestisca solo transazioni
+      };
+    },
+    transformAmount: (amount: string) => {
+      // Edenred usa il formato italiano: 100,00
+      return amount.replace(',', '.').trim();
+    },
+    transformDate: (date: string) => {
+      // Converte da "18/06/2025 18:46:00" a "2025-06-18"
+      if (typeof date === 'string' && date.includes('/')) {
+        const parts = date.split(' ')[0].split('/');
+        if (parts.length === 3) {
+          return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+        }
+      }
+      return date;
+    }
   }
 ]
 
@@ -788,8 +567,9 @@ export default function ImportPage() {
     errors: 0
   })
 
+
   // Carica gli account dell'utente
-  const loadUserAccounts = async () => {
+  const loadUserAccounts = useCallback(async () => {
     if (!user) return
 
     try {
@@ -804,10 +584,10 @@ export default function ImportPage() {
     } catch (error) {
       console.error('Error loading accounts:', error)
     }
-  }
+  }, [user, supabase])
 
   // Carica le categorie dell'utente
-  const loadUserCategories = async () => {
+  const loadUserCategories = useCallback(async () => {
     if (!user) return
 
     try {
@@ -822,10 +602,10 @@ export default function ImportPage() {
     } catch (error) {
       console.error('Error loading categories:', error)
     }
-  }
+  }, [user, supabase])
 
   // Carica le sottocategorie dell'utente
-  const loadUserSubcategories = async () => {
+  const loadUserSubcategories = useCallback(async () => {
     if (!user) return
 
     try {
@@ -840,29 +620,22 @@ export default function ImportPage() {
     } catch (error) {
       console.error('Error loading subcategories:', error)
     }
-  }
+  }, [user, supabase])
 
   // Rileva automaticamente l'account basandosi sul nome del file
-  const detectAccountFromFilename = (filename: string): string | null => {
+  const detectAccountFromFilename = useCallback((filename: string): string | null => {
     if (!userAccounts.length) return null
     
     const lowerFilename = filename.toLowerCase()
     
     // Mappa delle banche/istituti con i loro possibili nomi nei file
     const bankMappings: {[key: string]: string[]} = {
-      'contanti': ['contanti', 'cash', 'contante'],
+      'contanti': ['contanti', 'cash', 'contante'],      
       'revolut': ['revolut'],
       'paypal': ['paypal'],
-      'edenred': ['edenred'],
       'intesa': ['intesa', 'sanpaolo', 'intesasanpaolo'],
-      'unicredit': ['unicredit', 'credit'],
-      'bpm': ['bpm', 'banco bpm', 'bancobpm'],
-      'fineco': ['fineco'],
-      'bnl': ['bnl', 'bnlparibasparibas'],
-      'poste': ['poste', 'postepay', 'bancoposta'],
-      'mediolanum': ['mediolanum'],
-      'ing': ['ing'],
-      'n26': ['n26']
+      'poste': ['poste', 'postepay', 'bancoposta', 'libretto postale'],
+      'edenred': ['edenred', 'buoni pasto', 'ticket restaurant'],
     }
     
     // Prima prova a matchare per nome della banca
@@ -886,7 +659,7 @@ export default function ImportPage() {
     }
     
     return null
-  }
+  }, [userAccounts])
 
   // Effetto per caricare gli account quando l'utente è disponibile
   useEffect(() => {
@@ -895,7 +668,7 @@ export default function ImportPage() {
       loadUserCategories()
       loadUserSubcategories()
     }
-  }, [user])
+  }, [loadUserAccounts, loadUserCategories, loadUserSubcategories, user])
 
   // Effetto per rilevare l'account quando viene caricato un file
   useEffect(() => {
@@ -903,7 +676,7 @@ export default function ImportPage() {
       const detected = detectAccountFromFilename(currentFile.name)
       setDetectedAccount(detected)
     }
-  }, [currentFile, userAccounts])
+  }, [currentFile, detectAccountFromFilename, userAccounts])
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -971,6 +744,20 @@ export default function ImportPage() {
 
   const parseCSV = async (file: File, accountId?: string) => {
     const text = await file.text()
+    // Rilevamento formato Edenred
+    if (text.toLowerCase().includes('edenred') || text.toLowerCase().includes('n. e importo buoni')) {
+      const edenredRows = parseEdenredCSV(text, accountId);
+      setImportData(edenredRows);
+      setImportStats({
+        total: edenredRows.length,
+        processed: 0,
+        success: 0,
+        errors: 0
+      });
+      setDetectedBank({ name: 'Edenred', identifier: 'edenred', detectFormat: () => true, parseRow: () => ({}), transformDate: undefined, transformAmount: undefined });
+      return;
+    }
+    
     const lines = text.split('\n').filter(line => line.trim())
     
     // Funzione helper per parsare correttamente CSV con virgolette
@@ -1024,12 +811,9 @@ export default function ImportPage() {
     const bankFileKeywords: {[key: string]: string[]} = {
       'edenred': ['edenred'],
       'intesa': ['intesa', 'sanpaolo', 'intesasanpaolo'],
-      'unicredit': ['unicredit', 'credit'],
-      'fineco': ['fineco'],
       'revolut': ['revolut'],
       'paypal': ['paypal'],
       'postepay': ['postepay', 'poste'],
-      'bpm': ['bpm', 'banco_bpm', 'bancobpm'],
       'contanti': ['contanti', 'cash']
     }
     
@@ -1057,55 +841,9 @@ export default function ImportPage() {
         } else {
           console.log(`❌ NOT DETECTED: ${parser.name}`) // Debug
         }
-      }
-    }
+      }    }
     
-    // Gestione speciale per Edenred (formato multi-riga)
-    if (detectedParser?.identifier === 'edenred' && detectedParser.parseEdenredMultiRow) {
-      console.log('🔄 Processing Edenred multi-row format - Using special parser') // Debug
-      console.log('📂 Detected parser:', detectedParser.name) // Debug
-      console.log('🧪 Has parseEdenredMultiRow:', !!detectedParser.parseEdenredMultiRow) // Debug
-      
-      // Raccoglie tutte le righe di dati (escludendo le righe di header)
-      const dataLines: string[][] = []
-      for (let i = headerRowIndex + 1; i < lines.length; i++) {
-        const values = parseCSVLine(lines[i]).map(v => v.replace(/"/g, ''))
-        if (values.some(v => v.trim())) { // Salta righe vuote
-          dataLines.push(values)
-          console.log(`📋 Collected line ${i}:`, values) // Debug
-        }
-      }
-      
-      console.log(`📊 Collected ${dataLines.length} data lines for Edenred processing`) // Debug
-      
-      // Usa il parser speciale per Edenred
-      const edenredRows = detectedParser.parseEdenredMultiRow(dataLines)
-      
-      // Applica le trasformazioni se disponibili
-      for (const row of edenredRows) {
-        if (detectedParser.transformDate && row.date) {
-          row.date = detectedParser.transformDate(row.date)
-        }
-        if (detectedParser.transformAmount && row.amount) {
-          row.amount = detectedParser.transformAmount(row.amount)
-        }
-        // Assegna l'account rilevato
-        if (accountId) {
-          row.account = accountId
-        }
-      }
-      
-      setImportData(edenredRows)
-      setImportStats({
-        total: edenredRows.length,
-        processed: 0,
-        success: 0,
-        errors: 0
-      })
-      return // Esci dalla funzione per Edenred
-    }
-    
-    // Processa le righe dopo l'header (per altri formati)
+    // Processa le righe dopo l'header(per altri formati)
     for (let i = headerRowIndex + 1; i < lines.length; i++) {
       const values = parseCSVLine(lines[i]).map(v => v.replace(/"/g, ''))
       
@@ -1212,8 +950,7 @@ export default function ImportPage() {
     const headers = jsonData[headerRowIndex].map(h => h?.toString().toLowerCase() || '')
     const rows: ImportRow[] = []
     
-    console.log('Excel Headers found:', headers) // Debug
-    console.log('🔍 Starting bank detection process for Excel...') // Debug
+    console.log('Excel Headers found:', headers) // Debug    console.log('🔍 Starting bank detection process for Excel...') // Debug
     console.log('📁 File name:', file.name) // Debug
     
     // Prima prova a rilevare la banca dal nome del file
@@ -1222,15 +959,12 @@ export default function ImportPage() {
     
     // Mappa dei nomi delle banche nei file
     const bankFileKeywords: {[key: string]: string[]} = {
-      'edenred': ['edenred'],
       'intesa': ['intesa', 'sanpaolo', 'intesasanpaolo'],
-      'unicredit': ['unicredit', 'credit'],
-      'fineco': ['fineco'],
       'revolut': ['revolut'],
       'paypal': ['paypal'],
       'postepay': ['postepay', 'poste'],
-      'bpm': ['bpm', 'banco_bpm', 'bancobpm'],
-      'contanti': ['contanti', 'cash']
+      'contanti': ['contanti', 'cash'],
+      'edenred': ['edenred', 'buoni pasto', 'ticket restaurant']
     }
     
     // Cerca corrispondenze nel nome del file
@@ -1257,52 +991,9 @@ export default function ImportPage() {
         } else {
           console.log(`❌ NOT DETECTED: ${parser.name}`) // Debug
         }
-      }
-    }
+      }    }
     
-    // Gestione speciale per Edenred (formato multi-riga)
-    if (detectedParser?.identifier === 'edenred' && detectedParser.parseEdenredMultiRow) {
-      console.log('Processing Edenred multi-row format from Excel') // Debug
-      
-      // Raccoglie tutte le righe di dati (escludendo le righe di header)
-      const dataLines: string[][] = []
-      for (let i = headerRowIndex + 1; i < jsonData.length; i++) {
-        const values = jsonData[i].map(v => v?.toString() || '')
-        if (values.some(v => v.trim())) { // Salta righe vuote
-          dataLines.push(values)
-        }
-      }
-      
-      // Usa il parser speciale per Edenred
-      const edenredRows = detectedParser.parseEdenredMultiRow(dataLines)
-      
-      // Applica le trasformazioni se disponibili
-      for (const row of edenredRows) {
-        if (detectedParser.transformDate && row.date) {
-          console.log('Data originale:', row.date) // Debug
-          row.date = detectedParser.transformDate(row.date)
-          console.log('Data trasformata:', row.date) // Debug
-        }
-        if (detectedParser.transformAmount && row.amount) {
-          row.amount = detectedParser.transformAmount(row.amount)
-        }
-        // Assegna l'account rilevato
-        if (accountId) {
-          row.account = accountId
-        }
-      }
-      
-      setImportData(edenredRows)
-      setImportStats({
-        total: edenredRows.length,
-        processed: 0,
-        success: 0,
-        errors: 0
-      })
-      return // Esci dalla funzione per Edenred
-    }
-    
-    // Processa le righe dopo l'header (per altri formati)
+    // Processa le righe dopo l'header
     for (let i = headerRowIndex + 1; i < jsonData.length; i++) {
       const values = jsonData[i].map(v => v?.toString() || '')
       
@@ -1562,7 +1253,7 @@ export default function ImportPage() {
             }
           }
           
-          let insertData: any = {
+          let insertData: Record<string, unknown> = {
             user_id: user.id,
           }
           
@@ -1693,7 +1384,7 @@ export default function ImportPage() {
   }
 
   // Funzione per renderizzare le celle in base al tipo di campo e tabella
-  const renderCell = (row: ImportRow, columnKey: string, targetTable: string) => {
+  const renderCell = (row: ImportRow, columnKey: string) => {
     const baseInputClasses = "w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500";
     
     switch (columnKey) {
@@ -1941,28 +1632,6 @@ export default function ImportPage() {
     }
   };
 
-  const getTableIcon = (table: 'transactions' | 'refunds' | 'fund_transfers') => {
-    switch (table) {
-      case 'transactions':
-        return <Database className="w-4 h-4" />
-      case 'refunds':
-        return <RotateCcw className="w-4 h-4" />
-      case 'fund_transfers':
-        return <ArrowRightLeft className="w-4 h-4" />
-    }
-  }
-
-  const getTableLabel = (table: 'transactions' | 'refunds' | 'fund_transfers') => {
-    switch (table) {
-      case 'transactions':
-        return 'Transazioni'
-      case 'refunds':
-        return 'Rimborsi'
-      case 'fund_transfers':
-        return 'Trasferimenti'
-    }
-  }
-
   const downloadTemplate = () => {
     const template = `data,descrizione,importo,tipo,categoria,sottocategoria
 2025-01-01,"Spesa supermercato",-50.00,Spesa,Cibo & Bevande,Supermercato
@@ -1979,6 +1648,67 @@ export default function ImportPage() {
     a.download = 'template_import_mosaiko.csv'
     a.click()
     URL.revokeObjectURL(url)
+  }
+
+  // Funzione di parsing Edenred CSV
+  function parseEdenredCSV(text: string, accountId?: string): ImportRow[] {
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    // Trova l'header
+    const headerIndex = lines.findIndex(line =>
+      line.toLowerCase().includes('data e ora') &&
+      line.toLowerCase().includes('tipo movimento')
+    );
+    if (headerIndex === -1) return [];
+
+    const rows: ImportRow[] = [];
+    // Parti dalla riga dopo l'header, prendi ogni 4 righe
+    for (let i = headerIndex + 1; i < lines.length; i += 4) {
+      const line = lines[i].split('\t');
+      if (line.length < 5) continue;
+      const [dataOra, tipoMov, , nImportoBuoni, dettaglio] = line;
+      // Parsing data (prendi solo la data, formato gg/mm/aaaa)
+      const [giorno, mese, anno] = (dataOra.split(' ')[0] || '').split('/');
+      const dataISO = anno && mese && giorno ? `${anno}-${mese.padStart(2, '0')}-${giorno.padStart(2, '0')}` : '';
+      // Parsing importo
+      const match = nImportoBuoni.match(/(\d+)\s*da\s*€?([\d,.]+)/i);
+      let amount = 0;
+      if (match) {
+        const qty = parseInt(match[1], 10);
+        const val = parseFloat(match[2].replace(',', '.'));
+        amount = qty * val;
+      }
+      // Tipo movimento
+      let tipo = 'Spesa';
+      let transactionType = 'expense';
+      if (/utilizzo/i.test(tipoMov)) {
+        tipo = 'Spesa';
+        amount = -Math.abs(amount);
+        transactionType = 'expense';
+      } else if (/ordine/i.test(tipoMov)) {
+        tipo = 'Entrata';
+        transactionType = 'income';
+      }
+      // Crea la riga
+      rows.push({
+        id: crypto.randomUUID(),
+        date: dataISO,
+        description: dettaglio,
+        amount: amount.toString(),
+        type: tipo,
+        account: accountId || undefined,
+        category: 'Buoni Pasto',
+        subcategory: 'Edenred',
+        targetTable: 'transactions',
+        status: 'pending',
+        code: '',
+        currency: 'EUR',
+        initialAmount: amount.toString(),
+        currentAmount: amount.toString(),
+        note: '',
+        transactionType: transactionType
+      });
+    }
+    return rows;
   }
 
   if (authLoading) {
@@ -2148,7 +1878,7 @@ export default function ImportPage() {
             
             {/* Popup Info */}
             {showInfoPopup && (
-              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowInfoPopup(false)}>
+                           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowInfoPopup(false)}>
                 <div className="bg-white rounded-xl p-6 max-w-md mx-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center space-x-3">
@@ -2272,14 +2002,14 @@ export default function ImportPage() {
             
             {/* Raggruppamento per tabella */}
             {(() => {
-              const groupedData = importData.reduce((acc: any, row: any) => {
+              const groupedData = importData.reduce<Record<string, ImportRow[]>>((acc, row) => {
                 const table = row.targetTable;
                 if (!acc[table]) acc[table] = [];
                 acc[table].push(row);
                 return acc;
               }, {});
 
-              return Object.entries(groupedData).map(([targetTable, rows]: [string, any]) => {
+              return Object.entries(groupedData).map(([targetTable, rows]: [string, ImportRow[]]) => {
                 const tableLabel = targetTable === 'transactions' ? 'Transazioni' :
                                  targetTable === 'refunds' ? 'Rimborsi' : 'Trasferimenti';
                 
@@ -2360,11 +2090,11 @@ export default function ImportPage() {
                           </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                          {rows.map((row: any) => (
+                          {rows.map((row: ImportRow) => (
                             <tr key={row.id} className={`hover:bg-gray-50 ${row.status === 'error' ? 'bg-red-50' : ''}`}>
                               {columns.map((column) => (
                                 <td key={column.key} className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                                  {renderCell(row, column.key, targetTable)}
+                                  {renderCell(row, column.key)}
                                 </td>
                               ))}
                             </tr>

@@ -80,7 +80,17 @@ export default function CashQuickActions() {
   const [categories, setCategories] = useState<Category[]>([])
   const [subcategories, setSubcategories] = useState<Subcategory[]>([])
   const [showNewTransactionModal, setShowNewTransactionModal] = useState(false)
-  const [prefilledData, setPrefilledData] = useState<any>(null)
+  interface PrefilledData {
+    account_id: string
+    transaction_type: string
+    amount: string
+    transaction_details: string
+    transaction_date: string
+    category_id: string
+    subcategory_id: string
+  }
+
+  const [prefilledData, setPrefilledData] = useState<PrefilledData | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const supabase = createClientComponentClient()
 
@@ -332,7 +342,7 @@ export default function CashQuickActions() {
         isOpen={showNewTransactionModal}
         onClose={handleModalClose}
         onSuccess={handleModalClose}
-        prefilledData={prefilledData}
+        prefilledData={prefilledData || {}}
       />
     </>
   )

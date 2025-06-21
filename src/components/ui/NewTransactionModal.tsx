@@ -88,7 +88,7 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
         category_id: prefilledData?.category_id || '',
         subcategory_id: prefilledData?.subcategory_id || '',
         transaction_date: prefilledData?.transaction_date || new Date().toISOString().split('T')[0],
-        transaction_type: prefilledData?.transaction_type as any || 'Spesa',
+        transaction_type: (prefilledData?.transaction_type as typeof formData.transaction_type) || 'Spesa',
         transaction_note: prefilledData?.transaction_note || '',
         is_refunded: prefilledData?.is_refunded || false
       })
@@ -239,21 +239,7 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
     }
   }
 
-  const getTransactionTypeColor = (type: string) => {
-    const positiveTypes = ['Entrata', 'Stipendio', 'Quattordicesima', 'Tredicesima', 'TFR', 'Ricarica', 'Refund', 'Eccesso Rimborso', 'Cancellazione rimborso']
-    const investmentTypes = ['AZIONE', 'ETF', 'Buono fruttifero']
-    const transferTypes = ['Bonifico', 'Prelievo']
-    
-    if (positiveTypes.includes(type)) {
-      return 'bg-green-100 text-green-800 border-green-200'
-    } else if (investmentTypes.includes(type)) {
-      return 'bg-blue-100 text-blue-800 border-blue-200'
-    } else if (transferTypes.includes(type)) {
-      return 'bg-purple-100 text-purple-800 border-purple-200'
-    } else {
-      return 'bg-red-100 text-red-800 border-red-200'
-    }
-  }
+
 
   if (!isOpen) return null
 
@@ -302,7 +288,7 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
                 <div className="relative">
                   <select
                     value={formData.transaction_type}
-                    onChange={(e) => setFormData(prev => ({ ...prev, transaction_type: e.target.value as any }))}
+                    onChange={(e) => setFormData(prev => ({ ...prev, transaction_type: e.target.value as typeof formData.transaction_type }))}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none bg-white hover:bg-gray-50 text-gray-900 font-medium"
                     required
                   >
