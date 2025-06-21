@@ -6,6 +6,7 @@ import FinanceWidget from '@/components/ui/FinanceWidget'
 import RecentTransactions from '@/components/ui/RecentTransactions'
 import FinancialGoalsWidget from '@/components/ui/FinancialGoalsWidget'
 import CacheStatus from '@/components/ui/CacheStatus'
+import CashQuickActions from '@/components/ui/CashQuickActions'
 import { useFinanceData, useFinanceCache } from '@/lib/financeCache'
 import { useAuth } from '@/lib/auth'
 import { RefreshCw, BarChart3 } from 'lucide-react'
@@ -121,6 +122,9 @@ export default function FinanceDashboard() {
               }
             ]}
           />
+
+          {/* Quick Actions per Contanti */}
+          <CashQuickActions />
 
           {error && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">

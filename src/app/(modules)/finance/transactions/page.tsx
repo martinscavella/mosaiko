@@ -5,6 +5,7 @@ import ModuleLayout from '@/components/ModuleLayout'
 import ModuleHeader from '@/components/ui/ModuleHeader'
 import TransactionsTable, { TransactionTableColumn } from '@/components/ui/TransactionsTable'
 import CacheStatus from '@/components/ui/CacheStatus'
+import NewTransactionModal from '@/components/ui/NewTransactionModal'
 import { useAllTransactions, useFinanceCache, type Transaction } from '@/lib/financeCache'
 import { useAuth } from '@/lib/auth'
 import { 
@@ -27,7 +28,8 @@ export default function TransactionsPage() {  const { transactions, loading, err
   const [selectedFilter, setSelectedFilter] = useState('all')
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [selectedSubcategory, setSelectedSubcategory] = useState('all')
-  const [selectedDateRange, setSelectedDateRange] = useState('all')  // Logica di filtri duplicata dalla tabella per calcolare le statistiche
+  const [selectedDateRange, setSelectedDateRange] = useState('all')
+  const [showNewTransactionModal, setShowNewTransactionModal] = useState(false)  // Logica di filtri duplicata dalla tabella per calcolare le statistiche
   const filteredData = useMemo(() => {
     // Funzione helper per filtrare in base alla data
     const isInDateRange = (transactionDate: string, range: string): boolean => {
@@ -365,7 +367,7 @@ export default function TransactionsPage() {  const { transactions, loading, err
           actions={[
             {
               label: 'Nuova',
-              onClick: () => {},
+              onClick: () => setShowNewTransactionModal(true),
               icon: <Plus className="w-4 h-4" />,
               color: 'green',
               hideTextOnMobile: true
@@ -420,6 +422,16 @@ export default function TransactionsPage() {  const { transactions, loading, err
             </div>
           </div>
         )}
+
+        {/* Modale per Nuova Transazione */}
+        <NewTransactionModal
+          isOpen={showNewTransactionModal}
+          onClose={() => setShowNewTransactionModal(false)}
+          onSuccess={() => {
+            setShowNewTransactionModal(false)
+            // Le cache si aggiornano automaticamente tramite il componente modale
+          }}
+        />
       </div>
     </ModuleLayout>
   )
