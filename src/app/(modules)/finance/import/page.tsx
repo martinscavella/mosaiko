@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, ReactNode } from 'react'
 import { useAuth } from '@/lib/auth'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import ModuleLayout from '@/components/ModuleLayout'
@@ -498,50 +498,6 @@ const BANK_PARSERS: BankParser[] = [
       category: findValue(headers, values, ['categoria', 'category']),
       subcategory: findValue(headers, values, ['sottocategoria', 'subcategory'])
     })
-  },
-
-  // Aggiunta del parser per Edenred
-  {
-    name: 'Edenred',
-    identifier: 'edenred',
-    detectFormat: (headers: string[]) => {
-      return headers.some(h => 
-        h.toLowerCase().includes('data e ora') && 
-        headers.some(h2 => h2.toLowerCase().includes('tipo movimento')) &&
-        headers.some(h3 => h3.toLowerCase().includes('dettaglio')) &&
-        headers.some(h4 => h4.toLowerCase().includes('numero buoni'))
-      );
-    },
-    parseRow: (headers: string[], values: string[]) => {
-      const amount = findValue(headers, values, ['n. e importo buoni']) || '';
-      const description = findValue(headers, values, ['dettaglio']) || '';
-      const date = findValue(headers, values, ['data e ora']) || '';
-      const type = findValue(headers, values, ['tipo movimento']) || '';
-      const code = findValue(headers, values, ['numero buoni']) || '';
-
-      return {
-        date: date,
-        description: description,
-        amount: amount,
-        type: type,
-        code: code,
-        targetTable: 'transactions' // Supponiamo che Edenred gestisca solo transazioni
-      };
-    },
-    transformAmount: (amount: string) => {
-      // Edenred usa il formato italiano: 100,00
-      return amount.replace(',', '.').trim();
-    },
-    transformDate: (date: string) => {
-      // Converte da "18/06/2025 18:46:00" a "2025-06-18"
-      if (typeof date === 'string' && date.includes('/')) {
-        const parts = date.split(' ')[0].split('/');
-        if (parts.length === 3) {
-          return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-        }
-      }
-      return date;
-    }
   }
 ]
 
@@ -746,15 +702,7 @@ export default function ImportPage() {
     const text = await file.text()
     // Rilevamento formato Edenred
     if (text.toLowerCase().includes('edenred') || text.toLowerCase().includes('n. e importo buoni')) {
-      const edenredRows = parseEdenredCSV(text, accountId);
-      setImportData(edenredRows);
-      setImportStats({
-        total: edenredRows.length,
-        processed: 0,
-        success: 0,
-        errors: 0
-      });
-      setDetectedBank({ name: 'Edenred', identifier: 'edenred', detectFormat: () => true, parseRow: () => ({}), transformDate: undefined, transformAmount: undefined });
+      alert('I file Edenred sono supportati solo in formato Excel (.xlsx).');
       return;
     }
     
@@ -928,15 +876,36 @@ export default function ImportPage() {
     const workbook = XLSX.read(arrayBuffer, { type: 'array' })
     const sheetName = workbook.SheetNames[0]
     const worksheet = workbook.Sheets[sheetName]
-    
-    // Converti il sheet in JSON
+
     const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as string[][]
-    
+
     if (jsonData.length < 2) {
       alert('Il file Excel deve contenere almeno 2 righe (header e dati)')
       return
     }
-    
+
+    const headers = jsonData[0].map(h => h?.toString().toLowerCase() || '')
+
+    if (headers.some(header => header.includes('n. e importo buoni') || header.includes('edenred'))) {
+      const edenredRows = parseEdenredExcel(jsonData, accountId);
+      setImportData(edenredRows);
+      setImportStats({
+        total: edenredRows.length,
+        processed: 0,
+        success: 0,
+        errors: 0
+      });
+      setDetectedBank({
+        name: 'Edenred',
+        identifier: 'edenred',
+        detectFormat: () => true,
+        parseRow: () => ({}),
+        transformDate: undefined,
+        transformAmount: undefined
+      });
+      return;
+    }
+
     // Trova la riga che contiene gli header (cerca la prima riga con "Data" e "Importo")
     let headerRowIndex = 0
     for (let i = 0; i < jsonData.length; i++) {
@@ -947,7 +916,6 @@ export default function ImportPage() {
       }
     }
     
-    const headers = jsonData[headerRowIndex].map(h => h?.toString().toLowerCase() || '')
     const rows: ImportRow[] = []
     
     console.log('Excel Headers found:', headers) // Debug    console.log('🔍 Starting bank detection process for Excel...') // Debug
@@ -1073,15 +1041,146 @@ export default function ImportPage() {
     })
   }
 
-  const findValue = (headers: string[], values: string[], possibleNames: string[]): string | undefined => {
-    for (const name of possibleNames) {
-      const index = headers.findIndex(h => h.includes(name))
-      if (index !== -1 && values[index]) {
-        return values[index].replace(/"/g, '')
+  // --- INIZIO: Funzione parseEdenredExcel aggiornata ---
+  function parseEdenredExcel(jsonData: string[][], accountId?: string): ImportRow[] {
+    let headerRowIndex = 0;
+    for (let i = 0; i < jsonData.length; i++) {
+      const row = jsonData[i].map(cell => cell?.toString().toLowerCase() || '');
+      if (row.some(cell => cell.includes('data')) && row.some(cell => cell.includes('importo'))) {
+        headerRowIndex = i;
+        break;
       }
     }
-    return undefined
+    const rows: ImportRow[] = [];
+    const grouped: { [key: string]: { date: string, description: string, amount: number, type: string, transactionType: string } } = {};
+    const headers = jsonData[headerRowIndex].map(h => h?.toString().toLowerCase() || '');
+    for (let i = headerRowIndex + 1; i < jsonData.length; i++) {
+      const values = jsonData[i].map(v => v?.toString() || '');
+      const dataOraRaw = values[0]?.trim();
+      if (!dataOraRaw) continue;
+      // Estrai data e ora (es: "21/06/2025 12:34")
+      let dataISO = '';
+      let ora = '';
+      const match = dataOraRaw.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}:\d{2}))?/);
+      if (match) {
+        const giorno = match[1].padStart(2, '0');
+        const mese = match[2].padStart(2, '0');
+        const anno = match[3];
+        dataISO = `${anno}-${mese}-${giorno}`;
+        ora = match[4] || '';
+      } else if (dataOraRaw.match(/^\d{4}-\d{2}-\d{2}/)) {
+        // Già in formato ISO
+        dataISO = dataOraRaw.split(' ')[0];
+        ora = (dataOraRaw.split(' ')[1] || '').trim();
+      } else {
+        continue; // Data non valida
+      }
+      // Parsing importo: pattern "N da €X,XX"
+      let amount = 0;
+      const importoStr = values.find(v => v.includes('€')) || '';
+      const matchImporto = importoStr.match(/(\d+)\s*da\s*€\s*([\d,.]+)/i);
+      if (matchImporto) {
+        const n = parseInt(matchImporto[1], 10);
+        const val = parseFloat(matchImporto[2].replace('.', '').replace(',', '.'));
+        amount = n * val;
+      } else {
+        // Fallback: cerca solo il valore
+        const fallback = importoStr.match(/€\s*([\d,.]+)/);
+        if (fallback) amount = parseFloat(fallback[1].replace('.', '').replace(',', '.'));
+      }
+      // Tipo movimento: di solito seconda colonna
+      const tipoMov = (values[1] || '').toLowerCase();
+      let tipo = 'Spesa';
+      let transactionType = 'expense';
+      if (tipoMov.includes('utilizzo')) {
+        amount = -Math.abs(amount);
+        tipo = 'Acquisto'; // Cambiato da 'Spesa' a 'Acquisto'
+        transactionType = 'expense';
+      } else if (tipoMov.includes('ordine cloud')) {
+        amount = Math.abs(amount);
+        tipo = 'Ricarica'; // Cambiato da 'Entrata' a 'Ricarica'
+        transactionType = 'income';
+      }
+      // Descrizione
+      let description = values[1]?.toString() || '';
+      if (tipoMov.includes('ordine cloud')) {
+        // Calcola mese precedente rispetto a dataISO
+        const [anno, mese, giorno] = dataISO.split('-');
+        let meseNum = parseInt(mese, 10) - 1;
+        let annoNum = parseInt(anno, 10);
+        if (meseNum === 0) {
+          meseNum = 12;
+          annoNum -= 1;
+        }
+        const mesi = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
+        const meseStr = mesi[meseNum - 1];
+        description = `Retribuzione ${meseStr} ${annoNum}: Buoni Pasto`;
+      } else if (tipoMov.includes('utilizzo')) {
+        // Se "Utilizzo", prendi il campo dettagli/dettaglio per intero
+        const dettaglioIdx = headers.findIndex((h: string) => h.includes('dettaglio'));
+        if (dettaglioIdx !== -1 && values[dettaglioIdx]) {
+          description = values[dettaglioIdx].toString().trim();
+        } else {
+          description = '';
+        }
+      } else {
+        // Logica attuale per altri casi
+        const dettaglioIdx = values.findIndex(v => v.toLowerCase().includes('dettaglio') || v.toLowerCase().includes('dettagli'));
+        if (typeof dettaglioIdx !== 'undefined' && dettaglioIdx !== -1 && values[dettaglioIdx]) {
+          description = values[dettaglioIdx].toString().trim();
+        } else {
+          let matchDesc = description.match(/Utilizzo BUONI\/VOUCHER presso\s*(.*)/i);
+          if (matchDesc) {
+            description = matchDesc[1] ? matchDesc[1].trim() : '';
+          } else {
+            matchDesc = description.match(/Ordine Cloud\s*(.*)/i);
+            if (matchDesc) {
+              description = matchDesc[1] ? matchDesc[1].trim() : '';
+            }
+          }
+        }
+      }
+      const groupKey = ora ? `${dataISO} ${ora}` : dataISO;
+      if (!grouped[groupKey]) {
+        grouped[groupKey] = { date: dataISO, description, amount, type: tipo, transactionType };
+      } else {
+        grouped[groupKey].amount += amount;
+      }
+    }
+    // Crea righe finali
+    Object.values(grouped).forEach((g, idx) => {
+      // Imposta la categoria e sottocategoria in base al tipo
+      let categoria = '';
+      let sottocategoria = '';
+      if (g.type === 'Acquisto') {
+        categoria = 'GROCERY';
+        sottocategoria = 'Supermercato';
+      } else if (g.type === 'Ricarica') {
+        categoria = 'INCOME & SALARY';
+        sottocategoria = 'Bonus';
+      }
+      rows.push({
+        id: `edenred-${idx}`,
+        date: g.date,
+        description: g.description,
+        amount: g.amount.toFixed(2),
+        type: g.type,
+        account: accountId || undefined,
+        category: categoria, // Categoria dinamica
+        subcategory: sottocategoria, // Sottocategoria dinamica
+        targetTable: 'transactions',
+        status: 'pending',
+        code: '',
+        currency: 'EUR',
+        initialAmount: g.amount.toFixed(2),
+        currentAmount: g.amount.toFixed(2),
+        note: '',
+        transactionType: g.type,
+      });
+    });
+    return rows;
   }
+  // --- FINE: Funzione parseEdenredExcel aggiornata ---
 
   const validateRow = (row: ImportRow): string[] => {
     const errors: string[] = []
@@ -1373,7 +1472,7 @@ export default function ImportPage() {
   }
 
   const deleteRow = (rowId: string) => {
-    setImportData(prevData => prevData.filter(row => row.id !== rowId))
+    setImportData(prevData => prevData.filter (row => row.id !== rowId))
     
     // Aggiorna anche le statistiche
     const newTotal = importData.length - 1
@@ -1384,8 +1483,11 @@ export default function ImportPage() {
   }
 
   // Funzione per renderizzare le celle in base al tipo di campo e tabella
-  const renderCell = (row: ImportRow, columnKey: string) => {
+  const renderCell = (row: ImportRow, columnKey: string): ReactNode => {
     const baseInputClasses = "w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500";
+    // DICHIARAZIONI VARIABILI DI SUPPORTO GLOBALI ALLO SCOPE DELLA FUNZIONE
+    const rowCategoryStr = (row.category ?? '').toString().toLowerCase();
+    const rowSubcategoryStr = (row.subcategory ?? '').toString().toLowerCase();
     
     switch (columnKey) {
       case 'actions':
@@ -1449,6 +1551,13 @@ export default function ImportPage() {
         );
 
       case 'transactionType':
+        // Opzioni tipo transazione personalizzate
+        const tipoOptions = [
+          'Abbonamento', 'Acquisto', 'AZIONE', 'Bonifico', 'Buono fruttifero',
+          'Cancellazione rimborso', 'Commissione', 'Competenze', 'Delivery', 'Eccesso Rimborso',
+          'Entrata', 'ETF', 'Imposte', 'Iscrizione', 'Ordine', 'Ordine cloud', 'Prelievo',
+          'Quattordicesima', 'Rata', 'Refund', 'Ricarica', 'Spesa', 'Stipendio', 'TFR', 'Tredicesima'
+        ];
         return (
           <select
             value={row.transactionType || row.type || ''}
@@ -1456,9 +1565,9 @@ export default function ImportPage() {
             className="px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">Seleziona</option>
-            <option value="income">Entrata</option>
-            <option value="expense">Uscita</option>
-            <option value="transfer">Trasferimento</option>
+            {tipoOptions.map(opt => (
+              <option key={opt} value={opt}>{opt}</option>
+            ))}
           </select>
         );
 
@@ -1513,11 +1622,10 @@ export default function ImportPage() {
 
       case 'category':
         // Controlla se la categoria dal file esiste nel database
-        const currentCategoryExists = row.category && userCategories.some(cat => 
-          cat.name.toLowerCase() === row.category?.toLowerCase()
+        const currentCategoryExists = row.category && Array.isArray(userCategories) && userCategories.some(cat => 
+          cat.name.toLowerCase() === rowCategoryStr
         )
         const hasInvalidCategory = row.category && !currentCategoryExists
-        
         return (
           <div>
             <select
@@ -1549,17 +1657,15 @@ export default function ImportPage() {
       case 'subcategory':
         // Trova la categoria selezionata per filtrare le sottocategorie
         const selectedCategory = userCategories.find(cat => 
-          cat.name.toLowerCase() === row.category?.toLowerCase()
+          cat.name.toLowerCase() === rowCategoryStr
         )
         const availableSubcategories = selectedCategory 
           ? userSubcategories.filter(sub => sub.category_id === selectedCategory.id)
           : []
-        
         const currentSubcategoryExists = row.subcategory && availableSubcategories.some(sub => 
-          sub.name.toLowerCase() === row.subcategory?.toLowerCase()
+          sub.name.toLowerCase() === rowSubcategoryStr
         )
         const hasInvalidSubcategory = row.subcategory && !currentSubcategoryExists && selectedCategory
-        
         return (
           <div>
             <select
@@ -1628,7 +1734,7 @@ export default function ImportPage() {
         );
 
       default:
-        return '-';
+        return <span>-</span>; // Fallback per garantire un ReactNode valido
     }
   };
 
@@ -1648,67 +1754,6 @@ export default function ImportPage() {
     a.download = 'template_import_mosaiko.csv'
     a.click()
     URL.revokeObjectURL(url)
-  }
-
-  // Funzione di parsing Edenred CSV
-  function parseEdenredCSV(text: string, accountId?: string): ImportRow[] {
-    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-    // Trova l'header
-    const headerIndex = lines.findIndex(line =>
-      line.toLowerCase().includes('data e ora') &&
-      line.toLowerCase().includes('tipo movimento')
-    );
-    if (headerIndex === -1) return [];
-
-    const rows: ImportRow[] = [];
-    // Parti dalla riga dopo l'header, prendi ogni 4 righe
-    for (let i = headerIndex + 1; i < lines.length; i += 4) {
-      const line = lines[i].split('\t');
-      if (line.length < 5) continue;
-      const [dataOra, tipoMov, , nImportoBuoni, dettaglio] = line;
-      // Parsing data (prendi solo la data, formato gg/mm/aaaa)
-      const [giorno, mese, anno] = (dataOra.split(' ')[0] || '').split('/');
-      const dataISO = anno && mese && giorno ? `${anno}-${mese.padStart(2, '0')}-${giorno.padStart(2, '0')}` : '';
-      // Parsing importo
-      const match = nImportoBuoni.match(/(\d+)\s*da\s*€?([\d,.]+)/i);
-      let amount = 0;
-      if (match) {
-        const qty = parseInt(match[1], 10);
-        const val = parseFloat(match[2].replace(',', '.'));
-        amount = qty * val;
-      }
-      // Tipo movimento
-      let tipo = 'Spesa';
-      let transactionType = 'expense';
-      if (/utilizzo/i.test(tipoMov)) {
-        tipo = 'Spesa';
-        amount = -Math.abs(amount);
-        transactionType = 'expense';
-      } else if (/ordine/i.test(tipoMov)) {
-        tipo = 'Entrata';
-        transactionType = 'income';
-      }
-      // Crea la riga
-      rows.push({
-        id: crypto.randomUUID(),
-        date: dataISO,
-        description: dettaglio,
-        amount: amount.toString(),
-        type: tipo,
-        account: accountId || undefined,
-        category: 'Buoni Pasto',
-        subcategory: 'Edenred',
-        targetTable: 'transactions',
-        status: 'pending',
-        code: '',
-        currency: 'EUR',
-        initialAmount: amount.toString(),
-        currentAmount: amount.toString(),
-        note: '',
-        transactionType: transactionType
-      });
-    }
-    return rows;
   }
 
   if (authLoading) {
@@ -1740,7 +1785,7 @@ export default function ImportPage() {
     )
   }
 
-  return (
+ return (
     <ModuleLayout moduleId="finance">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <ModuleHeader 
@@ -1790,7 +1835,7 @@ export default function ImportPage() {
             ] : [])
           ]}
           statusIndicators={[
-            {
+           {
               type: 'success',
               label: `Banca rilevata: ${detectedBank?.name || 'Nessuna'}`,
               show: !!detectedBank
@@ -1802,7 +1847,7 @@ export default function ImportPage() {
             },
             {
               type: 'warning',
-              label: `Account non rilevato - Seleziona manualmente dalla picklist`,
+                           label: `Account non rilevato - Seleziona manualmente dalla picklist`,
               show: !!(currentFile && userAccounts.length > 0 && !detectedAccount)
             },
             {
@@ -1822,11 +1867,11 @@ export default function ImportPage() {
         {/* Sezione Upload - Solo se non c'è un file caricato */}
         {!currentFile && (
           <div className="bg-white/95 backdrop-blur-xl border border-white/50 shadow-2xl rounded-2xl p-8 relative">
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex itemscenter justify-between mb-6">
               <div className="flex items-center space-x-3">
                 <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg">
                   <Upload className="w-6 h-6 text-white" />
-                </div>
+                                              </div>
                 <div>
                   <h2 className="text-xl font-bold text-gray-900">Carica File</h2>
                   <p className="text-gray-600">Supporta file CSV e Excel (.xlsx, .xls)</p>
@@ -1879,7 +1924,7 @@ export default function ImportPage() {
             {/* Popup Info */}
             {showInfoPopup && (
                            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowInfoPopup(false)}>
-                <div className="bg-white rounded-xl p-6 max-w-md mx-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                               <div className="bg-white rounded-xl p-6 max-w-md mx-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center space-x-3">
                       <div className="p-2 bg-blue-100 rounded-lg">
@@ -1887,7 +1932,7 @@ export default function ImportPage() {
                       </div>
                       <h3 className="text-lg font-semibold text-gray-900">Formato File Supportato</h3>
                     </div>
-                    <button
+                                       <button
                       onClick={() => setShowInfoPopup(false)}
                       className="text-gray-400 hover:text-gray-600 transition-colors"
                     >
