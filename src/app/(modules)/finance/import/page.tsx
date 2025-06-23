@@ -6,9 +6,9 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import ModuleLayout from '@/components/ModuleLayout'
 import ModuleHeader from '@/components/ui/ModuleHeader'
 import * as XLSX from 'xlsx'
-import { 
-  Upload, 
-  FileSpreadsheet, 
+import {
+  Upload,
+  FileSpreadsheet,
   Download,
   CheckCircle,
   FileText,
@@ -17,6 +17,7 @@ import {
   Info,
   Plus
 } from 'lucide-react'
+import { parseCSV, parseExcel, parseEdenredExcel } from './financeImportParsers'
 
 interface ImportRow {
   id: string
@@ -27,7 +28,7 @@ interface ImportRow {
   account?: string // Ora questo sarà l'UUID dell'account
   category?: string
   subcategory?: string
-  targetTable: 'transactions' | 'refunds' | 'fund_transfers'
+  targetTable: 'transactions' | 'refunds' | 'funds_transfer'
   status: 'pending' | 'success' | 'error'
   errors?: string[]
   isEditing?: boolean
@@ -45,6 +46,8 @@ interface ImportRow {
   // Campi specifici per trasferimenti
   transferDetails?: string
   transferCode?: string
+  // Nuovo campo per preview transazioni
+  is_refunded?: boolean
 }
 
 interface BankParser {
@@ -57,449 +60,7 @@ interface BankParser {
   transformDate?: (date: string) => string
 }
 
-// Funzione helper per trovare valori nelle colonne
-const findValue = (headers: string[], values: string[], possibleNames: string[]): string | undefined => {
-  for (const name of possibleNames) {
-    const index = headers.findIndex(h => h.includes(name))
-    if (index !== -1 && values[index]) {
-      return values[index].replace(/"/g, '')
-    }
-  }
-  return undefined
-}
-
-// Funzione per determinare automaticamente la tabella di destinazione
-const determineTargetTable = (description: string, type: string, amount: number, category?: string): 'transactions' | 'refunds' | 'fund_transfers' => {
-  const desc = description.toLowerCase()
-  const cat = category?.toLowerCase() || ''
-  
-  // Prima controlla la categoria (più affidabile)
-  if (cat) {
-    // Rileva rimborsi dalla categoria
-    if (cat.includes('rimborso') || cat.includes('refund') || cat.includes('storno') || 
-        cat.includes('annullamento') || cat.includes('reso') || cat.includes('credito')) {
-      return 'refunds'
-    }
-    
-    // Rileva trasferimenti dalla categoria
-    if (cat.includes('trasferimento') || cat.includes('bonifico') || cat.includes('transfer') || 
-        cat.includes('giroconto') || cat.includes('versamento') || cat.includes('prelievo') ||
-        cat.includes('deposito') || cat.includes('ricarica') || cat.includes('pagamento')) {
-      return 'fund_transfers'
-    }
-  }
-  
-  // Fallback: controlla la descrizione
-  if (desc.includes('rimborso') || desc.includes('refund') || desc.includes('storno') || desc.includes('annullamento')) {
-    return 'refunds'
-  }
-  
-  if (desc.includes('trasferimento') || desc.includes('bonifico') || desc.includes('transfer') || 
-      desc.includes('giroconto') || desc.includes('versamento') || desc.includes('prelievo')) {
-    return 'fund_transfers'
-  }
-  
-  // Default: transazione normale
-  return 'transactions'
-}
-
-const BANK_PARSERS: BankParser[] = [
-  // Intesa Sanpaolo
-  {
-    name: 'Intesa Sanpaolo',
-    identifier: 'intesa',
-    detectFormat: (headers: string[]) => {
-      return headers.some(h => 
-        h.toLowerCase().includes('data') && 
-        headers.some(h2 => h2.toLowerCase().includes('operazione')) &&
-        headers.some(h3 => h3.toLowerCase().includes('dettagli')) &&
-        headers.some(h4 => h4.toLowerCase().includes('importo'))
-      )
-    },
-    parseRow: (headers: string[], values: string[]) => {
-      const amount = findValue(headers, values, ['importo']) || '';
-      const amountNum = parseFloat(amount.replace(',', '.'));
-      const description = findValue(headers, values, ['dettagli', 'operazione']) || '';
-      const category = findValue(headers, values, ['categoria']);
-      const targetTable = determineTargetTable(description, amountNum >= 0 ? 'Entrata' : 'Spesa', amountNum, category);
-      
-      return {
-        date: findValue(headers, values, ['data']) || '',
-        description: description,
-        amount: amount,
-        type: amountNum >= 0 ? 'Entrata' : 'Spesa',
-        category: category,
-        targetTable: targetTable
-      };
-    },
-    transformAmount: (amount: string) => {
-      // Intesa usa formato italiano: -100,00 o 1000,00
-      return amount.replace(',', '.')
-    },
-    transformDate: (date: string) => {
-      // Se la data è un numero seriale Excel, convertila
-      if (!isNaN(Number(date)) && Number(date) > 1) {
-        try {
-          // Formula per convertire numero seriale Excel in data
-          // Excel conta i giorni dal 1 gennaio 1900, ma ha un bug per l'anno 1900
-          const excelDate = new Date((Number(date) - 25569) * 86400 * 1000)
-          
-          if (!isNaN(excelDate.getTime())) {
-            const year = excelDate.getFullYear()
-            const month = String(excelDate.getMonth() + 1).padStart(2, '0')
-            const day = String(excelDate.getDate()).padStart(2, '0')
-            return `${year}-${month}-${day}`
-          }
-        } catch (error) {
-          console.error('Errore conversione data Excel:', error)
-        }
-      }
-      
-      // Converte da DD/MM/YYYY a YYYY-MM-DD
-      if (typeof date === 'string' && date.includes('/')) {
-        const parts = date.split('/')
-        if (parts.length === 3) {
-          return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`
-        }
-      }
-      
-      // Se è già in formato YYYY-MM-DD, restituiscilo così com'è
-      if (typeof date === 'string' && date.match(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/)) {
-        return date
-      }
-      
-      return date
-    }
-  },
-
-  // Revolut
-  {
-    name: 'Revolut',
-    identifier: 'revolut',
-    detectFormat: (headers: string[]) => {
-      return headers.some(h => h.toLowerCase().includes('type')) && 
-             headers.some(h => h.toLowerCase().includes('product')) &&
-             headers.some(h => h.toLowerCase().includes('started date')) &&
-             headers.some(h => h.toLowerCase().includes('completed date')) &&
-             headers.some(h => h.toLowerCase().includes('description')) &&
-             headers.some(h => h.toLowerCase().includes('amount')) &&
-             headers.some(h => h.toLowerCase().includes('state'))
-    },
-    parseRow: (headers: string[], values: string[]) => {
-      console.log('Parsing Revolut row:', { headers, values }) // Debug
-      
-      const type = findValue(headers, values, ['type']) || '';
-      const description = findValue(headers, values, ['description']) || '';
-      const amount = findValue(headers, values, ['amount']) || '';
-      const completedDate = findValue(headers, values, ['completed date']) || '';
-      const amountNum = parseFloat(amount);
-      
-      // Mappa il Type di Revolut al tipo di transazione e tabella
-      let transactionType = 'expense'; // Default per il database
-      let targetTable: 'transactions' | 'refunds' | 'fund_transfers' = 'transactions';
-      
-      switch (type) {
-        case 'TOPUP':
-          transactionType = 'transfer';
-          targetTable = 'fund_transfers';
-          break;
-        case 'TRANSFER':
-          transactionType = 'transfer';
-          targetTable = 'fund_transfers';
-          break;
-        case 'CARD_PAYMENT':
-          transactionType = 'expense';
-          targetTable = 'transactions';
-          break;
-        case 'CARD_REFUND':
-          transactionType = 'income';
-          targetTable = 'refunds';
-          break;
-        case 'ATM':
-          transactionType = 'expense';
-          targetTable = 'transactions';
-          break;
-        case 'EXCHANGE':
-          transactionType = 'transfer';
-          targetTable = 'fund_transfers';
-          break;
-        default:
-          // Determina in base al segno dell'importo
-          if (amountNum > 0) {
-            transactionType = 'income';
-          } else {
-            transactionType = 'expense';
-          }
-          targetTable = 'transactions';
-      }
-      
-      const parsedRow = {
-        date: completedDate || findValue(headers, values, ['started date']) || '',
-        description: description, // Solo la descrizione, senza type
-        amount: amount,
-        type: transactionType === 'income' ? 'Entrata' : 
-              transactionType === 'transfer' ? 'Trasferimento' : 'Spesa',
-        code: undefined, // Revolut non ha un codice transazione specifico
-        category: undefined, // Revolut non ha categorie predefinite
-        subcategory: undefined,
-        targetTable: targetTable,
-        transactionType: transactionType
-      }
-      
-      console.log('Parsed Revolut row:', parsedRow) // Debug
-      return parsedRow
-    },
-    transformAmount: (amount: string) => {
-      // Revolut usa il punto come separatore decimale
-      return amount.trim()
-    },
-    transformDate: (date: string) => {
-      // Converte da "2025-05-01 18:18:35" a "2025-05-01"
-      if (typeof date === 'string' && date.includes(' ')) {
-        return date.split(' ')[0]
-      }
-      
-      // Se è già in formato YYYY-MM-DD, restituiscilo così com'è
-      if (typeof date === 'string' && date.match(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/)) {
-        return date
-      }
-      
-      return date
-    }
-  },
-
-  // PayPal
-  {
-    name: 'PayPal',
-    identifier: 'paypal',
-    detectFormat: (headers: string[]) => {
-      return headers.some(h => h.toLowerCase().includes('data')) && 
-             headers.some(h => h.toLowerCase().includes('ora')) &&
-             headers.some(h => h.toLowerCase().includes('descrizione')) &&
-             (headers.some(h => h.toLowerCase().includes('lordo')) || headers.some(h => h.toLowerCase().includes('netto'))) &&
-             headers.some(h => h.toLowerCase().includes('codice transazione'))
-    },
-    parseRow: (headers: string[], values: string[]) => {
-      console.log('Parsing PayPal row:', { headers, values }) // Debug
-      
-      // PayPal usa "Netto" come importo finale della transazione
-      const nettoAmount = findValue(headers, values, ['netto']) || '';
-      const baseDescription = findValue(headers, values, ['descrizione', 'description']) || '';
-      const senderName = findValue(headers, values, ['nome']) || '';
-      const transactionCode = findValue(headers, values, ['codice transazione']) || '';
-      const amountNum = parseFloat(nettoAmount.replace(',', '.'));
-      
-      // Combina descrizione e nome per maggiore chiarezza
-      let fullDescription = baseDescription;
-      if (senderName && senderName.trim() !== '') {
-        fullDescription = `${baseDescription} - ${senderName}`;
-      }
-      
-      const targetTable = determineTargetTable(fullDescription, amountNum >= 0 ? 'Entrata' : 'Spesa', amountNum);
-      
-      const parsedRow = {
-        date: findValue(headers, values, ['data', 'date']) || '',
-        description: fullDescription,
-        amount: nettoAmount,
-        type: amountNum >= 0 ? 'Entrata' : 'Spesa',
-        code: transactionCode,
-        category: undefined, // PayPal non ha categorie predefinite
-        subcategory: undefined,
-        targetTable: targetTable
-      }
-      
-      console.log('Parsed PayPal row:', parsedRow) // Debug
-      return parsedRow
-    },
-    transformAmount: (amount: string) => {
-      // PayPal usa la virgola come separatore decimale
-      return amount.replace(',', '.').trim()
-    },
-    transformDate: (date: string) => {
-      // Converte da "5/5/2025" a "2025-05-05"
-      if (typeof date === 'string' && date.includes('/')) {
-        const parts = date.split('/')
-        if (parts.length === 3) {
-          const day = parts[0].padStart(2, '0')
-          const month = parts[1].padStart(2, '0')
-          const year = parts[2]
-          return `${year}-${month}-${day}`
-        }
-      }
-      
-      // Se è già in formato YYYY-MM-DD, restituiscilo così com'è
-      if (typeof date === 'string' && date.match(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/)) {
-        return date
-      }
-      
-      return date
-    }  },
-
-  // Postepay
-  {
-    name: 'Postepay',
-    identifier: 'postepay',
-    detectFormat: (headers: string[]) => {
-      return headers.some(h => h.toLowerCase().includes('data contabile')) && 
-             headers.some(h => h.toLowerCase().includes('data valuta')) &&
-             headers.some(h => h.toLowerCase().includes('importo (euro)')) &&
-             headers.some(h => h.toLowerCase().includes('descrizione operazioni'))
-    },
-    parseRow: (headers: string[], values: string[]) => {
-      console.log('Parsing Postepay row:', { headers, values }) // Debug
-      
-      const amount = findValue(headers, values, ['importo (euro)', 'importo']) || '';
-      const description = findValue(headers, values, ['descrizione operazioni', 'descrizione']) || '';
-      const dataContabile = findValue(headers, values, ['data contabile']) || '';
-      const amountNum = parseFloat(amount.replace(',', '.'));
-      
-      // Determina il tipo di transazione e la tabella di destinazione
-      const targetTable = determineTargetTable(description, amountNum >= 0 ? 'Entrata' : 'Spesa', amountNum);
-      
-      const parsedRow = {
-        date: dataContabile,
-        description: description,
-        amount: amount,
-        type: amountNum >= 0 ? 'Entrata' : 'Spesa',
-        category: undefined, // Postepay non ha categorie predefinite
-        subcategory: undefined,
-        targetTable: targetTable
-      }
-      
-      console.log('Parsed Postepay row:', parsedRow) // Debug
-      return parsedRow
-    },
-    transformAmount: (amount: string) => {
-      // Postepay usa la virgola come separatore decimale: 10,00
-      return amount.replace(',', '.').trim()
-    },
-    transformDate: (date: string) => {
-      // Converte da "22/05/2025" a "2025-05-22"
-      if (typeof date === 'string' && date.includes('/')) {
-        const parts = date.split('/')
-        if (parts.length === 3) {
-          const day = parts[0].padStart(2, '0')
-          const month = parts[1].padStart(2, '0')
-          const year = parts[2]
-          return `${year}-${month}-${day}`
-        }
-      }
-      
-      // Se è un numero seriale Excel, convertilo
-      if (!isNaN(Number(date)) && Number(date) > 1) {
-        try {
-          const excelDate = new Date((Number(date) - 25569) * 86400 * 1000)
-          
-          if (!isNaN(excelDate.getTime())) {
-            const year = excelDate.getFullYear()
-            const month = String(excelDate.getMonth() + 1).padStart(2, '0')
-            const day = String(excelDate.getDate()).padStart(2, '0')
-            return `${year}-${month}-${day}`
-          }
-        } catch (error) {
-          console.error('Errore conversione data Excel Postepay:', error)
-        }
-      }
-      
-      // Se è già in formato YYYY-MM-DD, restituiscilo così com'è
-      if (typeof date === 'string' && date.match(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/)) {
-        return date
-      }
-      
-      return date
-    }
-  },
-
-  // Contanti/Cash tracking
-  {
-    name: 'Contanti',
-    identifier: 'cash',
-    detectFormat: (headers: string[]) => {
-      return headers.some(h => 
-        h.toLowerCase().includes('transaction date') && 
-        headers.some(h2 => h2.toLowerCase().includes('category')) &&
-        headers.some(h3 => h3.toLowerCase().includes('amount'))
-      )
-    },
-    parseRow: (headers: string[], values: string[]) => {
-      // Debug: stampa headers e values per capire il mapping
-      console.log('Headers:', headers);
-      console.log('Values:', values);
-      
-      const amount = findValue(headers, values, ['amount (€)', 'amount']) || '';
-      const amountNum = parseFloat(amount.replace(/[€,()]/g, ''));
-      const description = findValue(headers, values, ['note']) || '';
-      const category = findValue(headers, values, ['category']);
-      const date = findValue(headers, values, ['transaction date']) || '';
-      const targetTable = determineTargetTable(description, amountNum >= 0 ? 'Entrata' : 'Spesa', amountNum, category);
-      
-      console.log('Parsed data:', { date, description, amount, category });
-      
-      return {
-        date: date,
-        description: description,
-        amount: amount.replace(/[€()]/g, ''),
-        type: amountNum >= 0 ? 'Entrata' : 'Spesa',
-        category: category,
-        targetTable: targetTable
-      };
-    },
-    transformAmount: (amount: string) => {
-      // Rimuove il simbolo € e parentesi e gestisce i numeri negativi
-      return amount.replace(/[€()]/g, '').trim()
-    },
-    transformDate: (date: string) => {
-      // Converte da "19 giu 2025, 22:56" a "2025-06-19"
-      if (typeof date === 'string' && (date.includes(',') || date.includes(' '))) {
-        try {
-          // Mappa dei mesi italiani
-          const monthMap: {[key: string]: string} = {
-            'gen': '01', 'feb': '02', 'mar': '03', 'apr': '04',
-            'mag': '05', 'giu': '06', 'lug': '07', 'ago': '08',
-            'set': '09', 'ott': '10', 'nov': '11', 'dic': '12'
-          }
-          
-          // Estrae "19 giu 2025" dalla stringa "19 giu 2025, 22:56"
-          const datePart = date.split(',')[0].trim()
-          const parts = datePart.split(' ')
-          
-          if (parts.length === 3) {
-            const day = parts[0].padStart(2, '0')
-            const monthName = parts[1].toLowerCase()
-            const month = monthMap[monthName] || '01'
-            const year = parts[2]
-            return `${year}-${month}-${day}`
-          }
-        } catch (error) {
-          console.error('Errore conversione data contanti:', error)
-        }
-      }
-      
-      // Se è già in formato YYYY-MM-DD, restituiscilo così com'è
-      if (typeof date === 'string' && date.match(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/)) {
-        return date
-      }
-      
-      return date
-    }
-  },
-
-  // Parser generico (fallback)
-  {
-    name: 'Formato Generico',
-    identifier: 'generic',
-    detectFormat: () => true, // Sempre vero come fallback
-    parseRow: (headers: string[], values: string[]) => ({
-      date: findValue(headers, values, ['data', 'date']) || '',
-      description: findValue(headers, values, ['descrizione', 'description', 'causale']) || '',
-      amount: findValue(headers, values, ['importo', 'amount', 'valore']) || '',
-      type: findValue(headers, values, ['tipo', 'type']) || 'Spesa',
-      account: findValue(headers, values, ['conto', 'account']),
-      category: findValue(headers, values, ['categoria', 'category']),
-      subcategory: findValue(headers, values, ['sottocategoria', 'subcategory'])
-    })
-  }
-]
+// RIMOSSA la dichiarazione locale di BANK_PARSERS: ora si usa solo quella importata dal modulo
 
 export default function ImportPage() {
   const { user, loading: authLoading } = useAuth()
@@ -526,7 +87,12 @@ export default function ImportPage() {
 
   // Carica gli account dell'utente
   const loadUserAccounts = useCallback(async () => {
-    if (!user) return
+    if (!user) {
+      console.log('DEBUG loadUserAccounts - Nessun utente disponibile');
+      return;
+    }
+
+    console.log('DEBUG loadUserAccounts - Inizio caricamento per utente:', user.id);
 
     try {
       const { data: accounts, error } = await supabase
@@ -535,8 +101,16 @@ export default function ImportPage() {
         .eq('user_id', user.id)
         .order('name')
 
-      if (error) throw error
+      if (error) {
+        console.error('DEBUG loadUserAccounts - Errore Supabase:', error);
+        throw error;
+      }
+      
+      // Debug: logga gli account caricati
+      console.log('DEBUG - Account caricati dal database:', accounts);
+      
       setUserAccounts(accounts || [])
+      console.log('DEBUG loadUserAccounts - Account impostati nello state:', accounts?.length || 0);
     } catch (error) {
       console.error('Error loading accounts:', error)
     }
@@ -589,7 +163,7 @@ export default function ImportPage() {
       'contanti': ['contanti', 'cash', 'contante'],      
       'revolut': ['revolut'],
       'paypal': ['paypal'],
-      'intesa': ['intesa', 'sanpaolo', 'intesasanpaolo'],
+      'intesa': ['intesa', 'sanpaolo', 'intesasanpaolo', 'contoxme', 'conto xme'],
       'poste': ['poste', 'postepay', 'bancoposta', 'libretto postale'],
       'edenred': ['edenred', 'buoni pasto', 'ticket restaurant'],
     }
@@ -685,10 +259,25 @@ export default function ImportPage() {
     setDetectedAccount(detected)
     
     try {
-      if (file.type === 'text/csv') {
-        await parseCSV(file, detected || undefined)
+      // Rilevamento file Edenred tramite nome file o header
+      const isEdenred = file.name.toLowerCase().includes('edenred') || file.name.toLowerCase().includes('ticket restaurant') || file.name.toLowerCase().includes('buoni pasto')
+      if (isEdenred) {
+        // Leggi il file come Excel e converti in string[][]
+        const data = await file.arrayBuffer()
+        const workbook = XLSX.read(data)
+        const sheetName = workbook.SheetNames[0]
+        const worksheet = workbook.Sheets[sheetName]
+        const jsonData: string[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 })
+        const rows = parseEdenredExcel(jsonData, detected || undefined)
+        setDetectedBank(null)
+        setImportData(rows)
+        setImportStats({ total: rows.length, processed: 0, success: 0, errors: 0 })
+      } else if (file.type === 'text/csv') {
+        console.log('DEBUG - Chiamata parseCSV con account:', userAccounts);
+        await parseCSV(file, detected || undefined, setDetectedBank, setImportData, setImportStats, userAccounts)
       } else {
-        await parseExcel(file, detected || undefined)
+        console.log('DEBUG - Chiamata parseExcel con account:', userAccounts);
+        await parseExcel(file, detected || undefined, setDetectedBank, setImportData, setImportStats, userAccounts)
       }
     } catch (error) {
       console.error('Error parsing file:', error)
@@ -698,489 +287,21 @@ export default function ImportPage() {
     }
   }
 
-  const parseCSV = async (file: File, accountId?: string) => {
-    const text = await file.text()
-    // Rilevamento formato Edenred
-    if (text.toLowerCase().includes('edenred') || text.toLowerCase().includes('n. e importo buoni')) {
-      alert('I file Edenred sono supportati solo in formato Excel (.xlsx).');
-      return;
-    }
-    
-    const lines = text.split('\n').filter(line => line.trim())
-    
-    // Funzione helper per parsare correttamente CSV con virgolette
-    const parseCSVLine = (line: string): string[] => {
-      const result = []
-      let current = ''
-      let inQuotes = false
-      
-      for (let i = 0; i < line.length; i++) {
-        const char = line[i]
-        
-        if (char === '"') {
-          inQuotes = !inQuotes
-        } else if (char === ',' && !inQuotes) {
-          result.push(current.trim())
-          current = ''
-        } else {
-          current += char
-        }
-      }
-      
-      // Aggiungi l'ultimo campo
-      result.push(current.trim())
-      
-      return result
-    }
-    
-    // Trova la riga che contiene gli header (cerca colonne come "Date", "Amount", etc.)
-    let headerRowIndex = 0
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].toLowerCase()
-      if ((line.includes('date') || line.includes('data')) && 
-          (line.includes('amount') || line.includes('importo'))) {
-        headerRowIndex = i
-        break
-      }
-    }
-    
-    const headers = parseCSVLine(lines[headerRowIndex]).map(h => h.toLowerCase().replace(/"/g, ''))
-    const rows: ImportRow[] = []
-    
-    console.log('CSV Headers found:', headers) // Debug
-    console.log('🔍 Starting bank detection process...') // Debug
-    console.log('📁 File name:', file.name) // Debug
-    
-    // Prima prova a rilevare la banca dal nome del file
-    let detectedParser: BankParser | null = null
-    const fileName = file.name.toLowerCase()
-    
-    // Mappa dei nomi delle banche nei file
-    const bankFileKeywords: {[key: string]: string[]} = {
-      'edenred': ['edenred'],
-      'intesa': ['intesa', 'sanpaolo', 'intesasanpaolo'],
-      'revolut': ['revolut'],
-      'paypal': ['paypal'],
-      'postepay': ['postepay', 'poste'],
-      'contanti': ['contanti', 'cash']
-    }
-    
-    // Cerca corrispondenze nel nome del file
-    for (const parser of BANK_PARSERS) {
-      const keywords = bankFileKeywords[parser.identifier] || []
-      if (keywords.some(keyword => fileName.includes(keyword))) {
-        detectedParser = parser
-        setDetectedBank(parser)
-        console.log(`✅ DETECTED from filename: ${parser.name}`) // Debug
-        break
-      }
-    }
-    
-    // Se non trova corrispondenze nel nome del file, usa gli header
-    if (!detectedParser) {
-      console.log('🔄 No match from filename, checking headers...') // Debug
-      for (const parser of BANK_PARSERS) {
-        console.log(`Checking parser: ${parser.name} (${parser.identifier})`) // Debug
-        if (parser.detectFormat(headers)) {
-          detectedParser = parser
-          setDetectedBank(parser)
-          console.log(`✅ DETECTED from headers: ${parser.name}`) // Debug
-          break
-        } else {
-          console.log(`❌ NOT DETECTED: ${parser.name}`) // Debug
-        }
-      }    }
-    
-    // Processa le righe dopo l'header(per altri formati)
-    for (let i = headerRowIndex + 1; i < lines.length; i++) {
-      const values = parseCSVLine(lines[i]).map(v => v.replace(/"/g, ''))
-      
-      console.log(`Row ${i} values:`, values) // Debug
-      
-      if (values.some(v => v.trim())) { // Salta righe vuote
-        if (detectedParser) {
-          // Usa il parser specifico della banca
-          const parsedRow = detectedParser.parseRow(headers, values)
-          const row: ImportRow = {
-            id: `row-${i}`,
-            date: parsedRow.date || '',
-            description: parsedRow.description || '',
-            amount: parsedRow.amount || '',
-            type: parsedRow.type || 'Spesa',
-            account: accountId || undefined,
-            category: parsedRow.category,
-            subcategory: parsedRow.subcategory,
-            targetTable: parsedRow.targetTable || 'transactions',
-            status: 'pending',
-            // Inizializza i nuovi campi
-            code: parsedRow.code || '',
-            currency: 'EUR',
-            initialAmount: parsedRow.amount || '',
-            currentAmount: parsedRow.amount || '',
-            note: '',
-            transactionType: parsedRow.type || 'expense'
-          }
-          
-          // Applica le trasformazioni se disponibili
-          if (detectedParser.transformDate && row.date) {
-            row.date = detectedParser.transformDate(row.date)
-          }
-          if (detectedParser.transformAmount && row.amount) {
-            row.amount = detectedParser.transformAmount(row.amount)
-          }
-          
-          rows.push(row)
-        } else {
-          // Fallback al parser generico
-          const description = findValue(headers, values, ['descrizione', 'description', 'causale', 'note']) || '';
-          const amount = findValue(headers, values, ['importo', 'amount', 'valore']) || '';
-          const amountNum = parseFloat(amount.replace(',', '.'));
-          const category = findValue(headers, values, ['categoria', 'category']);
-          
-          const row: ImportRow = {
-            id: `row-${i}`,
-            date: findValue(headers, values, ['data', 'date', 'transaction date']) || '',
-            description: description,
-            amount: amount,
-            type: findValue(headers, values, ['tipo', 'type']) || 'Spesa',
-            account: accountId || undefined,
-            category: category,
-            subcategory: findValue(headers, values, ['sottocategoria', 'subcategory']),
-            targetTable: determineTargetTable(description, findValue(headers, values, ['tipo', 'type']) || 'Spesa', amountNum, category),
-            status: 'pending',
-            // Inizializza i nuovi campi
-            code: findValue(headers, values, ['codice', 'code']) || '',
-            currency: 'EUR',
-            initialAmount: amount,
-            currentAmount: amount,
-            note: '',
-            transactionType: 'expense'
-          }
-          
-          rows.push(row)
-        }
-      }
-    }
-    
-    setImportData(rows)
-    setImportStats({
-      total: rows.length,
-      processed: 0,
-      success: 0,
-      errors: 0
-    })
-  }
-
-  const parseExcel = async (file: File, accountId?: string) => {
-    const arrayBuffer = await file.arrayBuffer()
-    const workbook = XLSX.read(arrayBuffer, { type: 'array' })
-    const sheetName = workbook.SheetNames[0]
-    const worksheet = workbook.Sheets[sheetName]
-
-    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as string[][]
-
-    if (jsonData.length < 2) {
-      alert('Il file Excel deve contenere almeno 2 righe (header e dati)')
-      return
-    }
-
-    const headers = jsonData[0].map(h => h?.toString().toLowerCase() || '')
-
-    if (headers.some(header => header.includes('n. e importo buoni') || header.includes('edenred'))) {
-      const edenredRows = parseEdenredExcel(jsonData, accountId);
-      setImportData(edenredRows);
-      setImportStats({
-        total: edenredRows.length,
-        processed: 0,
-        success: 0,
-        errors: 0
-      });
-      setDetectedBank({
-        name: 'Edenred',
-        identifier: 'edenred',
-        detectFormat: () => true,
-        parseRow: () => ({}),
-        transformDate: undefined,
-        transformAmount: undefined
-      });
-      return;
-    }
-
-    // Trova la riga che contiene gli header (cerca la prima riga con "Data" e "Importo")
-    let headerRowIndex = 0
-    for (let i = 0; i < jsonData.length; i++) {
-      const row = jsonData[i].map(cell => cell?.toString().toLowerCase() || '')
-      if (row.some(cell => cell.includes('data')) && row.some(cell => cell.includes('importo'))) {
-        headerRowIndex = i
-        break
-      }
-    }
-    
-    const rows: ImportRow[] = []
-    
-    console.log('Excel Headers found:', headers) // Debug    console.log('🔍 Starting bank detection process for Excel...') // Debug
-    console.log('📁 File name:', file.name) // Debug
-    
-    // Prima prova a rilevare la banca dal nome del file
-    let detectedParser: BankParser | null = null
-    const fileName = file.name.toLowerCase()
-    
-    // Mappa dei nomi delle banche nei file
-    const bankFileKeywords: {[key: string]: string[]} = {
-      'intesa': ['intesa', 'sanpaolo', 'intesasanpaolo'],
-      'revolut': ['revolut'],
-      'paypal': ['paypal'],
-      'postepay': ['postepay', 'poste'],
-      'contanti': ['contanti', 'cash'],
-      'edenred': ['edenred', 'buoni pasto', 'ticket restaurant']
-    }
-    
-    // Cerca corrispondenze nel nome del file
-    for (const parser of BANK_PARSERS) {
-      const keywords = bankFileKeywords[parser.identifier] || []
-      if (keywords.some(keyword => fileName.includes(keyword))) {
-        detectedParser = parser
-        setDetectedBank(parser)
-        console.log(`✅ DETECTED from filename: ${parser.name}`) // Debug
-        break
-      }
-    }
-    
-    // Se non trova corrispondenze nel nome del file, usa gli header
-    if (!detectedParser) {
-      console.log('🔄 No match from filename, checking headers...') // Debug
-      for (const parser of BANK_PARSERS) {
-        console.log(`Checking parser: ${parser.name} (${parser.identifier})`) // Debug
-        if (parser.detectFormat(headers)) {
-          detectedParser = parser
-          setDetectedBank(parser)
-          console.log(`✅ DETECTED from headers: ${parser.name}`) // Debug
-          break
-        } else {
-          console.log(`❌ NOT DETECTED: ${parser.name}`) // Debug
-        }
-      }    }
-    
-    // Processa le righe dopo l'header
-    for (let i = headerRowIndex + 1; i < jsonData.length; i++) {
-      const values = jsonData[i].map(v => v?.toString() || '')
-      
-      if (values.some(v => v.trim())) { // Salta righe vuote
-        if (detectedParser) {
-          // Usa il parser specifico della banca
-          const parsedRow = detectedParser.parseRow(headers, values)
-          const row: ImportRow = {
-            id: `row-${i}`,
-            date: parsedRow.date || '',
-            description: parsedRow.description || '',
-            amount: parsedRow.amount || '',
-            type: parsedRow.type || 'Spesa',
-            account: accountId || undefined,
-            category: parsedRow.category,
-            subcategory: parsedRow.subcategory,
-            targetTable: parsedRow.targetTable || 'transactions',
-            status: 'pending',
-            // Inizializza i nuovi campi
-            code: parsedRow.code || '',
-            currency: 'EUR',
-            initialAmount: parsedRow.amount || '',
-            currentAmount: parsedRow.amount || '',
-            note: '',
-            transactionType: parsedRow.type || 'expense'
-          }
-          
-          // Applica le trasformazioni se disponibili
-          if (detectedParser.transformDate && row.date) {
-            console.log('Data originale:', row.date) // Debug
-            row.date = detectedParser.transformDate(row.date)
-            console.log('Data trasformata:', row.date) // Debug
-          }
-          if (detectedParser.transformAmount && row.amount) {
-            row.amount = detectedParser.transformAmount(row.amount)
-          }
-          
-          rows.push(row)
-        } else {
-          // Fallback al parser generico
-          const description = findValue(headers, values, ['descrizione', 'description', 'causale']) || '';
-          const amount = findValue(headers, values, ['importo', 'amount', 'valore']) || '';
-          const amountNum = parseFloat(amount.replace(',', '.'));
-          const category = findValue(headers, values, ['categoria', 'category']);
-          
-          const row: ImportRow = {
-            id: `row-${i}`,
-            date: findValue(headers, values, ['data', 'date']) || '',
-            description: description,
-            amount: amount,
-            type: findValue(headers, values, ['tipo', 'type']) || 'Spesa',
-            account: accountId || undefined,
-            category: category,
-            subcategory: findValue(headers, values, ['sottocategoria', 'subcategory']),
-            targetTable: determineTargetTable(description, findValue(headers, values, ['tipo', 'type']) || 'Spesa', amountNum, category),
-            status: 'pending',
-            // Inizializza i nuovi campi
-            code: findValue(headers, values, ['codice', 'code']) || '',
-            currency: 'EUR',
-            initialAmount: amount,
-            currentAmount: amount,
-            note: '',
-            transactionType: 'expense'
-          }
-          
-          rows.push(row)
-        }
-      }
-    }
-    
-    setImportData(rows)
-    setImportStats({
-      total: rows.length,
-      processed: 0,
-      success: 0,
-      errors: 0
-    })
-  }
-
-  // --- INIZIO: Funzione parseEdenredExcel aggiornata ---
-  function parseEdenredExcel(jsonData: string[][], accountId?: string): ImportRow[] {
-    let headerRowIndex = 0;
-    for (let i = 0; i < jsonData.length; i++) {
-      const row = jsonData[i].map(cell => cell?.toString().toLowerCase() || '');
-      if (row.some(cell => cell.includes('data')) && row.some(cell => cell.includes('importo'))) {
-        headerRowIndex = i;
-        break;
-      }
-    }
-    const rows: ImportRow[] = [];
-    const grouped: { [key: string]: { date: string, description: string, amount: number, type: string, transactionType: string } } = {};
-    const headers = jsonData[headerRowIndex].map(h => h?.toString().toLowerCase() || '');
-    for (let i = headerRowIndex + 1; i < jsonData.length; i++) {
-      const values = jsonData[i].map(v => v?.toString() || '');
-      const dataOraRaw = values[0]?.trim();
-      if (!dataOraRaw) continue;
-      // Estrai data e ora (es: "21/06/2025 12:34")
-      let dataISO = '';
-      let ora = '';
-      const match = dataOraRaw.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}:\d{2}))?/);
-      if (match) {
-        const giorno = match[1].padStart(2, '0');
-        const mese = match[2].padStart(2, '0');
-        const anno = match[3];
-        dataISO = `${anno}-${mese}-${giorno}`;
-        ora = match[4] || '';
-      } else if (dataOraRaw.match(/^\d{4}-\d{2}-\d{2}/)) {
-        // Già in formato ISO
-        dataISO = dataOraRaw.split(' ')[0];
-        ora = (dataOraRaw.split(' ')[1] || '').trim();
-      } else {
-        continue; // Data non valida
-      }
-      // Parsing importo: pattern "N da €X,XX"
-      let amount = 0;
-      const importoStr = values.find(v => v.includes('€')) || '';
-      const matchImporto = importoStr.match(/(\d+)\s*da\s*€\s*([\d,.]+)/i);
-      if (matchImporto) {
-        const n = parseInt(matchImporto[1], 10);
-        const val = parseFloat(matchImporto[2].replace('.', '').replace(',', '.'));
-        amount = n * val;
-      } else {
-        // Fallback: cerca solo il valore
-        const fallback = importoStr.match(/€\s*([\d,.]+)/);
-        if (fallback) amount = parseFloat(fallback[1].replace('.', '').replace(',', '.'));
-      }
-      // Tipo movimento: di solito seconda colonna
-      const tipoMov = (values[1] || '').toLowerCase();
-      let tipo = 'Spesa';
-      let transactionType = 'expense';
-      if (tipoMov.includes('utilizzo')) {
-        amount = -Math.abs(amount);
-        tipo = 'Acquisto'; // Cambiato da 'Spesa' a 'Acquisto'
-        transactionType = 'expense';
-      } else if (tipoMov.includes('ordine cloud')) {
-        amount = Math.abs(amount);
-        tipo = 'Ricarica'; // Cambiato da 'Entrata' a 'Ricarica'
-        transactionType = 'income';
-      }
-      // Descrizione
-      let description = values[1]?.toString() || '';
-      if (tipoMov.includes('ordine cloud')) {
-        // Calcola mese precedente rispetto a dataISO
-        const [anno, mese, giorno] = dataISO.split('-');
-        let meseNum = parseInt(mese, 10) - 1;
-        let annoNum = parseInt(anno, 10);
-        if (meseNum === 0) {
-          meseNum = 12;
-          annoNum -= 1;
-        }
-        const mesi = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
-        const meseStr = mesi[meseNum - 1];
-        description = `Retribuzione ${meseStr} ${annoNum}: Buoni Pasto`;
-      } else if (tipoMov.includes('utilizzo')) {
-        // Se "Utilizzo", prendi il campo dettagli/dettaglio per intero
-        const dettaglioIdx = headers.findIndex((h: string) => h.includes('dettaglio'));
-        if (dettaglioIdx !== -1 && values[dettaglioIdx]) {
-          description = values[dettaglioIdx].toString().trim();
-        } else {
-          description = '';
-        }
-      } else {
-        // Logica attuale per altri casi
-        const dettaglioIdx = values.findIndex(v => v.toLowerCase().includes('dettaglio') || v.toLowerCase().includes('dettagli'));
-        if (typeof dettaglioIdx !== 'undefined' && dettaglioIdx !== -1 && values[dettaglioIdx]) {
-          description = values[dettaglioIdx].toString().trim();
-        } else {
-          let matchDesc = description.match(/Utilizzo BUONI\/VOUCHER presso\s*(.*)/i);
-          if (matchDesc) {
-            description = matchDesc[1] ? matchDesc[1].trim() : '';
-          } else {
-            matchDesc = description.match(/Ordine Cloud\s*(.*)/i);
-            if (matchDesc) {
-              description = matchDesc[1] ? matchDesc[1].trim() : '';
-            }
-          }
-        }
-      }
-      const groupKey = ora ? `${dataISO} ${ora}` : dataISO;
-      if (!grouped[groupKey]) {
-        grouped[groupKey] = { date: dataISO, description, amount, type: tipo, transactionType };
-      } else {
-        grouped[groupKey].amount += amount;
-      }
-    }
-    // Crea righe finali
-    Object.values(grouped).forEach((g, idx) => {
-      // Imposta la categoria e sottocategoria in base al tipo
-      let categoria = '';
-      let sottocategoria = '';
-      if (g.type === 'Acquisto') {
-        categoria = 'GROCERY';
-        sottocategoria = 'Supermercato';
-      } else if (g.type === 'Ricarica') {
-        categoria = 'INCOME & SALARY';
-        sottocategoria = 'Bonus';
-      }
-      rows.push({
-        id: `edenred-${idx}`,
-        date: g.date,
-        description: g.description,
-        amount: g.amount.toFixed(2),
-        type: g.type,
-        account: accountId || undefined,
-        category: categoria, // Categoria dinamica
-        subcategory: sottocategoria, // Sottocategoria dinamica
-        targetTable: 'transactions',
-        status: 'pending',
-        code: '',
-        currency: 'EUR',
-        initialAmount: g.amount.toFixed(2),
-        currentAmount: g.amount.toFixed(2),
-        note: '',
-        transactionType: g.type,
-      });
-    });
-    return rows;
-  }
-  // --- FINE: Funzione parseEdenredExcel aggiornata ---
+  const TRANSACTION_TYPE_MAP: Record<string, string> = {
+    'Spesa': 'expense',
+    'Entrata': 'income',
+    'Rimborso': 'refund',
+    'Trasferimento': 'transfer',
+    'Acquisto': 'expense',
+    'Ricarica': 'income',
+    'Refund': 'refund',
+    'Bonifico': 'transfer',
+    'Prelievo': 'expense',
+    'Stipendio': 'income',
+    'Ordine': 'expense',
+    'Ordine cloud': 'income',
+    // ...aggiungi altri mapping se necessario...
+  };
 
   const validateRow = (row: ImportRow): string[] => {
     const errors: string[] = []
@@ -1201,7 +322,7 @@ export default function ImportPage() {
     }
     
     // Valida categoria (se specificata, deve esistere nel database)
-    if (row.category && row.category.trim() !== '') {
+    if (row.targetTable !== 'refunds' && row.targetTable !== 'funds_transfer' && row.category && row.category.trim() !== '') {
       const categoryExists = userCategories.some(cat => 
         cat.name.toLowerCase() === row.category?.toLowerCase()
       )
@@ -1232,7 +353,7 @@ export default function ImportPage() {
     
     // Validazioni specifiche per tipo di tabella
     switch (row.targetTable) {
-      case 'transactions':
+      case 'transactions': {
         // Valida importo iniziale e corrente
         if (!row.initialAmount || row.initialAmount === '') {
           errors.push('Importo iniziale mancante')
@@ -1253,11 +374,23 @@ export default function ImportPage() {
         }
         
         // Valida tipo transazione
-        if (row.transactionType && !['income', 'expense', 'transfer'].includes(row.transactionType)) {
+        const tipoOptions = [
+          'Abbonamento', 'Acquisto', 'AZIONE', 'Bonifico', 'Buono fruttifero',
+          'Cancellazione rimborso', 'Commissione', 'Competenze', 'Delivery', 'Eccesso Rimborso',
+          'Entrata', 'ETF', 'Imposte', 'Iscrizione', 'Ordine', 'Ordine cloud', 'Prelievo',
+          'Quattordicesima', 'Rata', 'Refund', 'Ricarica', 'Spesa', 'Stipendio', 'TFR', 'Tredicesima'
+        ];
+        let mappedType = row.transactionType;
+        if (mappedType && TRANSACTION_TYPE_MAP[mappedType]) {
+          mappedType = TRANSACTION_TYPE_MAP[mappedType];
+        }
+        // Accetta qualsiasi valore presente nella picklist tipoOptions
+        if (mappedType && !tipoOptions.includes(row.transactionType || '')) {
           errors.push('Tipo transazione non valido')
         }
         break;
-        
+      }
+      
       case 'refunds':
         // Valida importi per rimborsi
         if (!row.initialAmount || row.initialAmount === '') {
@@ -1279,7 +412,7 @@ export default function ImportPage() {
         }
         break;
         
-      case 'fund_transfers':
+      case 'funds_transfer':
         // Valida importo per trasferimenti
         if (!row.amount || row.amount === '') {
           errors.push('Importo mancante')
@@ -1313,124 +446,131 @@ export default function ImportPage() {
     let successCount = 0
     let errorCount = 0
 
-    const updatedData = [...importData]
+    // Suddividi per tabella
+    const transactions = importData.filter(r => r.targetTable === 'transactions')
+    const refunds = importData.filter(r => r.targetTable === 'refunds')
+    const fundTransfers = importData.filter(r => r.targetTable === 'funds_transfer')
 
-    for (let i = 0; i < updatedData.length; i++) {
-      const row = updatedData[i]
-      const errors = validateRow(row)
+    // Se tutte le liste sono vuote, mostra alert e termina
+    if (transactions.length === 0 && refunds.length === 0 && fundTransfers.length === 0) {
+      alert('Nessun dato da importare: tutte le liste sono vuote.')
+      setIsUploading(false)
+      return
+    }
 
-      if (errors.length > 0) {
-        row.status = 'error'
-        row.errors = errors
-        errorCount++
-      } else {
-        try {
-          // Prepara i dati per l'inserimento
-          const transactionDate = new Date(row.date).toISOString().split('T')[0]
-          
-          // Converte nomi di categorie e sottocategorie in ID
-          let categoryId: string | null = null
-          let subcategoryId: string | null = null
-          
-          if (row.category && row.category.trim() !== '') {
-            const category = userCategories.find(cat => 
-              cat.name.toLowerCase() === row.category?.toLowerCase()
-            )
-            if (category) {
-              categoryId = category.id
-              
-              // Se c'è anche una sottocategoria, cerca l'ID
-              if (row.subcategory && row.subcategory.trim() !== '') {
-                const subcategory = userSubcategories.find(sub => 
-                  sub.name.toLowerCase() === row.subcategory?.toLowerCase() && 
-                  sub.category_id === category.id
-                )
-                if (subcategory) {
-                  subcategoryId = subcategory.id
+    // Funzione helper per processare una lista
+    const processList = async (rows: ImportRow[]) => {
+      if (!rows || rows.length === 0) return; // Non processare se la lista è vuota
+      const updatedData = [...importData]
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i]
+        const errors = validateRow(row)
+        const globalIdx = updatedData.findIndex(r => r.id === row.id)
+        if (errors.length > 0) {
+          row.status = 'error'
+          row.errors = errors
+          errorCount++
+        } else {
+          try {
+            const transactionDate = new Date(row.date).toISOString().split('T')[0]
+            let categoryId: string | null = null
+            let subcategoryId: string | null = null
+            if (row.category && row.category.trim() !== '') {
+              const category = userCategories.find(cat => 
+                cat.name.toLowerCase() === row.category?.toLowerCase()
+              )
+              if (category) {
+                categoryId = category.id
+                if (row.subcategory && row.subcategory.trim() !== '') {
+                  const subcategory = userSubcategories.find(sub => 
+                    sub.name.toLowerCase() === row.subcategory?.toLowerCase() && 
+                    sub.category_id === category.id
+                  )
+                  if (subcategory) {
+                    subcategoryId = subcategory.id
+                  }
                 }
               }
             }
-          }
-          
-          let insertData: Record<string, unknown> = {
-            user_id: user.id,
-          }
-          
-          // Configura i dati basandosi sulla tabella di destinazione
-          if (row.targetTable === 'transactions') {
-            const initialAmount = parseFloat((row.initialAmount || row.amount).toString().replace(',', '.'))
-            const currentAmount = parseFloat((row.currentAmount || row.amount).toString().replace(',', '.'))
-            
-            insertData = {
-              ...insertData,
-              transaction_date: transactionDate,
-              transaction_type: row.transactionType || 'expense',
-              transaction_details: row.description.trim(),
-              transaction_code: row.code || null,
-              account_id: row.account || null,
-              category_id: categoryId,
-              subcategory_id: subcategoryId,
-              currency: row.currency || 'EUR',
-              initial_amount: initialAmount,
-              current_amount: currentAmount,
-              transaction_note: row.note || null,
-              is_refunded: false
+            let insertData: Record<string, unknown> = {
+              user_id: user.id,
             }
-          } else if (row.targetTable === 'refunds') {
-            const initialAmount = parseFloat((row.initialAmount || row.amount).toString().replace(',', '.'))
-            const currentAmount = parseFloat((row.currentAmount || row.amount).toString().replace(',', '.'))
-            
-            insertData = {
-              ...insertData,
-              refund_date: transactionDate,
-              refund_details: row.description.trim(),
-              refund_code: row.code || null,
-              account_id: row.account || null,
-              currency: row.currency || 'EUR',
-              initial_amount: Math.abs(initialAmount),
-              current_amount: Math.abs(currentAmount)
+            if (row.targetTable === 'transactions') {
+              const initialAmount = parseFloat((row.initialAmount || row.amount).toString().replace(',', '.'))
+              const currentAmount = parseFloat((row.currentAmount || row.amount).toString().replace(',', '.'))
+              insertData = {
+                ...insertData,
+                transaction_date: transactionDate,
+                transaction_type: row.transactionType || 'expense',
+                transaction_details: row.description.trim(),
+                transaction_code: row.code || null,
+                account_id: row.account || null,
+                category_id: categoryId,
+                subcategory_id: subcategoryId,
+                currency: row.currency || 'EUR',
+                initial_amount: initialAmount,
+                current_amount: currentAmount,
+                transaction_note: row.note || null,
+                is_refunded: false
+              }
+            } else if (row.targetTable === 'refunds') {
+              const initialAmount = parseFloat((row.initialAmount || row.amount).toString().replace(',', '.'))
+              const currentAmount = parseFloat((row.currentAmount || row.amount).toString().replace(',', '.'))
+              insertData = {
+                ...insertData,
+                refund_date: transactionDate,
+                refund_details: row.description.trim(),
+                refund_code: row.code || null,
+                account_id: row.account || null,
+                currency: row.currency || 'EUR',
+                initial_amount: Math.abs(initialAmount),
+                current_amount: Math.abs(currentAmount)
+              }
+            } else if (row.targetTable === 'funds_transfer') {
+              const amount = parseFloat(row.amount.toString().replace(',', '.'))
+              insertData = {
+                ...insertData,
+                funds_transfer_date: transactionDate,
+                funds_transfer_details: row.description.trim(),
+                funds_transfer_code: row.code || null,
+                account_id: row.account || null,
+                currency: row.currency || 'EUR',
+                amount: amount  // NON usare Math.abs() - mantieni il segno originale!
+              }
             }
-          } else if (row.targetTable === 'fund_transfers') {
-            const amount = parseFloat(row.amount.toString().replace(',', '.'))
-            
-            insertData = {
-              ...insertData,
-              funds_transfer_date: transactionDate,
-              funds_transfer_details: row.description.trim(),
-              funds_transfer_code: row.code || null,
-              account_id: row.account || null,
-              currency: row.currency || 'EUR',
-              amount: Math.abs(amount)
-            }
+            // LOG DETTAGLIATO PRIMA DELL'INSERT
+            console.log('INSERT', row.targetTable, insertData)
+            const { error } = await supabase
+              .from(row.targetTable)
+              .insert(insertData)
+            if (error) throw error
+            row.status = 'success'
+            successCount++
+          } catch (error) {
+            console.error('Error inserting transaction:', error)
+            row.status = 'error'
+            row.errors = ['Errore durante il salvataggio']
+            errorCount++
           }
-          
-          // Inserisci nella tabella appropriata
-          const { error } = await supabase
-            .from(row.targetTable)
-            .insert(insertData)
-
-          if (error) throw error
-
-          row.status = 'success'
-          successCount++
-        } catch (error) {
-          console.error('Error inserting transaction:', error)
-          row.status = 'error'
-          row.errors = ['Errore durante il salvataggio']
-          errorCount++
         }
+        // Aggiorna stats e stato globale
+        if (globalIdx !== -1) {
+          updatedData[globalIdx] = { ...row }
+        }
+        setImportStats(prev => ({
+          ...prev,
+          processed: prev.processed + 1,
+          success: successCount,
+          errors: errorCount
+        }))
+        setImportData([...updatedData])
       }
-
-      // Aggiorna i stats in tempo reale
-      setImportStats(prev => ({
-        ...prev,
-        processed: i + 1,
-        success: successCount,
-        errors: errorCount
-      }))
-
-      setImportData([...updatedData])
     }
+
+    // Processa solo le liste popolate
+    if (transactions.length > 0) await processList(transactions)
+    if (refunds.length > 0) await processList(refunds)
+    if (fundTransfers.length > 0) await processList(fundTransfers)
 
     setIsUploading(false)
   }
@@ -1450,25 +590,23 @@ export default function ImportPage() {
     fileInputRef.current?.click()
   }
 
-  const updateRow = (rowId: string, field: keyof ImportRow, value: string) => {
+  const updateRow = (rowId: string, field: keyof ImportRow, value: any) => {
     setImportData(prevData =>
       prevData.map(row => {
         if (row.id === rowId) {
-          const updatedRow = { ...row, [field]: value }
-          
+          const updatedRow = { ...row, [field]: value };
           // Se stiamo aggiornando l'amount, sincronizza initialAmount e currentAmount
           if (field === 'amount') {
             if (row.targetTable === 'transactions' || row.targetTable === 'refunds') {
-              updatedRow.initialAmount = value
-              updatedRow.currentAmount = value
+              updatedRow.initialAmount = value;
+              updatedRow.currentAmount = value;
             }
           }
-          
-          return updatedRow
+          return updatedRow;
         }
-        return row
+        return row;
       })
-    )
+    );
   }
 
   const deleteRow = (rowId: string) => {
@@ -1536,7 +674,7 @@ export default function ImportPage() {
           >
             <option value="transactions">Transazioni</option>
             <option value="refunds">Rimborsi</option>
-            <option value="fund_transfers">Trasferimenti</option>
+            <option value="funds_transfer">Trasferimenti</option>
           </select>
         );
 
@@ -1733,6 +871,17 @@ export default function ImportPage() {
           />
         );
 
+      case 'is_refunded':
+        return (
+          <input
+            type="checkbox"
+            checked={!!row.is_refunded}
+            onChange={e => updateRow(row.id, 'is_refunded', e.target.checked)}
+            className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+            title="Segna come rimborsato"
+          />
+        );
+
       default:
         return <span>-</span>; // Fallback per garantire un ReactNode valido
     }
@@ -1766,7 +915,7 @@ export default function ImportPage() {
               {[...Array(2)].map((_, i) => (
                 <div key={i} className="h-64 bg-gray-200 rounded-lg"></div>
               ))}
-            </div>
+                       </div>
           </div>
         </div>
       </ModuleLayout>
@@ -1790,6 +939,7 @@ export default function ImportPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <ModuleHeader 
           title="Import Dati" 
+          
           subtitle={detectedBank ? `Importa da ${detectedBank.name}` : "Importa transazioni da file Excel/CSV"}
           icon={<Upload className="w-6 h-6 text-white" />}
           stats={importData.length > 0 ? [
@@ -1810,7 +960,7 @@ export default function ImportPage() {
             },
             {
               label: 'Trasferimenti',
-              value: importData.filter(r => r.targetTable === 'fund_transfers').length.toString(),
+              value: importData.filter(r => r.targetTable === 'funds_transfer').length.toString(),
               color: 'orange'
             }
           ] : []}
@@ -1821,9 +971,9 @@ export default function ImportPage() {
                 onClick: loadNewFile,
                 icon: <Plus className="w-4 h-4" />,
                 color: 'purple' as const,
-                disabled: isUploading,
+                               disabled: isUploading,
                 hideTextOnMobile: true
-              },
+                           },
               {
                 label: isUploading ? 'Importando...' : 'Avvia Import',
                 onClick: processImport,
@@ -2075,6 +1225,7 @@ export default function ImportPage() {
                         { key: 'subcategory', label: 'Sottocategoria' },
                         { key: 'currency', label: 'Valuta' },
                         { key: 'amount', label: 'Importo' },
+                        { key: 'is_refunded', label: 'Rimborsato?' },
                         { key: 'note', label: 'Note' }
                       ];
                     case 'refunds':
@@ -2089,7 +1240,7 @@ export default function ImportPage() {
                         { key: 'currency', label: 'Valuta' },
                         { key: 'amount', label: 'Importo' }
                       ];
-                    case 'fund_transfers':
+                    case 'funds_transfer':
                       return [
                         { key: 'actions', label: 'Azioni' },
                         { key: 'status', label: 'Status' },
