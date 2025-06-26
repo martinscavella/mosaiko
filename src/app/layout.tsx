@@ -2,9 +2,12 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, EB_Garamond } from "next/font/google";
 import { AuthProvider } from "@/lib/auth";
 import { FinanceCacheProvider } from "@/lib/financeCache";
+import { ModuleProvider } from "@/lib/moduleContext";
 import "./globals.css";
 import { Sidebar } from "@/components/ui/Sidebar";
 import PWAInstallPrompt from "@/components/ui/PWAInstallPrompt";
+import BottomNavigation from "@/components/ui/BottomNavigation";
+import MobileHeader from "@/components/ui/MobileHeader";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -84,15 +87,33 @@ export default function RootLayout({
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable} ${ebGaramond.variable} antialiased`}>
         <AuthProvider>
-          <FinanceCacheProvider>
-            <div className="flex h-screen bg-gray-50">
-              <Sidebar />
-              <main className="flex-1 overflow-y-auto">
-                {children}
-              </main>
-            </div>
-            <PWAInstallPrompt />
-          </FinanceCacheProvider>
+          <ModuleProvider>
+            <FinanceCacheProvider>
+              <div className="flex h-screen bg-gray-50">
+                {/* Desktop Sidebar */}
+                <Sidebar />
+                
+                {/* Main Content */}
+                <main className="flex-1 flex flex-col overflow-hidden">
+                  {/* Mobile Header */}
+                  <MobileHeader />
+                  
+                  {/* Page Content */}
+                  <div className="flex-1 overflow-y-auto pwa-scroll">
+                    <div className="pb-16 md:pb-0">
+                      {children}
+                    </div>
+                  </div>
+                </main>
+              </div>
+              
+              {/* Mobile Bottom Navigation */}
+              <BottomNavigation />
+              
+              {/* PWA Install Prompt */}
+              <PWAInstallPrompt />
+            </FinanceCacheProvider>
+          </ModuleProvider>
         </AuthProvider>
       </body>
     </html>

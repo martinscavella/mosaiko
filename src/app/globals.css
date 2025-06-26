@@ -358,6 +358,54 @@ html {
   .floating-element {
     animation-duration: 8s;
   }
+  
+  /* Ensure full height usage on mobile */
+  .mobile-full-height {
+    min-height: calc(100vh - 4rem); /* Account for bottom nav */
+    min-height: calc(100dvh - 4rem); /* Dynamic viewport height */
+  }
+  
+  /* Content spacing for mobile */
+  .mobile-content {
+    padding: 1rem;
+    padding-bottom: 5rem; /* Space for bottom nav + FAB */
+  }
+  
+  /* Card optimizations for mobile */
+  .mobile-card {
+    margin: 0.5rem 0;
+    border-radius: 0.75rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Better typography for mobile */
+  .mobile-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+  }
+  
+  .mobile-subtitle {
+    font-size: 1.125rem;
+    font-weight: 500;
+    margin-bottom: 0.75rem;
+  }
+  
+  /* Improve table responsiveness */
+  .mobile-table {
+    font-size: 0.875rem;
+  }
+  
+  .mobile-table th,
+  .mobile-table td {
+    padding: 0.5rem 0.25rem;
+  }
+  
+  /* Bottom nav area */
+  .bottom-nav-area {
+    height: 4rem;
+    background: transparent;
+  }
 }
 
 /* High-end devices optimizations */
@@ -434,6 +482,70 @@ html {
 
 .animate-fade-in {
   animation: fade-in 0.3s ease-out;
+}
+
+/* Animazioni per menu mobile */
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out;
+}
+
+/* Animazioni per Menu Modulare */
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
+}
+
+/* Animazioni per Bottom Navigation */
+.bottom-nav-bounce {
+  transition: transform 0.1s ease-in-out;
+}
+
+.bottom-nav-bounce:active {
+  transform: scale(0.95);
+}
+
+/* Miglioramenti per touch feedback */
+.touch-feedback {
+  transition: all 0.1s ease-in-out;
+}
+
+.touch-feedback:active {
+  transform: scale(0.98);
+  background-color: rgba(59, 130, 246, 0.1);
 }
 
 /* PWA and Mobile Specific Styles */

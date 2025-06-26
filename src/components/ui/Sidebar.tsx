@@ -201,7 +201,7 @@ export function Sidebar() {
 
   return (
     <div 
-      className={`relative flex h-full flex-col bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 shadow-xl transition-all duration-300 ${isCompact ? 'w-16' : 'w-72'}`}
+      className={`hidden md:flex relative h-full flex-col bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 shadow-xl transition-all duration-300 ${isCompact ? 'w-16' : 'w-72'}`}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
     >
