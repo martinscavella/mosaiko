@@ -42,6 +42,7 @@ const navigation = [
       { name: "Asset", href: "/finance/assets" },
       { name: "Rimborsi", href: "/finance/refunds" },
       { name: "Import Dati", href: "/finance/import" },
+      { name: "Report", href: "/finance/reports" },
       // Qui puoi aggiungere altre sottopagine come:
       // { name: "Budget", href: "/finance/budget" },
       // { name: "Spese", href: "/finance/expenses" },
