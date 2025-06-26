@@ -435,3 +435,123 @@ html {
 .animate-fade-in {
   animation: fade-in 0.3s ease-out;
 }
+
+/* PWA and Mobile Specific Styles */
+@layer utilities {
+  /* PWA safe area handling for iOS */
+  .pwa-safe-area-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  
+  .pwa-safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  .pwa-safe-area-left {
+    padding-left: env(safe-area-inset-left);
+  }
+  
+  .pwa-safe-area-right {
+    padding-right: env(safe-area-inset-right);
+  }
+  
+  /* Full height for PWA */
+  .pwa-full-height {
+    height: 100vh;
+    height: 100dvh; /* Dynamic viewport height */
+  }
+  
+  /* Prevent text selection on mobile gestures */
+  .no-touch-select {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  /* Better touch targets for mobile */
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Smooth scrolling for PWA */
+  .pwa-scroll {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+}
+
+/* PWA status bar adjustments for iOS */
+@media screen and (display-mode: standalone) {
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  /* Hide elements that might conflict with PWA UI */
+  .browser-only {
+    display: none !important;
+  }
+  
+  /* Adjust navigation for standalone mode */
+  .pwa-nav {
+    position: fixed;
+    top: env(safe-area-inset-top);
+    left: 0;
+    right: 0;
+    z-index: 1000;
+  }
+}
+
+/* Responsive improvements for mobile */
+@media (max-width: 768px) {
+  /* Better spacing for mobile */
+  .mobile-spacing {
+    padding: 1rem;
+  }
+  
+  /* Larger touch targets */
+  button, .btn, a {
+    min-height: 44px;
+    padding: 0.75rem 1rem;
+  }
+  
+  /* Better font sizes for mobile */
+  .mobile-text {
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+  
+  /* Improved forms for mobile */
+  input, textarea, select {
+    font-size: 16px; /* Prevents zoom on iOS */
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+  }
+}
+
+/* Loading states for PWA */
+.pwa-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+}
+
+.pwa-loading::after {
+  content: '';
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f4f6;
+  border-top: 4px solid #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}

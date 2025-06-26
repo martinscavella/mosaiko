@@ -4,9 +4,13 @@
   "description": "Una potente app per la gestione delle finanze personali con moduli integrati",
   "start_url": "/",
   "display": "standalone",
-  "orientation": "portrait-primary",
+  "orientation": "portrait-primary", 
   "theme_color": "#1f2937",
   "background_color": "#ffffff",
+  "prefer_related_applications": false,
+  "edge_side_panel": {
+    "preferred_width": 400
+  },
   "scope": "/",
   "icons": [
     {

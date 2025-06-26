@@ -69,6 +69,13 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="msapplication-TileColor" content="#1f2937" />
         <meta name="msapplication-tap-highlight" content="no" />
+        
+        {/* iOS Splash Screens */}
+        <meta name="apple-touch-fullscreen" content="yes" />
+        <meta name="format-detection" content="telephone=no" />
+        <meta name="apple-mobile-web-app-orientation" content="portrait" />
+        
+        {/* PWA Icons */}
         <link rel="apple-touch-icon" href="/icons/icon-152x152.png" />
         <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152x152.png" />
         <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180x180.png" />
