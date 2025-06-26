@@ -144,7 +144,7 @@ export const BANK_PARSERS: BankParser[] = [
       ) {
         signedAmount = Math.abs(amountNum)
       }
-      let targetTable = determineTargetTable(description, signedAmount >= 0 ? 'Entrata' : 'Spesa', signedAmount, category)
+      const targetTable = determineTargetTable(description, signedAmount >= 0 ? 'Entrata' : 'Spesa', signedAmount, category)
       // Gestione caso speciale Stipendi e pensioni
       if (category && category.toLowerCase().includes('stipendi')) {
         // Parsing robusto per dettagli Intesa senza quadre
@@ -317,7 +317,7 @@ export const BANK_PARSERS: BankParser[] = [
         description = name;
       }
       // Importo: solo campo Netto (supporta anche 'Netto' con spazi)
-      let amountStr = findValue(headers, values, ['net', 'netto', 'netto ', ' netto']) || '';
+      const amountStr = findValue(headers, values, ['net', 'netto', 'netto ', ' netto']) || '';
       let amountNum = parseFloat(amountStr.replace(',', '.'));
       if (isNaN(amountNum)) amountNum = 0;
       // Tipo: entrata se >0, spesa se <0
@@ -402,8 +402,8 @@ export const BANK_PARSERS: BankParser[] = [
       }
       // Determina tipo transazione picklist e normalizzato
       let type = '';
-      let category = undefined;
-      let subcategory = undefined;
+      const category = undefined;
+      const subcategory = undefined;
       let transactionType = '';
       let targetTable: 'transactions' | 'refunds' | 'funds_transfer' = 'transactions';
       // Mapping robusto - per i TRANSFER NON tocchiamo MAI il segno
@@ -583,7 +583,7 @@ export async function parseCSV(file: File, accountId?: string, setDetectedBank?:
     const values = parseCSVLine(lines[i]).map(v => v.replace(/"/g, ''));
     if (values.some(v => v.trim())) {
       if (detectedParser) {
-        let parsedRow = detectedParser.parseRow(headers, values, accountMappings);
+        const parsedRow = detectedParser.parseRow(headers, values, accountMappings);
         // Filtra righe vuote (es. Revolut REVERTED)
         if (!parsedRow || Object.keys(parsedRow).length === 0) continue;
         // Applica normalizzazione se il parser la fornisce
@@ -736,7 +736,7 @@ export async function parseExcel(file: File, accountId?: string, setDetectedBank
     }
     if (values.some(v => v.trim())) {
       if (detectedParser) {
-        let parsedRow = detectedParser.parseRow(headers, values, accountMappings);
+        const parsedRow = detectedParser.parseRow(headers, values, accountMappings);
         // Applica normalizzazione se il parser la fornisce
         if (detectedParser.transformDate && parsedRow.date) {
           parsedRow.date = detectedParser.transformDate(parsedRow.date);
