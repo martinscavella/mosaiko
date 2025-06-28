@@ -39,7 +39,7 @@ import { useAuth } from '@/lib/auth'
 import { 
   useFinanceCache, 
   useFinanceData, 
-  useAllTransactions, 
+  useAllFinancialOperations, 
   useAccounts, 
   useAssets,
   useFinancialGoals,
@@ -56,7 +56,7 @@ interface DateRange {
 export default function ReportsPage() {
   const { user, loading: authLoading } = useAuth()
   const { stats, loading, error } = useFinanceData()
-  const { transactions } = useAllTransactions()
+  const { operations: allOperations, transactions } = useAllFinancialOperations()
   const { accounts } = useAccounts()
   const { assets } = useAssets()
   const { goals } = useFinancialGoals()
@@ -74,9 +74,37 @@ export default function ReportsPage() {
   const [showFilters, setShowFilters] = useState(false)
   const [showExportModal, setShowExportModal] = useState(false)
 
-  // Funzione per filtrare le transazioni
+  // Funzione per filtrare le operazioni finanziarie (transactions + refunds + transfers)
+  const filteredOperations = useMemo(() => {
+    const filtered = allOperations.filter(operation => {
+      const operationDate = new Date(operation.date)
+      
+      // Filtro per data
+      if (dateRange.start && operationDate < dateRange.start) return false
+      if (dateRange.end && operationDate > dateRange.end) return false
+      
+      // Filtro per account - se nessun account è selezionato, mostra tutti
+      if (selectedAccounts.length > 0 && operation.accountName && 
+          !selectedAccounts.includes(operation.accountName)) return false
+      
+      return true
+    })
+    
+    // Debug per vedere se i filtri funzionano
+    console.log('🔍 Filtri Debug:', {
+      totalOperations: allOperations.length,
+      filteredOperations: filtered.length,
+      dateRange,
+      selectedAccounts: selectedAccounts.length,
+      accountsList: selectedAccounts
+    })
+    
+    return filtered
+  }, [allOperations, dateRange, selectedAccounts])
+
+  // Manteniamo anche il filtro solo per transazioni per compatibilità con il resto del codice
   const filteredTransactions = useMemo(() => {
-    const filtered = transactions.filter(transaction => {
+    return transactions.filter(transaction => {
       const transactionDate = new Date(transaction.transaction_date)
       
       // Filtro per data
@@ -89,27 +117,16 @@ export default function ReportsPage() {
       
       return true
     })
-    
-    // Debug per vedere se i filtri funzionano
-    console.log('🔍 Filtri Debug:', {
-      totalTransactions: transactions.length,
-      filteredTransactions: filtered.length,
-      dateRange,
-      selectedAccounts: selectedAccounts.length,
-      accountsList: selectedAccounts
-    })
-    
-    return filtered
   }, [transactions, dateRange, selectedAccounts])
 
-  // Lista degli account per il filtro
+  // Lista degli account per il filtro (da tutte le operazioni)
   const accountOptions = useMemo(() => {
-    const uniqueAccounts = Array.from(new Set(transactions
-      .map(t => t.account_name)
+    const uniqueAccounts = Array.from(new Set(allOperations
+      .map(op => op.accountName)
       .filter((name): name is string => !!name) // Type guard per escludere undefined
     ))
     return uniqueAccounts.sort()
-  }, [transactions])
+  }, [allOperations])
 
   // Calcoli per statistiche avanzate (usando transazioni filtrate)
   const advancedStats = useMemo(() => {
@@ -247,18 +264,25 @@ export default function ReportsPage() {
         selectedAccounts
       },
       summary: {
+        totalOperations: filteredOperations.length,
         totalTransactions: filteredTransactions.length,
+        totalRefunds: filteredOperations.filter(op => op.type === 'refund').length,
+        totalFundsTransfer: filteredOperations.filter(op => op.type === 'fund_transfer').length,
         totalIncome: advancedStats.totalIncome,
         totalExpenses: advancedStats.totalExpenses,
         netFlow: advancedStats.netFlow,
         categoryStats: advancedStats.categoryStats
       },
-      transactions: filteredTransactions.map(t => ({
-        date: t.transaction_date,
-        amount: t.current_amount,
-        category: t.categories?.name,
-        account: t.account_name,
-        isRefunded: t.is_refunded
+      operations: filteredOperations.map(op => ({
+        data: op.date,
+        operazione: op.operationType || 'N/A',
+        dettagli: op.details || '',
+        contabilizzazione: op.isRefunded ? 'CONTABILIZZATO' : 'NON CONTABILIZZATO',
+        contoOCarta: op.accountName || '',
+        categoria: op.categories?.name || '',
+        valuta: 'EUR',
+        importo: op.amount,
+        tipoOperazione: op.type // transaction, refund, fund_transfer
       }))
     }
 
@@ -272,9 +296,9 @@ export default function ReportsPage() {
       URL.revokeObjectURL(url)
     } else if (format === 'csv') {
       const csvContent = [
-        'Data,Importo,Categoria,Account,Rimborso',
-        ...filteredTransactions.map(t => 
-          `${t.transaction_date},${t.current_amount},"${t.categories?.name || ''}",${t.account_name || ''},${t.is_refunded ? 'Sì' : 'No'}`
+        'Data,Operazione,Dettagli,Contabilizzazione,Conto o carta,Categoria,Valuta,Importo,Tipo Operazione',
+        ...filteredOperations.map(op => 
+          `${op.date},"${op.operationType || 'N/A'}","${(op.details || '').replace(/"/g, '""')}","${op.isRefunded ? 'CONTABILIZZATO' : 'NON CONTABILIZZATO'}","${op.accountName || ''}","${(op.categories?.name || '').replace(/"/g, '""')}","EUR",${op.amount},"${op.type}"`
         )
       ].join('\n')
       
