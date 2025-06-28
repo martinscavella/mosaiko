@@ -38,6 +38,30 @@ export interface Transaction {
   } | null
 }
 
+export interface Refund {
+  id: string
+  refund_date: string
+  refund_details: string | null
+  current_amount: number
+  account_name?: string
+  refund_code?: string | null
+  user_id: string
+  created_at: string
+  updated_at: string
+}
+
+export interface FundsTransfer {
+  id: string
+  funds_transfer_date: string
+  funds_transfer_details: string | null
+  amount: number
+  account_name?: string
+  funds_transfer_code?: string | null
+  user_id: string
+  created_at: string
+  updated_at: string
+}
+
 export interface FinancialGoal {
   id: string
   name: string
@@ -88,6 +112,8 @@ export interface AssetValuation {
 interface CachedData {
   stats: FinanceStats
   transactions: Transaction[]
+  refunds: Refund[]
+  fundsTransfer: FundsTransfer[]
   goals: FinancialGoal[]
   accounts: Account[]
   assets: Asset[]
@@ -156,8 +182,8 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true)
       setError(null)
-      console.log('📊 Caricamento dati finanziari...')      // Esegui query per accounts, goals e assets
-      const [accountsResult, goalsResult, assetsResult] = await Promise.all([
+      console.log('📊 Caricamento dati finanziari...')      // Esegui query per accounts, goals, assets, refunds e funds_transfer
+      const [accountsResult, goalsResult, assetsResult, refundsResult, fundsTransferResult] = await Promise.all([
         // Query accounts - recupera tutti i dati degli account
         supabase
           .from('accounts')
@@ -178,7 +204,21 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
           .from('assets')
           .select('*')
           .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
+          .order('created_at', { ascending: false }),
+
+        // Query refunds
+        supabase
+          .from('refunds')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('refund_date', { ascending: false }),
+
+        // Query funds_transfer
+        supabase
+          .from('funds_transfer')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('funds_transfer_date', { ascending: false })
       ])
 
       // Query separata per transazioni con paginazione per recuperare TUTTE le transazioni
@@ -235,16 +275,28 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
         console.error('❌ Errore nella query assets:', assetsResult.error)
         throw assetsResult.error
       }
+      if (refundsResult.error) {
+        console.error('❌ Errore nella query refunds:', refundsResult.error)
+        throw refundsResult.error
+      }
+      if (fundsTransferResult.error) {
+        console.error('❌ Errore nella query funds_transfer:', fundsTransferResult.error)
+        throw fundsTransferResult.error
+      }
 
       const accounts = accountsResult.data || []
       const goals = goalsResult.data || []
       const rawAssets = (assetsResult.data as RawAssetData[]) || []
+      const refunds = refundsResult.data || []
+      const fundsTransfer = fundsTransferResult.data || []
 
       console.log('📊 Dati recuperati dal database:', {
         accounts: accounts.length,
         transactions: allTransactions.length,
         goals: goals.length,
-        assets: rawAssets.length
+        assets: rawAssets.length,
+        refunds: refunds.length,
+        fundsTransfer: fundsTransfer.length
       })
       
       // Log specifico per verificare il numero totale di transazioni
@@ -376,10 +428,38 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
         categories: item.categories
       }))
 
+      // Processa refunds per il formato corretto
+      const processedRefunds: Refund[] = refunds.map((item) => ({
+        id: item.id,
+        refund_date: item.refund_date,
+        refund_details: item.refund_details,
+        current_amount: item.current_amount,
+        account_name: item.account_name || null,
+        refund_code: item.refund_code,
+        user_id: item.user_id,
+        created_at: item.created_at,
+        updated_at: item.updated_at
+      }))
+
+      // Processa funds_transfer per il formato corretto
+      const processedFundsTransfer: FundsTransfer[] = fundsTransfer.map((item) => ({
+        id: item.id,
+        funds_transfer_date: item.funds_transfer_date,
+        funds_transfer_details: item.funds_transfer_details,
+        amount: item.amount,
+        account_name: item.account_name || null,
+        funds_transfer_code: item.funds_transfer_code,
+        user_id: item.user_id,
+        created_at: item.created_at,
+        updated_at: item.updated_at
+      }))
+
       // Salva in cache
       const newCacheData: CachedData = {
         stats,
         transactions: processedTransactions,
+        refunds: processedRefunds,
+        fundsTransfer: processedFundsTransfer,
         goals: goals as FinancialGoal[],
         accounts: accounts as Account[],
         assets: assets as Asset[],
@@ -1247,5 +1327,91 @@ export function useUnlinkedAssetTransactions() {
     error,
     refetch: fetchUnlinkedTransactions,
     count: unlinkedTransactions.length
+  }
+}
+
+// Hook per tutti i refunds
+export function useAllRefunds() {
+  const { data, loading, error, refetch } = useFinanceCache()
+  
+  return {
+    refunds: data?.refunds || [],
+    loading,
+    error,
+    refetch
+  }
+}
+
+// Hook per tutti i funds transfer
+export function useAllFundsTransfer() {
+  const { data, loading, error, refetch } = useFinanceCache()
+  
+  return {
+    fundsTransfer: data?.fundsTransfer || [],
+    loading,
+    error,
+    refetch
+  }
+}
+
+// Hook combinato per tutte le operazioni finanziarie (transazioni + refunds + transfers)
+export function useAllFinancialOperations() {
+  const { data, loading, error, refetch } = useFinanceCache()
+  
+  const allOperations = useMemo(() => {
+    if (!data) return []
+    
+    // Combina transazioni, refunds e transfers in un formato unificato
+    const operations = [
+      // Transazioni normali
+      ...data.transactions.map(t => ({
+        id: t.id,
+        date: t.transaction_date,
+        type: 'transaction' as const,
+        operationType: t.transaction_type,
+        details: t.transaction_details,
+        amount: t.current_amount,
+        accountName: t.account_name,
+        isRefunded: t.is_refunded,
+        categories: t.categories
+      })),
+      // Refunds
+      ...data.refunds.map(r => ({
+        id: r.id,
+        date: r.refund_date,
+        type: 'refund' as const,
+        operationType: 'Refund',
+        details: r.refund_details,
+        amount: r.current_amount,
+        accountName: r.account_name,
+        isRefunded: false,
+        categories: null
+      })),
+      // Funds transfers
+      ...data.fundsTransfer.map(ft => ({
+        id: ft.id,
+        date: ft.funds_transfer_date,
+        type: 'fund_transfer' as const,
+        operationType: 'Fund Transfer',
+        details: ft.funds_transfer_details,
+        amount: ft.amount,
+        accountName: ft.account_name,
+        isRefunded: false,
+        categories: null
+      }))
+    ]
+    
+    // Ordina per data (più recenti primi)
+    return operations.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  }, [data])
+  
+  return {
+    operations: allOperations,
+    transactions: data?.transactions || [],
+    refunds: data?.refunds || [],
+    fundsTransfer: data?.fundsTransfer || [],
+    loading,
+    error,
+    refetch
   }
 }
