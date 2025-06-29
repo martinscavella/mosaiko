@@ -7,7 +7,8 @@ import CacheStatus from '@/components/ui/CacheStatus'
 import { useAuth } from '@/lib/auth'
 import { useAccounts, useFinanceCache } from '@/lib/financeCache'
 import type { Account } from '@/lib/financeCache'
-import { CreditCard, Plus, MoreVertical, TrendingUp, TrendingDown, Edit2, Trash2, RefreshCw, Wallet, PiggyBank, Building2, Search, Filter, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { CreditCard, Plus, MoreVertical, TrendingUp, TrendingDown, Edit2, Trash2, RefreshCw, Wallet, PiggyBank, Building2, Search, Filter, ArrowUpDown, ArrowUp, ArrowDown, Clock } from 'lucide-react'
 
 interface ExtendedAccount extends Account {
   lastTransaction?: {
@@ -15,12 +16,32 @@ interface ExtendedAccount extends Account {
     amount: number
     description: string
   }
+  lastUpdated?: string
+}
+
+interface FundsTransfer {
+  id: string
+  funds_transfer_date: string
+  funds_transfer_details: string
+  amount: number
+  account_id: string
+  user_id: string
+}
+
+interface Refund {
+  id: string
+  refund_date: string
+  refund_details: string
+  current_amount: number
+  account_id: string
+  user_id: string
 }
 
 export default function AccountsPage() {
   const { user, loading: authLoading } = useAuth()
   const { accounts: cacheAccounts, loading, error, refetch } = useAccounts()
   const { data: financeData, isDataStale } = useFinanceCache()
+  const supabase = createClientComponentClient()
   
   const [accounts, setAccounts] = useState<ExtendedAccount[]>([])
   const [showAddModal, setShowAddModal] = useState(false)
@@ -34,36 +55,159 @@ export default function AccountsPage() {
 
   // Trasforma gli account dalla cache aggiungendo proprietà di visibilità e ultime transazioni
   useEffect(() => {
-    if (!cacheAccounts.length || !financeData) return
+    if (!cacheAccounts.length || !financeData || !user) return
 
-    const processAccountsWithTransactions = () => {
-      const accountsWithExtras = cacheAccounts.map((account) => {
-        // Trova l'ultima transazione per questo account dalla cache
-        const lastTransaction = financeData.transactions.find(
-          (transaction) => transaction.account_name === account.name
+    const processAccountsWithAllOperations = async () => {
+      try {
+        // Per ogni account, recupera tutte le operazioni (transactions, funds_transfer, refunds)
+        const accountsWithExtras = await Promise.all(
+          cacheAccounts.map(async (account) => {
+            // 1. Transazioni dalla cache
+            const accountTransactions = financeData.transactions.filter(
+              (transaction) => transaction.account_name === account.name
+            )
+
+            // 2. Trasferimenti di fondi dal database
+            const { data: fundsTransfers } = await supabase
+              .from('funds_transfer')
+              .select('*')
+              .eq('user_id', user.id)
+              .eq('account_id', account.id)
+              .order('funds_transfer_date', { ascending: false })
+
+            // 3. Rimborsi dal database
+            const { data: refunds } = await supabase
+              .from('refunds')
+              .select('*')
+              .eq('user_id', user.id)
+              .eq('account_id', account.id)
+              .order('refund_date', { ascending: false })
+
+            // Raccogli tutte le date delle operazioni
+            const allOperationDates: string[] = []
+
+            // Aggiungi date delle transazioni
+            accountTransactions.forEach(transaction => {
+              allOperationDates.push(transaction.transaction_date)
+            })
+
+            // Aggiungi date dei trasferimenti
+            if (fundsTransfers) {
+              fundsTransfers.forEach((transfer: FundsTransfer) => {
+                if (transfer.funds_transfer_date) {
+                  allOperationDates.push(transfer.funds_transfer_date)
+                }
+              })
+            }
+
+            // Aggiungi date dei rimborsi
+            if (refunds) {
+              refunds.forEach((refund: Refund) => {
+                allOperationDates.push(refund.refund_date)
+              })
+            }
+
+            // Ordina le transazioni per data (più recente prima) e prendi la prima
+            const lastTransaction = accountTransactions.length > 0 
+              ? accountTransactions.sort((a, b) => 
+                  new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime()
+                )[0]
+              : null
+
+            // Trova la data più recente tra tutte le operazioni
+            let lastUpdated: string
+            if (allOperationDates.length > 0) {
+              // Ordina tutte le date e prendi la più recente
+              const sortedDates = allOperationDates.sort((a, b) => 
+                new Date(b).getTime() - new Date(a).getTime()
+              )
+              lastUpdated = sortedDates[0]
+            } else {
+              // Se non ci sono operazioni, usa i metadati dell'account
+              lastUpdated = account.updated_at || account.created_at
+            }
+
+            return {
+              ...account,
+              lastTransaction: lastTransaction ? {
+                date: lastTransaction.transaction_date,
+                amount: lastTransaction.current_amount,
+                description: lastTransaction.transaction_details
+              } : undefined,
+              lastUpdated: lastUpdated
+            }
+          })
         )
+        
+        setAccounts(accountsWithExtras)
+      } catch (error) {
+        console.error('Errore nel processamento degli account:', error)
+        // Fallback alla logica precedente in caso di errore
+        const accountsWithExtras = cacheAccounts.map((account) => {
+          const accountTransactions = financeData.transactions.filter(
+            (transaction) => transaction.account_name === account.name
+          )
 
-        return {
-          ...account,
-          lastTransaction: lastTransaction ? {
-            date: lastTransaction.transaction_date,
-            amount: lastTransaction.current_amount,
-            description: lastTransaction.transaction_details
-          } : undefined
-        }
-      })
-      
-      setAccounts(accountsWithExtras)
+          const lastTransaction = accountTransactions.length > 0 
+            ? accountTransactions.sort((a, b) => 
+                new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime()
+              )[0]
+            : null
+
+          const lastUpdated = lastTransaction 
+            ? lastTransaction.transaction_date 
+            : account.updated_at || account.created_at
+
+          return {
+            ...account,
+            lastTransaction: lastTransaction ? {
+              date: lastTransaction.transaction_date,
+              amount: lastTransaction.current_amount,
+              description: lastTransaction.transaction_details
+            } : undefined,
+            lastUpdated: lastUpdated
+          }
+        })
+        
+        setAccounts(accountsWithExtras)
+      }
     }
 
-    processAccountsWithTransactions()
-  }, [cacheAccounts, financeData])
+    processAccountsWithAllOperations()
+  }, [cacheAccounts, financeData, user])
 
   const formatCurrency = (amount: number, currency: string = 'EUR') => {
     return new Intl.NumberFormat('it-IT', {
       style: 'currency',
       currency: currency
     }).format(amount)
+  }
+
+  const formatRelativeTime = (dateString: string) => {
+    const now = new Date()
+    const date = new Date(dateString)
+    const diffInMs = now.getTime() - date.getTime()
+    const diffInMinutes = Math.floor(diffInMs / (1000 * 60))
+    const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60))
+    const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24))
+
+    if (diffInMinutes < 1) {
+      return 'Appena aggiornato'
+    } else if (diffInMinutes < 60) {
+      return `${diffInMinutes} min fa`
+    } else if (diffInHours < 24) {
+      return `${diffInHours} ore fa`
+    } else if (diffInDays === 1) {
+      return 'Ieri'
+    } else if (diffInDays < 7) {
+      return `${diffInDays} giorni fa`
+    } else {
+      return new Intl.DateTimeFormat('it-IT', {
+        day: 'numeric',
+        month: 'short',
+        year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
+      }).format(date)
+    }
   }
 
   const getAccountTypeLabel = (type: string) => {
@@ -397,6 +541,9 @@ export default function AccountsPage() {
                           </div>
                         </div>
                       </th>
+                      <th className="px-6 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider hidden lg:table-cell">
+                        Ultimo Aggiornamento
+                      </th>
                       <th className="px-6 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                         Azioni
                       </th>
@@ -439,6 +586,12 @@ export default function AccountsPage() {
                               <div className="text-sm text-gray-500 md:hidden">
                                 {getAccountTypeLabel(account.type)}
                               </div>
+                              <div className="flex items-center space-x-1 text-xs text-gray-400 lg:hidden">
+                                <Clock className="w-3 h-3" />
+                                <span>
+                                  {account.lastUpdated ? formatRelativeTime(account.lastUpdated) : 'Mai aggiornato'}
+                                </span>
+                              </div>
                             </div>
                           </div>
                         </td>
@@ -459,6 +612,14 @@ export default function AccountsPage() {
                                 <TrendingDown className="w-4 h-4 text-red-600" />
                               )}
                             </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-center hidden lg:table-cell">
+                          <div className="flex items-center justify-center space-x-2">
+                            <Clock className="w-4 h-4 text-gray-400" />
+                            <span className="text-sm text-gray-600 font-medium">
+                              {account.lastUpdated ? formatRelativeTime(account.lastUpdated) : 'Mai aggiornato'}
+                            </span>
                           </div>
                         </td>
                         <td className="px-6 py-4 text-center">
