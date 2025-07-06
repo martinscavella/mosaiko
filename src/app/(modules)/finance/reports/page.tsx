@@ -424,10 +424,10 @@ export default function ReportsPage() {
 
     return (
       <div className="space-y-8">
-        {/* Statistiche Principali - ORA DINAMICHE */}
+        {/* Statistiche Principali */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <FinanceWidget
-            title="Patrimonio Filtrato"
+            title="Patrimonio"
             value={formatCurrency(
               selectedAccounts.length > 0 
                 ? accounts.filter(acc => selectedAccounts.includes(acc.name))
@@ -474,7 +474,7 @@ export default function ReportsPage() {
           />
         </div>
 
-        {/* Statistiche Secondarie - ORA DINAMICHE */}
+        {/* Statistiche Secondarie */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <FinanceWidget
             title="Transazioni Filtrate"
@@ -549,7 +549,7 @@ export default function ReportsPage() {
                   <XAxis dataKey="month" tick={{ fontSize: 12 }} />
                   <YAxis 
                     tick={{ fontSize: 12 }}
-                    tickFormatter={(value) => `€${(value / 1000).toFixed(0)}k`}
+                    tickFormatter={(value) => `€${(value).toFixed()}`}
                   />
                   <Tooltip 
                     formatter={(value: number, name: string) => {
@@ -857,7 +857,7 @@ export default function ReportsPage() {
                     />
                     <YAxis 
                       tick={{ fontSize: 12 }}
-                      tickFormatter={(value) => `€${(value / 1000).toFixed(0)}k`}
+                      tickFormatter={(value) => `€${(value).toFixed(0)}`}
                     />
                     <Tooltip 
                       formatter={(value: number) => [`€${value.toLocaleString()}`, 'Saldo']}
@@ -1113,7 +1113,7 @@ export default function ReportsPage() {
                         <XAxis dataKey="month" tick={{ fontSize: 12 }} />
                         <YAxis 
                           tick={{ fontSize: 12 }}
-                          tickFormatter={(value) => `€${(value / 1000).toFixed(0)}k`}
+                          tickFormatter={(value) => `€${(value).toFixed(0)}`}
                         />
                         <Tooltip 
                           formatter={(value: number, name: string) => [`€${value.toLocaleString()}`, name]}
@@ -1409,7 +1409,7 @@ export default function ReportsPage() {
                     />
                     <YAxis 
                       tick={{ fontSize: 12 }}
-                      tickFormatter={(value) => `€${(value / 1000).toFixed(0)}k`}
+                      tickFormatter={(value) => `€${(value).toFixed(0)}`}
                     />
                     <Tooltip 
                       formatter={(value: number) => [`€${value.toLocaleString()}`, 'Valore']}

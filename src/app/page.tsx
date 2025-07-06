@@ -155,7 +155,7 @@ export default function HomePage() {
             Ciao, {user.user_metadata?.firstName || user.user_metadata?.first_name || 'Utente'}! 👋
           </h1>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
-            Benvenuto nella tua dashboard personale. Seleziona un modulo per iniziare il tuo percorso di crescita!
+            Benvenuto nella tua dashboard personale. Seleziona un modulo per iniziare!
           </p>
         </div>
 
