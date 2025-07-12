@@ -1,6 +1,44 @@
+
+/* ===================== TAILWIND BASE ===================== */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ===================== CSS VARIABLES ===================== */
+/* ===================== SCROLLBAR ===================== */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #CBD5E0 #EDF2F7;
+}
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #EDF2F7;
+  border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #CBD5E0, #A0AEC0);
+  border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #A0AEC0, #718096);
+}
+
+/* Scrollbar globale per fallback */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(to bottom, #3b82f6, #8b5cf6);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(to bottom, #2563eb, #7c3aed);
+}
 
 /* CSS Variables for custom colors */
 @layer base {
@@ -23,7 +61,7 @@
   }
 }
 
-/* Custom animations for Mosaiko */
+/* ===================== ANIMAZIONI KEYFRAMES ===================== */
 @keyframes float {
   0%, 100% {
     transform: translateY(0px);
@@ -174,7 +212,7 @@
   animation: shake 0.5s ease-in-out;
 }
 
-/* Utility classes */
+/* ===================== UTILITY ANIMAZIONI ===================== */
 .animate-shimmer {
   animation: shimmer 2s infinite;
 }
@@ -191,7 +229,7 @@
   animation: float-orb 6s ease-in-out infinite;
 }
 
-/* Delay utilities for staggered animations */
+/* ===================== DELAY UTILITY ===================== */
 .delay-100 { animation-delay: 100ms; }
 .delay-200 { animation-delay: 200ms; }
 .delay-300 { animation-delay: 300ms; }
@@ -203,7 +241,7 @@
 .delay-900 { animation-delay: 900ms; }
 .delay-1000 { animation-delay: 1000ms; }
 
-/* Smooth scrolling */
+/* ===================== UTILITY GENERALI ===================== */
 html {
   scroll-behavior: smooth;
 }
@@ -226,7 +264,7 @@ html {
   background: linear-gradient(to bottom, #2563eb, #7c3aed);
 }
 
-/* Enhanced focus styles */
+/* ===================== ACCESSIBILITÀ E FOCUS ===================== */
 .focus-ring {
   outline: none;
 }
@@ -237,7 +275,7 @@ html {
   box-shadow: 0 0 0 2px #3b82f6, 0 0 0 4px rgba(59, 130, 246, 0.2);
 }
 
-/* Backdrop blur fallback */
+/* ===================== EFFETTI GLASS E BLUR ===================== */
 .backdrop-blur-fallback {
   background-color: rgba(255, 255, 255, 0.8);
 }
@@ -249,7 +287,7 @@ html {
   }
 }
 
-/* Card hover effects */
+/* ===================== EFFETTI HOVER E CARD ===================== */
 .card-hover {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   transform-origin: center;
@@ -266,7 +304,7 @@ html {
   transform: translateY(-4px) scale(0.98);
 }
 
-/* Button ripple effect */
+/* ===================== BUTTON EFFETTI ===================== */
 .btn-ripple {
   position: relative;
   overflow: hidden;
@@ -290,14 +328,14 @@ html {
   height: 300px;
 }
 
-/* Loading state for modules */
+/* ===================== LOADING EFFETTI ===================== */
 .module-loading {
   background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
 
-/* Text gradient animation */
+/* ===================== TESTO E GRADIENTI ===================== */
 .text-gradient-animate {
   background: linear-gradient(45deg, #3b82f6, #8b5cf6, #ec4899, #3b82f6);
   background-size: 300% 300%;
@@ -307,7 +345,7 @@ html {
   animation: gradient-shift 3s ease infinite;
 }
 
-/* Floating elements */
+/* ===================== FLOATING ELEMENTS ===================== */
 .floating-element {
   animation: float 6s ease-in-out infinite;
 }
@@ -320,7 +358,7 @@ html {
   animation-delay: -4s;
 }
 
-/* Glassmorphism effect */
+/* ===================== GLASSMORPHISM ===================== */
 .glass {
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);
@@ -332,12 +370,12 @@ html {
   -webkit-backdrop-filter: blur(20px);
 }
 
-/* Shadow utilities */
+/* ===================== SHADOW UTILITY ===================== */
 .shadow-3xl {
   box-shadow: 0 35px 60px -12px rgba(0, 0, 0, 0.25);
 }
 
-/* Dark mode support */
+/* ===================== DARK MODE ===================== */
 @media (prefers-color-scheme: dark) {
   .glass {
     background: rgba(0, 0, 0, 0.2);
@@ -345,7 +383,7 @@ html {
   }
 }
 
-/* Mobile optimizations */
+/* ===================== RESPONSIVE: MOBILE ===================== */
 @media (max-width: 768px) {
   .card-hover:hover {
     transform: translateY(-4px) scale(1.01);
@@ -360,14 +398,14 @@ html {
   }
 }
 
-/* High-end devices optimizations */
+/* ===================== RESPONSIVE: DESKTOP XL ===================== */
 @media (min-width: 1440px) {
   .card-hover:hover {
     transform: translateY(-12px) scale(1.03);
   }
 }
 
-/* Reduced motion support */
+/* ===================== ACCESSIBILITÀ: RIDOTTA ANIMAZIONE ===================== */
 @media (prefers-reduced-motion: reduce) {
   .animate-spin,
   .animate-ping,
@@ -387,12 +425,12 @@ html {
   }
 }
 
-/* Browser compatibility fixes */
+/* ===================== BROWSER FIXES ===================== */
 * {
   box-sizing: border-box;
 }
 
-/* Ensure hardware acceleration for animations */
+/* ===================== PERFORMANCE: HARDWARE ACCEL ===================== */
 .animate-float,
 .animate-shimmer,
 .animate-glow,
@@ -405,21 +443,22 @@ html {
   perspective: 1000px;
 }
 
-/* Improve rendering performance */
+/* ===================== PERFORMANCE: BLUR ===================== */
 .backdrop-blur-sm,
 .backdrop-blur {
-  -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
-/* Fix for Safari */
+/* ===================== SAFARI FIX BLUR ===================== */
 @supports (-webkit-backdrop-filter: blur(10px)) {
   .backdrop-blur-fallback {
+    backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
   }
 }
 
-/* Button-specific hover effects */
+/* ===================== BUTTON HOVER EFFETTI SPECIFICI ===================== */
 .btn-refresh:hover .refresh-icon {
   transform: rotate(180deg);
 }

@@ -10,6 +10,7 @@ interface FinanceWidgetProps {
   icon?: 'balance' | 'income' | 'expenses' | 'savings' | 'accounts' | 'transactions' | 'goals'
   color?: 'blue' | 'green' | 'red' | 'purple' | 'orange' | 'gray'
   loading?: boolean
+  onClick?: () => void
 }
 
 const iconMap = {
@@ -62,7 +63,8 @@ export default function FinanceWidget({
   trend,
   icon = 'balance',
   color = 'blue',
-  loading = false
+  loading = false,
+  onClick
 }: FinanceWidgetProps) {
   const IconComponent = iconMap[icon]
   const colors = colorMap[color]
@@ -92,10 +94,17 @@ export default function FinanceWidget({
   }
 
   return (
-    <div className="group relative">
+    <div
+      className={`group relative ${onClick ? 'cursor-pointer hover:scale-[1.025] active:scale-95 transition-transform duration-150' : ''}`}
+      onClick={onClick}
+      tabIndex={onClick ? 0 : undefined}
+      role={onClick ? 'button' : undefined}
+      onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') onClick(); } : undefined}
+      aria-label={onClick ? title : undefined}
+    >
       {/* Floating gradient background */}
       <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5 rounded-xl blur-sm opacity-0 group-hover:opacity-100 transition-all duration-300"></div>
-      
+
       {/* Main widget container */}
       <div className="relative bg-white/95 backdrop-blur-sm border border-white/50 shadow-lg rounded-xl p-6 transition-all duration-300 hover:shadow-xl hover:bg-white/98 hover:border-white/70 hover:-translate-y-1">
         <div className="flex items-center justify-between mb-4">
@@ -104,7 +113,7 @@ export default function FinanceWidget({
             <IconComponent className={`h-4 w-4 ${colors.icon} transition-all duration-300`} />
           </div>
         </div>
-        
+
         <div className="flex items-baseline space-x-2">
           <p className={`text-2xl font-bold transition-all duration-300 ${colors.text}`}>
             {typeof value === 'number' && value % 1 !== 0 ? value.toFixed(2) : value}
@@ -119,11 +128,11 @@ export default function FinanceWidget({
             </span>
           )}
         </div>
-        
+
         {subtitle && (
           <p className="text-sm text-gray-500 mt-2 transition-all duration-300 group-hover:text-gray-600">{subtitle}</p>
         )}
-        
+
         {/* Subtle gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-white/20 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
       </div>
