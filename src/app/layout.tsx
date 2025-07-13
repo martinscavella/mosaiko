@@ -4,6 +4,7 @@ import { AuthProvider } from "@/lib/auth";
 import { FinanceCacheProvider } from "@/lib/financeCache";
 import "./globals.css";
 import { Sidebar } from "@/components/ui/Sidebar";
+import { BottomMenu } from "@/components/ui/BottomMenu";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -48,10 +49,18 @@ export default function RootLayout({
         <AuthProvider>
           <FinanceCacheProvider>
             <div className="flex h-screen bg-gray-50">
-              <Sidebar />
-              <main className="flex-1 overflow-y-auto">
+              {/* Desktop Sidebar - hidden on mobile */}
+              <div className="hidden md:block">
+                <Sidebar />
+              </div>
+              
+              {/* Main content */}
+              <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
                 {children}
               </main>
+              
+              {/* Mobile Bottom Menu */}
+              <BottomMenu />
             </div>
           </FinanceCacheProvider>
         </AuthProvider>
