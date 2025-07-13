@@ -20,7 +20,7 @@ import {
 } from "@/lib/helpers/format";
 import TotalBalanceChart from "@/components/ui/TotalBalanceChart";
 import { useRouter } from "next/navigation";
-import { RefreshCw, BarChart3 } from "lucide-react";
+import { RefreshCw, BarChart3, BadgePercent } from "lucide-react";
 import { useState } from "react";
 import TransactionDetailsModal from '@/components/ui/TransactionDetailsModal';
 
@@ -195,7 +195,7 @@ export default function FinanceDashboard() {
               title="Risparmio Mensile"
               value={formatPercentage(stats.savingsRate)}
               subtitle={stats.currentMonth}
-              icon="savings"
+              icon="badge-percent"
               color="purple"
               trend={
                 stats.savingsRate > 20

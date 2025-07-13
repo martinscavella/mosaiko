@@ -133,14 +133,11 @@ export default function TotalBalanceChart({ data, className = '' }: TotalBalance
               </svg>
             </div>
             <div>
-              <h3 className="text-lg font-bold text-gray-900 tracking-tight">Andamento Saldo Totale</h3>
-              <p className="text-sm text-gray-600 font-medium">Visualizza il saldo totale aggiornato</p>
+              <h3 className="text-lg font-bold text-gray-900 tracking-tight">Patrimonio</h3>
+                <p className="text-sm text-gray-600 font-medium">Andamento del tuo patrimonio</p>
             </div>
           </div>
-          <div className="text-right">
-            <p className="text-2xl font-bold text-green-600">{formatCurrency(chartData[chartData.length - 1].balance)}</p>
-            <p className="text-sm text-gray-500">Saldo attuale</p>
-          </div>
+          
         </div>
         <ResponsiveContainer width="100%" height={170}>
           <AreaChart data={chartData} margin={{ top: 6, right: 0, left: 0, bottom: 0 }}>

@@ -1,16 +1,16 @@
 'use client'
 
-import { TrendingUp, TrendingDown, DollarSign, Target, CreditCard, Activity } from 'lucide-react'
+import { TrendingUp, TrendingDown, DollarSign, Target, CreditCard, Activity, BadgePercent } from 'lucide-react'
 
 interface FinanceWidgetProps {
-  title: string
-  value: string | number
-  subtitle?: string
-  trend?: 'up' | 'down' | 'neutral'
-  icon?: 'balance' | 'income' | 'expenses' | 'savings' | 'accounts' | 'transactions' | 'goals'
-  color?: 'blue' | 'green' | 'red' | 'purple' | 'orange' | 'gray'
-  loading?: boolean
-  onClick?: () => void
+  title: string;
+  value: string | number;
+  subtitle?: string;
+  trend?: 'up' | 'down' | 'neutral';
+  icon?: 'balance' | 'income' | 'expenses' | 'savings' | 'accounts' | 'transactions' | 'goals' | 'badge-percent';
+  color?: 'blue' | 'green' | 'red' | 'purple' | 'orange' | 'gray';
+  loading?: boolean;
+  onClick?: () => void;
 }
 
 const iconMap = {
@@ -20,7 +20,8 @@ const iconMap = {
   savings: Target,
   accounts: CreditCard,
   transactions: Activity,
-  goals: Target
+  goals: Target,
+  'badge-percent': BadgePercent
 }
 
 const colorMap = {
@@ -103,38 +104,47 @@ export default function FinanceWidget({
       aria-label={onClick ? title : undefined}
     >
       {/* Floating gradient background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5 rounded-xl blur-sm opacity-0 group-hover:opacity-100 transition-all duration-300"></div>
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5 rounded-2xl blur-sm opacity-0 group-hover:opacity-100 transition-all duration-300"></div>
 
       {/* Main widget container */}
-      <div className="relative bg-white/95 backdrop-blur-sm border border-white/50 shadow-lg rounded-xl p-6 transition-all duration-300 hover:shadow-xl hover:bg-white/98 hover:border-white/70 hover:-translate-y-1">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-medium text-gray-600">{title}</h3>
-          <div className={`p-2.5 rounded-xl shadow-sm transition-all duration-300 ${colors.bg} group-hover:shadow-md group-hover:scale-110`}>
-            <IconComponent className={`h-4 w-4 ${colors.icon} transition-all duration-300`} />
+      <div className="relative bg-white/95 backdrop-blur-xl border border-white/50 shadow-2xl rounded-2xl p-6 mb-4 min-h-[180px] max-h-[300px] flex flex-col justify-between transition-all duration-300 hover:shadow-xl hover:bg-white/98 hover:border-white/70 hover:-translate-y-1">
+        {/* Header: icona, titolo, sottotitolo */}
+        <div className="flex items-center space-x-4 mb-2">
+          <div
+            className={`p-3 rounded-xl shadow-lg transition-all duration-300 ${
+              trend === 'up'
+                ? 'bg-gradient-to-br from-green-400 to-emerald-600'
+                : trend === 'down'
+                  ? 'bg-gradient-to-br from-red-400 to-pink-600'
+                  : 'bg-gradient-to-br from-blue-500 to-indigo-600'
+            }`}
+          >
+            <IconComponent 
+              className={`h-6 w-6 transition-colors duration-300 ${
+                trend === 'up' ? 'text-green-50' : trend === 'down' ? 'text-red-50' : 'text-white'
+              }`} 
+            />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-gray-900 tracking-tight">{title}</h3>
+            {subtitle && (
+              <p className="text-sm text-gray-600 font-medium mt-1">{subtitle}</p>
+            )}
           </div>
         </div>
 
-        <div className="flex items-baseline space-x-2">
-          <p className={`text-2xl font-bold transition-all duration-300 ${colors.text}`}>
+        {/* Footer: valore in basso a destra, più grande */}
+        <div className="flex items-end justify-end mt-4">
+          <p className={`text-4xl font-extrabold ${trend === 'up' ? 'text-green-600' : trend === 'down' ? 'text-red-600' : colors.text}`}> 
             {typeof value === 'number' && value % 1 !== 0 ? value.toFixed(2) : value}
+            {trend && (
+              <span className={`ml-3 text-2xl align-middle ${trend === 'up' ? 'text-green-600' : trend === 'down' ? 'text-red-600' : 'text-gray-500'}`}>{trend === 'up' ? '↗' : trend === 'down' ? '↘' : '→'}</span>
+            )}
           </p>
-          {trend && (
-            <span className={`text-sm font-medium transition-all duration-300 ${
-              trend === 'up' ? 'text-green-600' : 
-              trend === 'down' ? 'text-red-600' : 
-              'text-gray-600'
-            }`}>
-              {trend === 'up' ? '↗' : trend === 'down' ? '↘' : '→'}
-            </span>
-          )}
         </div>
 
-        {subtitle && (
-          <p className="text-sm text-gray-500 mt-2 transition-all duration-300 group-hover:text-gray-600">{subtitle}</p>
-        )}
-
         {/* Subtle gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-white/20 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-white/20 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
       </div>
     </div>
   )

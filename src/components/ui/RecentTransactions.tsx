@@ -81,12 +81,12 @@ export default function RecentTransactions({ limit = 5, onTransactionClick }: Re
 
   if (loading) {
     return (
-      <div className="relative bg-white/90 backdrop-blur-sm border border-gray-200/50 shadow-lg rounded-xl p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Transazioni Recenti</h3>
+      <div className="relative bg-white/95 backdrop-blur-xl border border-white/50 shadow-2xl rounded-2xl p-6 min-h-[300px] max-h-[400px]">
+        <h3 className="text-lg font-bold text-gray-900 mb-4">Transazioni Recenti</h3>
         <div className="space-y-4">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="flex items-center space-x-4 p-3 rounded-lg">
-              <div className="h-10 w-10 bg-gray-200 rounded-full"></div>
+            <div key={i} className="flex items-center space-x-4 p-3 rounded-xl bg-gradient-to-br from-gray-100/60 to-gray-200/40 animate-pulse">
+              <div className="h-10 w-10 bg-gray-200 rounded-xl"></div>
               <div className="flex-1 space-y-2">
                 <div className="h-4 bg-gray-200 rounded w-3/4"></div>
                 <div className="h-3 bg-gray-200 rounded w-1/2"></div>
@@ -101,8 +101,8 @@ export default function RecentTransactions({ limit = 5, onTransactionClick }: Re
 
   if (error) {
     return (
-      <div className="relative bg-white/95 backdrop-blur-sm border border-red-200/50 shadow-lg rounded-xl p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Transazioni Recenti</h3>
+      <div className="relative bg-white/95 backdrop-blur-xl border border-red-200/50 shadow-2xl rounded-2xl p-6 min-h-[300px] max-h-[400px]">
+        <h3 className="text-lg font-bold text-gray-900 mb-4">Transazioni Recenti</h3>
         <div className="text-center py-8">
           <div className="mx-auto mb-4 h-12 w-12 text-red-400">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -117,8 +117,8 @@ export default function RecentTransactions({ limit = 5, onTransactionClick }: Re
 
   if (transactions.length === 0) {
     return (
-      <div className="relative bg-white backdrop-blur-sm border border-gray-200 shadow-sm rounded-lg p-6">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Transazioni Recenti</h3>
+      <div className="relative bg-white/95 backdrop-blur-xl border border-white/50 shadow-2xl rounded-2xl p-6 min-h-[300px] max-h-[400px]">
+        <h3 className="text-lg font-bold text-gray-900 mb-4">Transazioni Recenti</h3>
         <div className="text-center py-12">
           <div className="mx-auto mb-4 h-16 w-16 text-gray-400">
             <Calendar className="h-full w-full" />
@@ -131,12 +131,55 @@ export default function RecentTransactions({ limit = 5, onTransactionClick }: Re
   }
 
   return (
-    <div className="relative bg-white backdrop-blur-sm border border-gray-200 shadow-sm rounded-lg p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-medium text-gray-900">Transazioni Recenti</h3>
+    <div className="relative bg-white/95 backdrop-blur-xl border border-white/50 shadow-2xl rounded-2xl p-6 min-h-[200px] w-full max-w-2xl mx-auto overflow-auto break-words">
+      {/* Header coerente con gli altri widget */}
+      <div className="flex items-center space-x-3 mb-2 pb-2">
+        <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-lg">
+          <Calendar className="h-6 w-6 text-white" />
+        </div>
+        <div>
+          <h3 className="text-xl font-extrabold text-gray-900 tracking-tight">Transazioni Recenti</h3>
+          <p className="text-sm text-gray-600 font-medium mt-1">Visualizza le ultime transazioni registrate sui tuoi account e asset.</p>
+        </div>
       </div>
       <div className="space-y-3">
-        {transactions.filter(transaction => transaction.current_amount !== 0).map(renderTransaction)}
+        {transactions.filter(transaction => transaction.current_amount !== 0).map((transaction: any) => {
+          const isIncome = transaction.transaction_type === 'income' || transaction.current_amount > 0;
+          const amount = Math.abs(transaction.current_amount);
+          return (
+            <div
+              key={transaction.id}
+              className={`flex items-center space-x-4 p-4 rounded-xl shadow-sm bg-gradient-to-br from-white/80 to-gray-100/60 border border-white/60 hover:from-blue-50/80 hover:to-purple-50/40 hover:border-blue-200/80 transition-all duration-300 cursor-pointer group`}
+              onClick={() => openModal(transaction)}
+            >
+              <div
+                className={`p-2 rounded-xl shadow transition-all duration-300 ${isIncome ? 'bg-gradient-to-br from-green-400 to-emerald-500' : 'bg-gradient-to-br from-red-400 to-pink-500'}`}
+              >
+                {isIncome ? (
+                  <ArrowUpRight className="h-5 w-5 text-white" />
+                ) : (
+                  <ArrowDownLeft className="h-5 w-5 text-white" />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-base font-semibold text-gray-900 truncate group-hover:text-blue-700 transition-colors">
+                  {transaction.transaction_details || 'Transazione'}
+                </p>
+                <div className="flex items-center flex-wrap gap-x-2 gap-y-1 text-xs text-gray-500 mt-1">
+                  <span>{formatDate(transaction.transaction_date)}</span>
+                  {transaction.account_name && <span>• {transaction.account_name}</span>}
+                  {transaction.categories?.name && <span>• {transaction.categories.name}</span>}
+                  {transaction.asset_quantity && <span>• Qtà: {transaction.asset_quantity}</span>}
+                </div>
+              </div>
+              <div
+                className={`text-lg font-bold ${isIncome ? 'text-green-600' : 'text-red-600'} group-hover:scale-110 transition-transform`}
+              >
+                {isIncome ? '+' : '-'}{formatAmount(amount)}
+              </div>
+            </div>
+          );
+        })}
       </div>
       {!onTransactionClick && (
         <TransactionDetailsModal

@@ -25,8 +25,8 @@ export default function FinancialGoalsWidget({ limit = 3 }: FinancialGoalsWidget
   const formatDate = (dateString: string | null) => {
     if (!dateString) return null
     const date = new Date(dateString)
-    return date.toLocaleDateString('it-IT', { 
-      day: 'numeric', 
+    return date.toLocaleDateString('it-IT', {
+      day: 'numeric',
       month: 'short',
       year: 'numeric'
     })
@@ -37,7 +37,7 @@ export default function FinancialGoalsWidget({ limit = 3 }: FinancialGoalsWidget
       <div className="group relative">
         {/* Shimmer background */}
         <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-green-500/5 rounded-xl blur-sm animate-pulse"></div>
-        
+
         {/* Loading container */}
         <div className="relative bg-white/95 backdrop-blur-sm border border-white/50 shadow-lg rounded-xl p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Obiettivi Finanziari</h3>
@@ -53,7 +53,7 @@ export default function FinancialGoalsWidget({ limit = 3 }: FinancialGoalsWidget
               </div>
             ))}
           </div>
-          
+
           {/* Loading shimmer effect */}
           <div className="absolute inset-0 -top-2 -left-2 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-12 transform -translate-x-full animate-shimmer rounded-xl"></div>
         </div>
@@ -66,7 +66,7 @@ export default function FinancialGoalsWidget({ limit = 3 }: FinancialGoalsWidget
       <div className="group relative">
         {/* Error gradient background */}
         <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 to-orange-500/5 rounded-xl blur-sm"></div>
-        
+
         {/* Error container */}
         <div className="relative bg-white/95 backdrop-blur-sm border border-red-200/50 shadow-lg rounded-xl p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Obiettivi Finanziari</h3>
@@ -82,17 +82,50 @@ export default function FinancialGoalsWidget({ limit = 3 }: FinancialGoalsWidget
       </div>
     )
   }
+  if (true === true) {
+    return (
+      <div className="group relative min-h-[200px] h-full flex flex-col">
+        {/* Gradient background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-500/5 to-purple-500/5 rounded-2xl blur-sm"></div>
 
+        {/* Main container */}
+        <div className="relative bg-white/95 backdrop-blur-xl border border-white/50 shadow-2xl rounded-2xl p-6 flex-1 flex flex-col justify-center overflow-hidden mb-4 min-h-[180px] max-h-[300px]">
+          {/* Header stile FinanceWidget */}
+          <div className="flex items-center space-x-4 mb-2">
+            <div className="p-3 rounded-xl shadow-lg bg-gradient-to-br from-purple-400 to-indigo-600">
+              <Target className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-gray-900 tracking-tight">Obiettivi Finanziari</h3>
+              <p className="text-sm text-gray-600 font-medium mt-1">Monitora i tuoi traguardi di risparmio</p>
+            </div>
+          </div>
+          {/* Content */}
+          <div className="flex-1 flex flex-col justify-center items-center px-2 py-8">
+            <p className="text-gray-800 text-m mt-2 text-center">La gestione degli obiettivi sarà disponibile a breve!</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
   if (goals.length === 0) {
     return (
-      <div className="group relative">
+      <div className="group relative min-h-[200px] h-full flex flex-col">
         {/* Empty state gradient background */}
-        <div className="absolute inset-0 bg-gradient-to-br from-gray-500/5 to-purple-500/5 rounded-xl blur-sm"></div>
-        
-        {/* Empty state container */}
-        <div className="relative bg-white/95 backdrop-blur-sm border border-white/50 shadow-lg rounded-xl p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Obiettivi Finanziari</h3>
-          <div className="text-center py-12">
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-500/5 to-purple-500/5 rounded-2xl blur-sm"></div>
+
+        {/* Empty state container stile FinanceWidget */}
+        <div className="relative bg-white/95 backdrop-blur-xl border border-white/50 shadow-2xl rounded-2xl p-6 flex-1 flex flex-col justify-center overflow-hidden mb-4 min-h-[180px] max-h-[300px]">
+          <div className="flex items-center space-x-4 mb-2">
+            <div className="p-3 rounded-xl shadow-lg bg-gradient-to-br from-purple-400 to-indigo-600">
+              <Target className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-gray-900 tracking-tight">Obiettivi Finanziari</h3>
+              <p className="text-sm text-gray-600 font-medium mt-1">Monitora i tuoi traguardi di risparmio</p>
+            </div>
+          </div>
+          <div className="flex-1 flex flex-col justify-center items-center px-2 py-8">
             <div className="mx-auto mb-4 h-16 w-16 text-gray-400">
               <Target className="h-full w-full" />
             </div>
@@ -108,7 +141,7 @@ export default function FinancialGoalsWidget({ limit = 3 }: FinancialGoalsWidget
     <div className="group relative">
       {/* Floating gradient background */}
       <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-green-500/5 rounded-xl blur-sm opacity-0 group-hover:opacity-100 transition-all duration-500"></div>
-      
+
       {/* Main container */}
       <div className="relative bg-white/95 backdrop-blur-sm border border-white/50 shadow-lg rounded-xl p-6 transition-all duration-300 hover:shadow-xl hover:bg-white/98 hover:border-white/70">
         <div className="flex items-center justify-between mb-6">
@@ -119,12 +152,12 @@ export default function FinancialGoalsWidget({ limit = 3 }: FinancialGoalsWidget
             <TrendingUp className="h-4 w-4 text-purple-600" />
           </div>
         </div>
-        
+
         <div className="space-y-6">
           {goals.map((goal) => {
             const progress = calculateProgress(goal.current_amount, goal.target_amount)
             const isCompleted = progress >= 100
-            
+
             return (
               <div key={goal.id} className="group/item space-y-3 p-3 hover:bg-gradient-to-r hover:from-gray-50/80 hover:to-purple-50/50 rounded-xl transition-all duration-300">
                 <div className="flex justify-between items-start">
@@ -139,28 +172,26 @@ export default function FinancialGoalsWidget({ limit = 3 }: FinancialGoalsWidget
                     )}
                   </div>
                   <div className="text-right">
-                    <span className={`text-sm font-semibold transition-all duration-300 ${
-                      isCompleted ? 'text-green-600' : 'text-purple-600'
-                    }`}>
+                    <span className={`text-sm font-semibold transition-all duration-300 ${isCompleted ? 'text-green-600' : 'text-purple-600'
+                      }`}>
                       {progress.toFixed(0)}%
                     </span>
                   </div>
                 </div>
-                
+
                 {/* Progress bar moderna */}
                 <div className="w-full bg-gradient-to-r from-gray-200 to-gray-300 rounded-full h-2.5 overflow-hidden shadow-inner">
-                  <div 
-                    className={`h-2.5 rounded-full transition-all duration-700 ease-out shadow-sm ${
-                      isCompleted 
-                        ? 'bg-gradient-to-r from-green-400 to-green-600' 
-                        : goal.color 
-                          ? 'bg-gradient-to-r from-purple-400 to-purple-600' 
+                  <div
+                    className={`h-2.5 rounded-full transition-all duration-700 ease-out shadow-sm ${isCompleted
+                        ? 'bg-gradient-to-r from-green-400 to-green-600'
+                        : goal.color
+                          ? 'bg-gradient-to-r from-purple-400 to-purple-600'
                           : 'bg-gradient-to-r from-blue-400 to-blue-600'
-                    }`}
-                    style={{ 
+                      }`}
+                    style={{
                       width: `${Math.min(100, progress)}%`,
-                      background: goal.color && !isCompleted 
-                        ? `linear-gradient(90deg, ${goal.color}cc, ${goal.color})` 
+                      background: goal.color && !isCompleted
+                        ? `linear-gradient(90deg, ${goal.color}cc, ${goal.color})`
                         : undefined
                     }}
                   >
@@ -168,7 +199,7 @@ export default function FinancialGoalsWidget({ limit = 3 }: FinancialGoalsWidget
                     <div className="h-full w-full bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer"></div>
                   </div>
                 </div>
-                
+
                 <div className="flex justify-between items-center text-xs text-gray-500 transition-all duration-300 group-hover/item:text-gray-600">
                   <span className="font-medium">
                     {formatCurrency(goal.current_amount, goal.currency)} di{' '}
@@ -184,7 +215,7 @@ export default function FinancialGoalsWidget({ limit = 3 }: FinancialGoalsWidget
             )
           })}
         </div>
-        
+
         {/* Subtle gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-white/10 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
       </div>
