@@ -1,139 +1,130 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState, useCallback, ReactNode, useMemo } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import { useAuth } from '@/lib/auth'
+import { createContext, useContext, useEffect, useState, useCallback, ReactNode, useMemo } from 'react';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { useAuth } from '@/lib/auth';
 
 export interface FinanceStats {
-  totalBalance: number
-  monthlyIncome: number
-  monthlyExpenses: number
-  savingsRate: number
-  accountsCount: number
-  transactionsCount: number
-  topCategory: string | null
-  goalProgress: number
-  currentMonth: string // Nome del mese corrente (es. "Giugno 2025")
-  monthYear: string // Anno-mese per riferimento (es. "2025-06")
+  totalBalance: number;
+  monthlyIncome: number;
+  monthlyExpenses: number;
+  savingsRate: number;
+  accountsCount: number;
+  transactionsCount: number;
+  topCategory: string | null;
+  goalProgress: number;
+  currentMonth: string; // Nome del mese corrente (es. "Giugno 2025")
+  monthYear: string; // Anno-mese per riferimento (es. "2025-06")
 }
 
 export interface Transaction {
-  id: string
-  transaction_date: string
-  transaction_details: string
-  current_amount: number
-  transaction_type: string
-  is_refunded?: boolean
-  account_name?: string
-  asset_id?: string | null
-  asset_quantity?: number | null
+  id: string;
+  transaction_date: string;
+  transaction_details: string;
+  current_amount: number;
+  transaction_type: string;
+  is_refunded?: boolean;
+  account_name?: string;
+  asset_id?: string | null;
+  asset_quantity?: number | null;
   accounts?: {
-    type: string
-  } | null
+    type: string;
+    color?: string;
+  } | null;
   categories?: {
-    name: string
-  } | null
+    name: string;
+  } | null;
   subcategories?: {
-    name: string
-  } | null
+    name: string;
+  } | null;
 }
 
 export interface Refund {
-  id: string
-  refund_date: string
-  refund_details: string | null
-  current_amount: number
-  account_name?: string
-  refund_code?: string | null
-  user_id: string
-  created_at: string
-  updated_at: string
+  id: string;
+  refund_date: string;
+  refund_details: string | null;
+  current_amount: number;
+  account_name?: string;
+  refund_code?: string | null;
+  user_id: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface FundsTransfer {
-  id: string
-  funds_transfer_date: string
-  funds_transfer_details: string | null
-  amount: number
-  account_name?: string
-  funds_transfer_code?: string | null
-  user_id: string
-  created_at: string
-  updated_at: string
+  id: string;
+  funds_transfer_date: string;
+  funds_transfer_details: string | null;
+  amount: number;
+  account_name?: string;
+  funds_transfer_code?: string | null;
+  user_id: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface FinancialGoal {
-  id: string
-  name: string
-  description: string | null
-  current_amount: number
-  target_amount: number
-  currency: string
-  target_date: string | null
-  color: string | null
+  id: string;
+  name: string;
+  description: string | null;
+  current_amount: number;
+  target_amount: number;
+  currency: string;
+  target_date: string | null;
+  color: string | null;
 }
 
 export interface Account {
-  id: string
-  name: string
-  type: string
-  current_balance: number
-  initial_balance: number
-  currency: string
-  color: string
-  created_at: string
-  updated_at: string
+  id: string;
+  name: string;
+  type: string;
+  current_balance: number;
+  initial_balance: number;
+  currency: string;
+  color: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Asset {
-  id: string
-  name: string
-  type: string
-  quantity: number
-  value: number
-  currency: string
-  account_id: string | null
-  created_at: string
-  updated_at: string
-  user_id: string
-  symbol?: string | null 
-}
-
-export interface AssetValuation {
-  id: string
-  asset_id: string
-  valuation_date: string
-  value: number
-  source: string
-  confidence_score: number | null
-  created_at: string
+  id: string;
+  name: string;
+  type: string;
+  quantity: number;
+  value: number;
+  currency: string;
+  account_id: string | null;
+  created_at: string;
+  updated_at: string;
+  user_id: string;
+  symbol?: string | null;
 }
 
 interface CachedData {
-  stats: FinanceStats
-  transactions: Transaction[]
-  refunds: Refund[]
-  fundsTransfer: FundsTransfer[]
-  goals: FinancialGoal[]
-  accounts: Account[]
-  assets: Asset[]
-  lastFetch: number
-  isStale: boolean
+  stats: FinanceStats;
+  transactions: Transaction[];
+  refunds: Refund[];
+  fundsTransfer: FundsTransfer[];
+  goals: FinancialGoal[];
+  accounts: Account[];
+  assets: Asset[];
+  lastFetch: number;
+  isStale: boolean;
 }
 
 interface FinanceCacheContextType {
-  data: CachedData | null
-  loading: boolean
-  error: string | null
-  refetch: () => Promise<void>
-  invalidateCache: () => void
-  isDataStale: boolean
+  data: CachedData | null;
+  loading: boolean;
+  error: string | null;
+  refetch: () => Promise<void>;
+  invalidateCache: () => void;
+  isDataStale: boolean;
 }
 
-const FinanceCacheContext = createContext<FinanceCacheContextType | undefined>(undefined)
+const FinanceCacheContext = createContext<FinanceCacheContextType | undefined>(undefined);
 
-const CACHE_DURATION = 60 * 60 * 1000 // 1 ora per dati freschi
-const STALE_TIME = 30 * 60 * 1000 // 30 minuti (quando considerare i dati obsoleti ma utilizzabili)
+const CACHE_DURATION = 60 * 60 * 1000; // 1 ora per dati freschi
+const STALE_TIME = 30 * 60 * 1000; // 30 minuti (quando considerare i dati obsoleti ma utilizzabili)
 
 const initialStats: FinanceStats = {
   totalBalance: 0,
@@ -146,90 +137,54 @@ const initialStats: FinanceStats = {
   goalProgress: 0,
   currentMonth: 'Nessun dato',
   monthYear: ''
-}
+};
 
 export function FinanceCacheProvider({ children }: { children: ReactNode }) {
-  const [data, setData] = useState<CachedData | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  
-  const { user } = useAuth()
-  const supabase = createClientComponentClient()
+  const [data, setData] = useState<CachedData | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const { user } = useAuth();
+  const supabase = createClientComponentClient();
 
   const isDataExpired = useCallback((timestamp: number) => {
-    return Date.now() - timestamp > CACHE_DURATION
-  }, [])
+    return Date.now() - timestamp > CACHE_DURATION;
+  }, []);
 
   const isDataStale = useCallback((timestamp: number) => {
-    return Date.now() - timestamp > STALE_TIME
-  }, [])
+    return Date.now() - timestamp > STALE_TIME;
+  }, []);
 
   const fetchFinanceData = useCallback(async (forceRefresh = false) => {
-    if (!user) return
+    if (!user) return;
 
-    // Se abbiamo dati in cache e non sono scaduti, e non è un refresh forzato
     if (data && !isDataExpired(data.lastFetch) && !forceRefresh) {
-      console.log('📊 Usando dati dalla cache')
-      return
+      return;
     }
 
-    // Se stiamo già caricando, evita chiamate multiple
     if (loading) {
-      console.log('📊 Caricamento già in corso, evito duplicazione')
-      return
+      return;
     }
 
     try {
-      setLoading(true)
-      setError(null)
-      console.log('📊 Caricamento dati finanziari...')      // Esegui query per accounts, goals, assets, refunds e funds_transfer
+      setLoading(true);
+      setError(null);
+
       const [accountsResult, goalsResult, assetsResult, refundsResult, fundsTransferResult] = await Promise.all([
-        // Query accounts - recupera tutti i dati degli account
-        supabase
-          .from('accounts')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false }),
+        supabase.from('accounts').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
+        supabase.from('financial_goals').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(10),
+        supabase.from('assets').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
+        supabase.from('refunds').select('*').eq('user_id', user.id).order('refund_date', { ascending: false }),
+        supabase.from('funds_transfer').select('*').eq('user_id', user.id).order('funds_transfer_date', { ascending: false })
+      ]);
 
-        // Query obiettivi finanziari
-        supabase
-          .from('financial_goals')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(10), // Limitiamo per performance
+      let allTransactions: Transaction[] = [];
+      let hasMore = true;
+      let offset = 0;
+      const batchSize = 1000;
 
-        // Query assets
-        supabase
-          .from('assets')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false }),
-
-        // Query refunds
-        supabase
-          .from('refunds')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('refund_date', { ascending: false }),
-
-        // Query funds_transfer
-        supabase
-          .from('funds_transfer')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('funds_transfer_date', { ascending: false })
-      ])
-
-      // Query separata per transazioni con paginazione per recuperare TUTTE le transazioni
-      let allTransactions: TransactionWithRelations[] = []
-      let hasMore = true
-      let offset = 0
-      const batchSize = 1000
-
-      console.log('🔄 Inizio recupero transazioni con paginazione...')
-      
-      while (hasMore) {        const transactionsBatch = await supabase
+      while (hasMore) {
+        const transactionsBatch = await supabase
           .from('transactions')
           .select(`
             id,
@@ -246,118 +201,46 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
           `)
           .eq('user_id', user.id)
           .order('transaction_date', { ascending: false })
-          .range(offset, offset + batchSize - 1)
+          .range(offset, offset + batchSize - 1);
 
         if (transactionsBatch.error) {
-          console.error('❌ Errore nella query transactions:', transactionsBatch.error)
-          throw transactionsBatch.error
+          throw transactionsBatch.error;
         }
 
-        const batchData = (transactionsBatch.data as unknown as TransactionWithRelations[]) || []
-        allTransactions = [...allTransactions, ...batchData]
-        
-        console.log(`📦 Batch ${Math.floor(offset/batchSize) + 1}: ${batchData.length} transazioni (totale: ${allTransactions.length})`)
-        
-        hasMore = batchData.length === batchSize
-        offset += batchSize
-      }      console.log(`✅ Recupero completato: ${allTransactions.length} transazioni totali`)
+        const batchData = (transactionsBatch.data as unknown as Transaction[]) || [];
+        allTransactions = [...allTransactions, ...batchData];
 
-      // Controllo errori per le altre query
-      if (accountsResult.error) {
-        console.error('❌ Errore nella query accounts:', accountsResult.error)
-        throw accountsResult.error
-      }
-      if (goalsResult.error) {
-        console.error('❌ Errore nella query goals:', goalsResult.error)
-        throw goalsResult.error
-      }
-      if (assetsResult.error) {
-        console.error('❌ Errore nella query assets:', assetsResult.error)
-        throw assetsResult.error
-      }
-      if (refundsResult.error) {
-        console.error('❌ Errore nella query refunds:', refundsResult.error)
-        throw refundsResult.error
-      }
-      if (fundsTransferResult.error) {
-        console.error('❌ Errore nella query funds_transfer:', fundsTransferResult.error)
-        throw fundsTransferResult.error
+        hasMore = batchData.length === batchSize;
+        offset += batchSize;
       }
 
-      const accounts = accountsResult.data || []
-      const goals = goalsResult.data || []
-      const rawAssets = (assetsResult.data as RawAssetData[]) || []
-      const refunds = refundsResult.data || []
-      const fundsTransfer = fundsTransferResult.data || []
+      const accounts = accountsResult.data || [];
+      const goals = goalsResult.data || [];
+      const rawAssets = assetsResult.data || [];
+      const refunds = refundsResult.data || [];
+      const fundsTransfer = fundsTransferResult.data || [];
 
-      console.log('📊 Dati recuperati dal database:', {
-        accounts: accounts.length,
-        transactions: allTransactions.length,
-        goals: goals.length,
-        assets: rawAssets.length,
-        refunds: refunds.length,
-        fundsTransfer: fundsTransfer.length
-      })
-      
-      // Log specifico per verificare il numero totale di transazioni
-      console.log(`🔢 Transazioni caricate: ${allTransactions.length} (dovrebbero essere 1598)`)// Debug per verificare se asset_id è presente nelle transazioni
-      if (allTransactions.length > 0) {
-        console.log('🔍 Sample transaction with all fields:', allTransactions[0])
-        const transactionsWithAssetId = allTransactions.filter((t: TransactionWithRelations) => t.asset_id)
-        console.log('🔍 Transactions with asset_id:', transactionsWithAssetId.length)
-        if (transactionsWithAssetId.length > 0) {
-          console.log('🔍 First transaction with asset_id:', transactionsWithAssetId[0])
-          console.log('🔍 All asset_ids found:', [...new Set(transactionsWithAssetId.map(t => t.asset_id))])
-        }
-      }
+      const assetPurchaseTransactions = allTransactions.filter((transaction: Transaction) => {
+        return transaction.asset_id != null;
+      });
 
-      if (allTransactions.length === 0) {
-        console.log('⚠️ Nessuna transazione trovata nel database')
-      } else {
-        // Debug: mostra tutti i tipi di account e categorie presenti
-        const accountTypes = [...new Set(allTransactions.map((t: TransactionWithRelations) => t.accounts?.type).filter(Boolean))]
-        const categoryNames = [...new Set(allTransactions.map((t: TransactionWithRelations) => t.categories?.name).filter(Boolean))]
-        
-        console.log('📋 Tipi di account presenti:', accountTypes)
-        console.log('📋 Categorie presenti:', categoryNames)
-      }
-
-      // Filtra transazioni di acquisto asset (saving_account + categoria "ASSET & INVESTIMENTI")
-      const assetPurchaseTransactions = allTransactions.filter((transaction: TransactionWithRelations) => {
-        return transaction.asset_id != null
-      })
-
-      console.log('💎 Transazioni di acquisto asset trovate:', assetPurchaseTransactions.length)
-      console.log('💎 Dettagli transazioni asset:', assetPurchaseTransactions.map(t => ({
-        id: t.id,
-        details: t.transaction_details,
-        amount: t.current_amount,
-        date: t.transaction_date
-      })))      // Arricchisci gli asset con i dati delle transazioni correlate
       const assets = rawAssets.map((asset: RawAssetData) => {
-        return asset as Asset
-      })
+        return asset as Asset;
+      });
 
-      // Calcola statistiche
-      // Calcola il valore totale degli asset
-      const totalAssetsValue = assets.reduce((sum, asset) => sum + Number(asset.value || 0), 0)
+      const totalAssetsValue = assets.reduce((sum, asset) => sum + Number(asset.value || 0), 0);
 
-      // Aggiorna il totalBalance includendo gli asset
-      const totalBalance = accounts.reduce((sum, account) => sum + Number(account.current_balance || 0), 0) + totalAssetsValue
+      const totalBalance = accounts.reduce((sum, account) => sum + Number(account.current_balance || 0), 0) + totalAssetsValue;
 
-      // Trova l'ultimo mese con transazioni
       let currentMonth = 'Nessun dato';
       let monthYear = '';
-      
+
       if (allTransactions.length > 0) {
-        // Prendi la transazione più recente per determinare l'ultimo mese
-        const latestTransaction = allTransactions[0]; // Già ordinato per data decrescente
+        const latestTransaction = allTransactions[0];
         const latestDate = new Date(latestTransaction.transaction_date);
-        
-        // Calcola mese e anno
+
         monthYear = `${latestDate.getFullYear()}-${String(latestDate.getMonth() + 1).padStart(2, '0')}`;
-        
-        // Formatta il nome del mese in italiano
+
         const monthNames = [
           'Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
           'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'
@@ -365,49 +248,45 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
         currentMonth = `${monthNames[latestDate.getMonth()]} ${latestDate.getFullYear()}`;
       }
 
-      // Filtra transazioni per l'ultimo mese disponibile
-      const monthlyFilteredTransactions = monthYear ? allTransactions.filter((transaction: TransactionWithRelations) => {
+      const monthlyFilteredTransactions = monthYear ? allTransactions.filter((transaction: Transaction) => {
         const transactionDate = new Date(transaction.transaction_date);
         const transactionMonthYear = `${transactionDate.getFullYear()}-${String(transactionDate.getMonth() + 1).padStart(2, '0')}`;
         return transactionMonthYear === monthYear;
       }) : [];
 
-      let monthlyIncome = 0
-      let monthlyExpenses = 0
-      const categoryAmounts: CategoryAmounts = {}
+      let monthlyIncome = 0;
+      let monthlyExpenses = 0;
+      const categoryAmounts: CategoryAmounts = {};
 
-      monthlyFilteredTransactions.forEach((transaction: TransactionWithRelations) => {
-        const amount = Number(transaction.current_amount || 0)
-        
+      monthlyFilteredTransactions.forEach((transaction: Transaction) => {
+        const amount = Number(transaction.current_amount || 0);
+
         if (amount > 0) {
-          monthlyIncome += Math.abs(amount)
+          monthlyIncome += Math.abs(amount);
         } else if(transaction.asset_id === null) {
-          monthlyExpenses += Math.abs(amount)
-          
-          // Aggiungi ai categoryAmounts solo se è una spesa (importo negativo)
-          const categoryName = transaction.categories?.name || 'Altro'
-          categoryAmounts[categoryName] = (categoryAmounts[categoryName] || 0) + Math.abs(amount)
+          monthlyExpenses += Math.abs(amount);
+
+          const categoryName = transaction.categories?.name || 'Altro';
+          categoryAmounts[categoryName] = (categoryAmounts[categoryName] || 0) + Math.abs(amount);
         }
-      })
+      });
 
       const topCategory = Object.keys(categoryAmounts).length > 0 
         ? Object.keys(categoryAmounts).reduce((a, b) => categoryAmounts[a] > categoryAmounts[b] ? a : b)
-        : null
+        : null;
 
-      const savingsRate = monthlyIncome > 0 ? ((monthlyIncome - monthlyExpenses) / monthlyIncome) * 100 : 0
+      const savingsRate = monthlyIncome > 0 ? ((monthlyIncome - monthlyExpenses) / monthlyIncome) * 100 : 0;
 
-      // Query count transazioni totali (ottimizzata)
       const { count: transactionsCount } = await supabase
         .from('transactions')
         .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
+        .eq('user_id', user.id);
 
-      // Calcola progresso obiettivi
-      let goalProgress = 0
+      let goalProgress = 0;
       if (goals.length > 0) {
-        const totalTargetAmount = goals.reduce((sum, goal) => sum + Number(goal.target_amount || 0), 0)
-        const totalCurrentAmount = goals.reduce((sum, goal) => sum + Number(goal.current_amount || 0), 0)
-        goalProgress = totalTargetAmount > 0 ? (totalCurrentAmount / totalTargetAmount) * 100 : 0
+        const totalTargetAmount = goals.reduce((sum, goal) => sum + Number(goal.target_amount || 0), 0);
+        const totalCurrentAmount = goals.reduce((sum, goal) => sum + Number(goal.current_amount || 0), 0);
+        goalProgress = totalTargetAmount > 0 ? (totalCurrentAmount / totalTargetAmount) * 100 : 0;
       }
 
       const stats: FinanceStats = {
@@ -421,14 +300,14 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
         goalProgress: Math.max(0, Math.min(100, goalProgress)),
         currentMonth,
         monthYear
-      }      // Processa transazioni per il formato corretto
-      const processedTransactions: Transaction[] = allTransactions.map((item: TransactionWithRelations) => ({
+      };
+
+      const processedTransactions: Transaction[] = allTransactions.map((item: Transaction) => ({
         ...item,
         accounts: item.accounts,
         categories: item.categories
-      }))
+      }));
 
-      // Processa refunds per il formato corretto
       const processedRefunds: Refund[] = refunds.map((item) => ({
         id: item.id,
         refund_date: item.refund_date,
@@ -439,9 +318,8 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
         user_id: item.user_id,
         created_at: item.created_at,
         updated_at: item.updated_at
-      }))
+      }));
 
-      // Processa funds_transfer per il formato corretto
       const processedFundsTransfer: FundsTransfer[] = fundsTransfer.map((item) => ({
         id: item.id,
         funds_transfer_date: item.funds_transfer_date,
@@ -452,9 +330,8 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
         user_id: item.user_id,
         created_at: item.created_at,
         updated_at: item.updated_at
-      }))
+      }));
 
-      // Salva in cache
       const newCacheData: CachedData = {
         stats,
         transactions: processedTransactions,
@@ -465,16 +342,14 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
         assets: assets as Asset[],
         lastFetch: Date.now(),
         isStale: false
-      }
+      };
 
-      setData(newCacheData)
-      console.log('📊 Cache aggiornata con successo')
+      setData(newCacheData);
 
     } catch (err) {
-      console.error('❌ Errore nel recupero dei dati finanziari:', err)
-      setError(err instanceof Error ? err.message : 'Errore sconosciuto')
+      setError(err instanceof Error ? err.message : 'Errore sconosciuto');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }, [user, supabase, data, loading, isDataExpired])
 
@@ -492,7 +367,6 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
     const interval = setInterval(() => {
       if (isDataStale(data.lastFetch) && !data.isStale) {
         setData(prev => prev ? { ...prev, isStale: true } : null)
-        console.log('📊 I dati sono diventati stale')
       }
     }, 5 * 60 * 1000) // Controlla ogni 5 minuti
 
@@ -504,7 +378,6 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
   }, [fetchFinanceData])
 
   const invalidateCache = useCallback(() => {
-    console.log('🗑️ Cache invalidata')
     setData(null)
     setError(null)
   }, [])
@@ -516,38 +389,34 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
     refetch,
     invalidateCache,
     isDataStale: data ? isDataStale(data.lastFetch) : false
-  }
+  };
 
-  return (
-    <FinanceCacheContext.Provider value={contextValue}>
-      {children}
-    </FinanceCacheContext.Provider>
-  )
+  return <FinanceCacheContext.Provider value={contextValue}>{children}</FinanceCacheContext.Provider>;
 }
 
 export function useFinanceCache() {
-  const context = useContext(FinanceCacheContext)
+  const context = useContext(FinanceCacheContext);
   if (context === undefined) {
-    throw new Error('useFinanceCache must be used within a FinanceCacheProvider')
+    throw new Error('useFinanceCache must be used within a FinanceCacheProvider');
   }
-  return context
+  return context;
 }
 
 // Hook semplificato per retrocompatibilità
 export function useFinanceData() {
-  const { data, loading, error, refetch } = useFinanceCache()
-  
+  const { data, loading, error, refetch } = useFinanceCache();
+
   return {
     stats: data?.stats || initialStats,
     loading,
     error,
     refetch
-  }
+  };
 }
 
 // Hook per transazioni
 export function useTransactions(limit = 10) {
-  const { data, loading, error } = useFinanceCache()
+  const { data, loading, error } = useFinanceCache();
   
   return {
     transactions: data?.transactions.slice(0, limit) || [],
@@ -558,7 +427,7 @@ export function useTransactions(limit = 10) {
 
 // Hook per tutte le transazioni (senza limite)
 export function useAllTransactions() {
-  const { data, loading, error, refetch } = useFinanceCache()
+  const { data, loading, error, refetch } = useFinanceCache();
   
   return {
     transactions: data?.transactions || [],
@@ -570,7 +439,7 @@ export function useAllTransactions() {
 
 // Hook per obiettivi
 export function useFinancialGoals(limit = 10) {
-  const { data, loading, error } = useFinanceCache()
+  const { data, loading, error } = useFinanceCache();
   
   return {
     goals: data?.goals.slice(0, limit) || [],
@@ -581,7 +450,7 @@ export function useFinancialGoals(limit = 10) {
 
 // Hook per account
 export function useAccounts() {
-  const { data, loading, error, refetch } = useFinanceCache()
+  const { data, loading, error, refetch } = useFinanceCache();
   
   return {
     accounts: data?.accounts || [],
@@ -593,7 +462,7 @@ export function useAccounts() {
 
 // Hook per asset
 export function useAssets() {
-  const { data, loading, error, refetch } = useFinanceCache()
+  const { data, loading, error, refetch } = useFinanceCache();
   
   return {
     assets: data?.assets || [],
@@ -605,7 +474,7 @@ export function useAssets() {
 
 // Hook per statistiche asset
 export function useAssetStats() {
-  const { data } = useFinanceCache()
+  const { data } = useFinanceCache();
   
   const assets = data?.assets || []
   
@@ -647,7 +516,7 @@ export function useAssetStats() {
 
 // Hook per transazioni di acquisto asset
 export function useAssetPurchaseTransactions() {
-  const { data } = useFinanceCache()
+  const { data } = useFinanceCache();
   
   const allTransactions = data?.transactions || []
   const assetPurchaseTransactions = allTransactions.filter(transaction => {
@@ -822,8 +691,6 @@ export function useAssetOperations() {
 
   const linkAssetToTransaction = useCallback(async (assetId: string, transactionId: string) => {
     if (!user) throw new Error('User not authenticated')
-
-    console.log('🔗 linkAssetToTransaction called:', { assetId, transactionId, userId: user.id })
 
     // Aggiorna la transazione con l'asset_id
     const { error } = await supabase
@@ -1228,7 +1095,10 @@ export function useAssetOperations() {
 
 // Aggiungi queste interfacce dopo le interfacce esistenti
 interface TransactionWithRelations extends Transaction {
-  accounts: { type: string } | null
+  accounts?: {
+    type: string;
+    color?: string;
+  } | null
   categories: { name: string } | null
 }
 
@@ -1306,7 +1176,6 @@ export function useUnlinkedAssetTransactions() {
         throw queryError
       }
 
-      console.log('🔍 Unlinked asset transactions found:', data?.length || 0)
       setUnlinkedTransactions(data || [])
     } catch (err) {
       console.error('Error in fetchUnlinkedTransactions:', err)

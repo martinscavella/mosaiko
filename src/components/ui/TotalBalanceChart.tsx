@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
+import { Tooltip, ResponsiveContainer, Area, AreaChart, XAxis } from 'recharts';
 import { formatCurrency } from '@/lib/helpers/format';
 
 interface Transaction {
@@ -41,6 +41,25 @@ const isValidDate = (date: Date | string | null | undefined): date is string => 
   return !isNaN(dateObj.getTime());
 };
 
+// Raggruppa i punti per mese e usa il primo giorno del mese come punto sull'asse X
+const groupByMonth = (balanceHistory: BalancePoint[]): BalancePoint[] => {
+  const grouped: BalancePoint[] = [];
+
+  balanceHistory.forEach(point => {
+    const date = new Date(point.date);
+    const firstOfMonth = new Date(date.getFullYear(), date.getMonth(), 1).toISOString().slice(0, 10); // Calcola il primo giorno del mese
+    const lastGroup = grouped[grouped.length - 1];
+
+    if (lastGroup && lastGroup.date === firstOfMonth) {
+      lastGroup.balance += point.balance - (lastGroup.balance || 0);
+    } else {
+      grouped.push({ date: firstOfMonth, balance: point.balance });
+    }
+  });
+
+  return grouped;
+};
+
 // Calcola il saldo totale cumulativo nel tempo
 const computeTotalBalanceHistory = (
   transactions: Transaction[],
@@ -62,7 +81,7 @@ const computeTotalBalanceHistory = (
   const initialBalance = accounts.reduce((sum, account) => sum + (account.initial_balance || 0), 0);
 
   // Costruisci la timeline
-  const balanceHistory: BalancePoint[] = [];
+  const balanceHistory = [];
   let currentBalance = initialBalance;
 
   // Punto iniziale
@@ -80,7 +99,7 @@ const computeTotalBalanceHistory = (
     });
   }
 
-  return balanceHistory;
+  return groupByMonth(balanceHistory);
 };
 
 export default function TotalBalanceChart({ data, className = '' }: TotalBalanceChartProps) {
@@ -94,8 +113,8 @@ export default function TotalBalanceChart({ data, className = '' }: TotalBalance
   if (!chartData.length) {
     return (
       <div className={`group relative ${className}`}>
-        <div className="relative bg-white/95 backdrop-blur-sm border border-white/50 shadow-lg rounded-xl p-6 transition-all duration-300">
-          <div className="h-[170px] flex items-center justify-center text-gray-500">
+        <div className="bg-white/95 backdrop-blur-xl border border-white/50 shadow-2xl rounded-2xl p-6 mb-4 min-h-[300px] max-h-[300px]">
+          <div className="h-full flex items-center justify-center text-gray-500">
             Nessun dato disponibile
           </div>
         </div>
@@ -105,11 +124,24 @@ export default function TotalBalanceChart({ data, className = '' }: TotalBalance
 
   return (
     <div className={`group relative ${className}`}>
-      {/* Floating gradient background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5 rounded-xl blur-sm opacity-0 group-hover:opacity-100 transition-all duration-300" />
-      
-      {/* Main container - coerente con FinanceWidget */}
-      <div className="relative bg-white/95 backdrop-blur-sm border border-white/50 shadow-lg rounded-xl p-6 transition-all duration-300 hover:shadow-xl hover:bg-white/98 hover:border-white/70 hover:-translate-y-1">
+      <div className="bg-white/95 backdrop-blur-xl border border-white/50 shadow-2xl rounded-2xl p-6 mb-4 min-h-[300px] max-h-[300px]">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-4">
+            <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-lg">
+              <svg className="h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h11M9 21V3m12 7h-7m4 4-4-4m0 0 4-4" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-gray-900 tracking-tight">Andamento Saldo Totale</h3>
+              <p className="text-sm text-gray-600 font-medium">Visualizza il saldo totale aggiornato</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-2xl font-bold text-green-600">{formatCurrency(chartData[chartData.length - 1].balance)}</p>
+            <p className="text-sm text-gray-500">Saldo attuale</p>
+          </div>
+        </div>
         <ResponsiveContainer width="100%" height={170}>
           <AreaChart data={chartData} margin={{ top: 6, right: 0, left: 0, bottom: 0 }}>
             <defs>
@@ -133,14 +165,14 @@ export default function TotalBalanceChart({ data, className = '' }: TotalBalance
               formatter={(value) => formatCurrency(Number(value))}
               labelFormatter={(label) => new Date(label).toLocaleDateString('it-IT')}
             />
+            <XAxis dataKey="date" hide />
             <Area
-              type="natural"
+              type="basis"
               dataKey="balance"
               stroke="#2563eb"
-              strokeWidth={1.5}
+              strokeWidth={2}
               fill="url(#colorBalance)"
               dot={false}
-              activeDot={{ r: 4, fill: '#2563eb', stroke: '#fff', strokeWidth: 1.5 }}
             />
           </AreaChart>
         </ResponsiveContainer>

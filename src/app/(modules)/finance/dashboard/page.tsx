@@ -21,6 +21,8 @@ import {
 import TotalBalanceChart from "@/components/ui/TotalBalanceChart";
 import { useRouter } from "next/navigation";
 import { RefreshCw, BarChart3 } from "lucide-react";
+import { useState } from "react";
+import TransactionDetailsModal from '@/components/ui/TransactionDetailsModal';
 
 // Componente principale della dashboard finanziaria
 
@@ -32,6 +34,19 @@ export default function FinanceDashboard() {
   const { refetch, isDataStale, data } = useFinanceCache();
   // Recupera info utente e stato autenticazione
   const { user, loading: authLoading } = useAuth();
+
+  const [selectedTransaction, setSelectedTransaction] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const openModal = (transaction: any) => {
+    setSelectedTransaction(transaction);
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setSelectedTransaction(null);
+    setIsModalOpen(false);
+  };
 
   // Calcolo tasso di risparmio totale su tutte le transazioni
   let totalIncome = 0;
@@ -132,28 +147,14 @@ export default function FinanceDashboard() {
             ]}
           />
 
-          {/* Se c'è un errore nel caricamento dei dati, mostra un messaggio di errore evidenziato */}
-          {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-red-800 text-sm">
-                Errore nel caricamento dei dati: {error}
-              </p>
-            </div>
-          )}
-
-
           {/* Griglia principale: CashQuickActions a sinistra, saldo e obiettivi a destra */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-2"> {/* gap e mb uniformati a 4 */}
             {/* Sinistra: CashQuickActions (occupa metà schermo su desktop) */}
             <div className="w-full h-full flex flex-col">
               <CashQuickActions />
             </div>
             {/* Destra: grafico saldo totale */}
             <div className="flex flex-col h-full">
-              <div className="flex items-center justify-between mb-4 px-6 pt-6">
-                <span className="text-sm font-medium text-gray-600">Andamento Saldo Totale</span>
-                <span className="text-2xl font-bold text-blue-600">{formatCurrency(stats.totalBalance)}</span>
-              </div>
               <TotalBalanceChart 
                 data={data ? {
                   transactions: data.transactions,
@@ -165,7 +166,7 @@ export default function FinanceDashboard() {
           </div>
 
           {/* Seconda riga: statistiche mensili, responsive */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4"> {/* gap e mb uniformati a 4 */}
             <FinanceWidget
               title="Entrate Mensili"
               value={formatCurrency(stats.monthlyIncome)}
@@ -208,12 +209,17 @@ export default function FinanceDashboard() {
           </div>
 
           {/* Transazioni Recenti e Obiettivi */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <RecentTransactions limit={6} />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4"> {/* gap e mb uniformati a 4 */}
+            <RecentTransactions limit={5} onTransactionClick={openModal} />
             <FinancialGoalsWidget limit={4} />
           </div>
         </div>
       </ModuleLayout>
+      <TransactionDetailsModal
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        transaction={selectedTransaction}
+      />
     </>
   );
 }
