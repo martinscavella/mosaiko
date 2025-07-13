@@ -194,7 +194,7 @@ export default function FinanceDashboard() {
             <FinanceWidget
               title="Risparmio Mensile"
               value={formatPercentage(stats.savingsRate)}
-              subtitle="Risparmio mensile"
+              subtitle={stats.currentMonth}
               icon="savings"
               color="purple"
               trend={
