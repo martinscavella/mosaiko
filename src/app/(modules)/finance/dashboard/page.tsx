@@ -103,49 +103,49 @@ export default function FinanceDashboard() {
       {/* Layout principale della dashboard finanza */}
       <ModuleLayout moduleId="finance">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 custom-scrollbar">
-          {/* Header della dashboard con titolo, sottotitolo, icona, stato cache e azioni */}
+          {/* Header fisso e fluttante - solo il box stondato */}
           <ModuleHeader
-            title="Dashboard Finanziaria"
-            subtitle="Gestisci le tue finanze in tempo reale"
-            icon={<BarChart3 className="h-6 w-6 text-white" />}
-            customContent={<CacheStatus />}
-            statusIndicators={[
-              {
-                type: "warning",
-                label: "Aggiornamento consigliato",
-                show: isDataStale,
-              },
-              {
-                type: "success",
-                label: "Tutti i sistemi operativi",
-                show: !loading && !error,
-              },
-            ]}
-            stats={[
-              {
-                label: "Saldo Totale",
-                value: formatCurrency(stats.totalBalance),
-                color: "blue",
-              },
-              {
-                label: "Risparmio Totale",
-                value:
-                  totalIncome > 0 ? formatPercentage(totalSavingsRate) : "—",
-                color: "green",
-              },
-            ]}
-            actions={[
-              {
-                label: "Aggiorna",
-                onClick: () => refetch(),
-                icon: <RefreshCw className="w-4 h-4" />,
-                color: "blue",
-                disabled: loading,
-                loading: loading,
-                hideTextOnMobile: true,
-              },
-            ]}
-          />
+              title="Dashboard Finanziaria"
+              subtitle="Gestisci le tue finanze in tempo reale"
+              icon={<BarChart3 className="h-6 w-6 text-white" />}
+              customContent={<CacheStatus />}
+              statusIndicators={[
+                {
+                  type: "warning",
+                  label: "Aggiornamento consigliato",
+                  show: isDataStale,
+                },
+                {
+                  type: "success",
+                  label: "Tutti i sistemi operativi",
+                  show: !loading && !error,
+                },
+              ]}
+              stats={[
+                {
+                  label: "Saldo Totale",
+                  value: formatCurrency(stats.totalBalance),
+                  color: "blue",
+                },
+                {
+                  label: "Risparmio Totale",
+                  value:
+                    totalIncome > 0 ? formatPercentage(totalSavingsRate) : "—",
+                  color: "green",
+                },
+              ]}
+              actions={[
+                {
+                  label: "Aggiorna",
+                  onClick: () => refetch(),
+                  icon: <RefreshCw className="w-4 h-4" />,
+                  color: "blue",
+                  disabled: loading,
+                  loading: loading,
+                  hideTextOnMobile: true,
+                },
+              ]}
+            />
 
           {/* Griglia principale: CashQuickActions a sinistra, saldo e obiettivi a destra */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-2"> {/* gap e mb uniformati a 4 */}

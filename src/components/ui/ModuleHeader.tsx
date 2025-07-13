@@ -146,7 +146,7 @@ export default function ModuleHeader({
         }
       `}</style>
       
-      <div className="relative mb-8 group">
+      <div className="sticky top-4 z-50 mb-4">
         {/* Animated gradient background */}
         <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-green-500/10 rounded-2xl blur-xl transition-all duration-700 group-hover:from-blue-500/20 group-hover:via-purple-500/20 group-hover:to-green-500/20"></div>
         
