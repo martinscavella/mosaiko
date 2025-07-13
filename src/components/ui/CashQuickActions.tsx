@@ -29,6 +29,7 @@ interface Subcategory {
 interface QuickAction {
   id: string
   label: string
+  description?: string
   emoji: string
   transaction_type: string
   typical_amount?: number
@@ -40,6 +41,7 @@ const QUICK_ACTIONS: QuickAction[] = [
   {
     id: 'padel',
     label: 'Padel',
+    description: 'Padel: ',
     emoji: '🎾',
     transaction_type: 'Spesa',
     typical_amount: -10,
@@ -49,24 +51,17 @@ const QUICK_ACTIONS: QuickAction[] = [
   {
     id: 'calcio',
     label: 'Calcio',
+    description: 'Calcio: ',
     emoji: '⚽️',
     transaction_type: 'Spesa',
     typical_amount: -5,
     category: 'Sport',
     subcategory: 'Calcio'
   },
-/*   {
-    id: 'food',
-    label: 'Pranzo',
-    emoji: '🍽️',
-    transaction_type: 'Spesa',
-    typical_amount: -15,
-    category: 'Cibo & Bevande',
-    subcategory: 'Ristorante'
-  }, */
   {
     id: 'other',
     label: 'Altro',
+    description: '',
     emoji: '💰',
     transaction_type: 'Spesa',
     category: ''
@@ -214,7 +209,7 @@ export default function CashQuickActions() {
         account_id: cashAccount.id,
         transaction_type: action.transaction_type,
         amount: action.typical_amount?.toString() || '',
-        transaction_details: action.label + ": ",
+        transaction_details: action.description || '',
         transaction_date: new Date().toISOString().split('T')[0],
         category_id: categoryId,
         subcategory_id: subcategoryId
@@ -239,7 +234,7 @@ export default function CashQuickActions() {
 
   if (!cashAccount) {
     return (
-      <div className="bg-amber-50/95 backdrop-blur-xl border border-amber-200/50 shadow-xl rounded-2xl p-6 mb-8">
+      <div className="bg-amber-50/95 backdrop-blur-xl border border-amber-200/50 shadow-xl rounded-2xl p-6 mb-8 min-h-[300px] max-h-[300px]">
         <div className="flex items-center space-x-3">
           <div className="p-3 bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl shadow-lg">
             <Wallet className="w-6 h-6 text-white" />
@@ -259,7 +254,7 @@ export default function CashQuickActions() {
 
   return (
     <>
-      <div className="bg-white/95 backdrop-blur-xl border border-white/50 shadow-2xl rounded-2xl p-6 mb-8">
+      <div className="bg-white/95 backdrop-blur-xl border border-white/50 shadow-2xl rounded-2xl p-6 mb-4 min-h-[300px] max-h-[300px]">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-3">
             <div className="p-3 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl shadow-lg">
