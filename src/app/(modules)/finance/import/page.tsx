@@ -380,12 +380,8 @@ export default function ImportPage() {
           'Entrata', 'ETF', 'Imposte', 'Iscrizione', 'Ordine', 'Ordine cloud', 'Prelievo',
           'Quattordicesima', 'Rata', 'Refund', 'Ricarica', 'Spesa', 'Stipendio', 'TFR', 'Tredicesima'
         ];
-        let mappedType = row.transactionType;
-        if (mappedType && TRANSACTION_TYPE_MAP[mappedType]) {
-          mappedType = TRANSACTION_TYPE_MAP[mappedType];
-        }
-        // Accetta qualsiasi valore presente nella picklist tipoOptions
-        if (mappedType && !tipoOptions.includes(row.transactionType || '')) {
+        const selectedTypeLabel = row.transactionType;
+        if (selectedTypeLabel && !tipoOptions.includes(selectedTypeLabel)) {
           errors.push('Tipo transazione non valido')
         }
         break;
@@ -501,7 +497,7 @@ export default function ImportPage() {
               insertData = {
                 ...insertData,
                 transaction_date: transactionDate,
-                transaction_type: row.transactionType || 'expense',
+                transaction_type: TRANSACTION_TYPE_MAP[row.transactionType || ''] || row.transactionType || 'expense',
                 transaction_details: row.description.trim(),
                 transaction_code: row.code || null,
                 account_id: row.account || null,
@@ -511,7 +507,8 @@ export default function ImportPage() {
                 initial_amount: initialAmount,
                 current_amount: currentAmount,
                 transaction_note: row.note || null,
-                is_refunded: false
+                // Usa il flag importato se presente, altrimenti false
+                is_refunded: !!row.is_refunded
               }
             } else if (row.targetTable === 'refunds') {
               const initialAmount = parseFloat((row.initialAmount || row.amount).toString().replace(',', '.'))
@@ -590,7 +587,7 @@ export default function ImportPage() {
     fileInputRef.current?.click()
   }
 
-  const updateRow = (rowId: string, field: keyof ImportRow, value: any) => {
+  const updateRow = (rowId: string, field: keyof ImportRow, value: unknown) => {
     setImportData(prevData =>
       prevData.map(row => {
         if (row.id === rowId) {
@@ -598,8 +595,8 @@ export default function ImportPage() {
           // Se stiamo aggiornando l'amount, sincronizza initialAmount e currentAmount
           if (field === 'amount') {
             if (row.targetTable === 'transactions' || row.targetTable === 'refunds') {
-              updatedRow.initialAmount = value;
-              updatedRow.currentAmount = value;
+              updatedRow.initialAmount = String(value);
+              updatedRow.currentAmount = String(value);
             }
           }
           return updatedRow;
@@ -610,14 +607,15 @@ export default function ImportPage() {
   }
 
   const deleteRow = (rowId: string) => {
-    setImportData(prevData => prevData.filter (row => row.id !== rowId))
-    
-    // Aggiorna anche le statistiche
-    const newTotal = importData.length - 1
-    setImportStats(prev => ({
-      ...prev,
-      total: newTotal
-    }))
+    setImportData(prevData => {
+      const newData = prevData.filter(row => row.id !== rowId)
+      // Aggiorna anche le statistiche basandosi sul nuovo array
+      setImportStats(prev => ({
+        ...prev,
+        total: newData.length
+      }))
+      return newData
+    })
   }
 
   // Funzione per renderizzare le celle in base al tipo di campo e tabella
@@ -846,6 +844,7 @@ export default function ImportPage() {
             <option value="EUR">EUR</option>
             <option value="USD">USD</option>
             <option value="GBP">GBP</option>
+            <option value="CZK">CZK</option>            
           </select>
         );
 
