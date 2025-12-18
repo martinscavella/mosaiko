@@ -29,11 +29,12 @@ export function formatLastTransactionDate(dateString?: string | null): string {
 /**
  * Formatta un numero come valuta in euro (EUR, it-IT)
  */
-export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('it-IT', {
+export function formatCurrency(amount: number | null | undefined, currency: string = 'EUR', locale: string = 'it-IT'): string {
+  if (amount === null || amount === undefined || Number.isNaN(Number(amount))) return '—';
+  return new Intl.NumberFormat(locale, {
     style: 'currency',
-    currency: 'EUR',
-  }).format(amount);
+    currency,
+  }).format(Number(amount));
 }
 
 /**

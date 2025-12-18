@@ -7,6 +7,7 @@ import CacheStatus from '@/components/ui/CacheStatus'
 import { useAuth } from '@/lib/auth'
 import { useAccounts, useFinanceCache } from '@/lib/financeCache'
 import type { Account } from '@/lib/financeCache'
+import { formatCurrency } from '@/lib/helpers/format'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { CreditCard, Plus, MoreVertical, TrendingUp, TrendingDown, Edit2, Trash2, RefreshCw, Wallet, PiggyBank, Building2, Search, Filter, ArrowUpDown, ArrowUp, ArrowDown, Clock } from 'lucide-react'
 
@@ -176,12 +177,7 @@ export default function AccountsPage() {
     processAccountsWithAllOperations()
   }, [cacheAccounts, financeData, user])
 
-  const formatCurrency = (amount: number, currency: string = 'EUR') => {
-    return new Intl.NumberFormat('it-IT', {
-      style: 'currency',
-      currency: currency
-    }).format(amount)
-  }
+  
 
   const formatRelativeTime = (dateString: string) => {
     const now = new Date()
@@ -395,7 +391,7 @@ export default function AccountsPage() {
           stats={!loading && accounts.length > 0 ? [
             {
               label: 'Patrimonio Totale',
-              value: formatCurrency(getTotalBalance()),
+              value: formatCurrency(getTotalBalance(), accounts?.[0]?.currency || 'EUR'),
               color: 'blue'
             },
             {
@@ -603,7 +599,7 @@ export default function AccountsPage() {
                         <td className="px-6 py-4 text-right">
                           <div className="flex items-center justify-end space-x-2">
                             <div className={`font-bold text-lg ${account.current_balance >= 0 ? 'text-green-600' : 'text-red-600'} transition-all duration-200 group-hover/row:scale-105`}>
-                              {formatCurrency(account.current_balance)}
+                              {formatCurrency(account.current_balance, account.currency || 'EUR')}
                             </div>
                             <div className={`p-1 rounded-full ${account.current_balance >= 0 ? 'bg-green-100' : 'bg-red-100'} transition-all duration-200 group-hover/row:scale-110`}>
                               {account.current_balance >= 0 ? (

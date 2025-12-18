@@ -33,6 +33,7 @@ import {
   BarChart3
 } from 'lucide-react'
 import type { HeaderAction, HeaderStat } from '@/components/ui/ModuleHeader'
+import { formatCurrency as _formatCurrency } from '@/lib/helpers/format'
 
 const ASSET_TYPES: Record<string, { label: string; icon: React.ComponentType<{ className?: string }>; color: string }> = {
   real_estate: { label: 'Immobili', icon: Home, color: 'text-blue-600 bg-blue-100' },
@@ -122,12 +123,8 @@ export default function AssetsPage() {
         </div>
       </ModuleLayout>
     )
-  }  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('it-IT', {
-      style: 'currency',
-      currency: 'EUR'
-    }).format(amount)
   }
+  const formatCurrency = (amount: number, currency?: string) => _formatCurrency(amount, currency || accounts?.[0]?.currency || 'EUR')
 
   // Helper function to get purchase data from transactions
   const getAssetPurchaseData = (assetId: string) => {
@@ -358,7 +355,7 @@ export default function AssetsPage() {
   const headerStats: HeaderStat[] = [
     {
       label: 'Valore Totale',
-      value: formatCurrency(totalValue),
+      value: formatCurrency(totalValue, accounts?.[0]?.currency || 'EUR'),
       color: 'blue'
     },
     {
@@ -506,7 +503,7 @@ export default function AssetsPage() {
                               <span className={`font-semibold ${
                                 transaction.current_amount >= 0 ? 'text-green-600' : 'text-red-600'
                               }`}>
-                                {transaction.current_amount >= 0 ? '+' : ''}{formatCurrency(transaction.current_amount)}
+                                {transaction.current_amount >= 0 ? '+' : ''}{formatCurrency(transaction.current_amount, accounts?.find(a => a.name === transaction.account_name)?.currency || accounts?.[0]?.currency || 'EUR')}
                               </span>
                             </td>
                           </tr>
@@ -546,11 +543,11 @@ export default function AssetsPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-red-50 p-4 rounded-lg">
             <p className="text-sm font-medium text-red-600">Totale Speso</p>
-            <p className="text-xl font-bold text-red-700">{formatCurrency(totalSpentOnAsset)}</p>
+            <p className="text-xl font-bold text-red-700">{formatCurrency(totalSpentOnAsset, accounts?.[0]?.currency || 'EUR')}</p>
           </div>
           <div className="bg-green-50 p-4 rounded-lg">
             <p className="text-sm font-medium text-green-600">Totale Ricevuto</p>
-            <p className="text-xl font-bold text-green-700">{formatCurrency(totalReceivedFromAsset)}</p>
+            <p className="text-xl font-bold text-green-700">{formatCurrency(totalReceivedFromAsset, accounts?.[0]?.currency || 'EUR')}</p>
           </div>
           <div className="bg-blue-50 p-4 rounded-lg">
             <p className="text-sm font-medium text-blue-600">N° Transazioni</p>

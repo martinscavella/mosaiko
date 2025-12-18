@@ -1,6 +1,7 @@
 'use client'
 
 import { useFinancialGoals } from '@/lib/financeCache'
+import { formatCurrency } from '@/lib/helpers/format'
 import { Target, TrendingUp } from 'lucide-react'
 
 interface FinancialGoalsWidgetProps {
@@ -10,12 +11,7 @@ interface FinancialGoalsWidgetProps {
 export default function FinancialGoalsWidget({ limit = 3 }: FinancialGoalsWidgetProps) {
   const { goals, loading, error } = useFinancialGoals(limit)
 
-  const formatCurrency = (amount: number, currency: string = 'EUR') => {
-    return new Intl.NumberFormat('it-IT', {
-      style: 'currency',
-      currency: currency
-    }).format(amount)
-  }
+  
 
   const calculateProgress = (current: number, target: number) => {
     if (target === 0) return 0

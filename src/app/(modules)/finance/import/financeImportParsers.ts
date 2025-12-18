@@ -599,6 +599,8 @@ export async function parseCSV(file: File, accountId?: string, setDetectedBank?:
             console.log('DEBUG parseCSV - Transform amount:', originalAmount, '->', parsedRow.amount);
           }
         }
+        // Determine currency: prefer parsed value, else try to use account mapping or fallback to EUR
+        const determinedCurrency = parsedRow.currency || (accounts ? (accounts.find(a => a.id === (parsedRow.account || accountId))?.currency) : undefined) || 'EUR'
         const row: ImportRow = {
           id: `row-${i}`,
           date: parsedRow.date || '',
@@ -611,7 +613,7 @@ export async function parseCSV(file: File, accountId?: string, setDetectedBank?:
           targetTable: parsedRow.targetTable || 'transactions',
           status: 'pending',
           code: parsedRow.code || '',
-          currency: 'EUR',
+          currency: determinedCurrency,
           initialAmount: parsedRow.amount || '',
           currentAmount: parsedRow.amount || '',
           note: '',
@@ -694,7 +696,8 @@ export async function parseExcel(file: File, accountId?: string, setDetectedBank
   }
   // Normalizza header: trim, lowercase, rimuovi spazi
   headers = headers.map(h => h.trim());
-  const rows: ImportRow[] = [];
+        const determinedCurrency = (accounts ? (accounts.find(a => a.id === accountId)?.currency) : undefined) || 'EUR'
+        const row: ImportRow = {
   const fileName = file.name.toLowerCase();
   const bankFileKeywords: {[key: string]: string[]} = {
     'intesa': ['intesa', 'sanpaolo', 'intesasanpaolo', 'contoxme', 'conto xme'],
@@ -706,9 +709,9 @@ export async function parseExcel(file: File, accountId?: string, setDetectedBank
   };
   let detectedParser: BankParser | null = null;
   for (const parser of BANK_PARSERS) {
-    const keywords = bankFileKeywords[parser.identifier] || [];
-    if (keywords.some(keyword => fileName.includes(keyword))) {
-      detectedParser = parser;
+          currency: determinedCurrency,
+          initialAmount: amount,
+          currentAmount: amount,
       setDetectedBank && setDetectedBank(parser);
       break;
     }
@@ -756,6 +759,7 @@ export async function parseExcel(file: File, accountId?: string, setDetectedBank
           const amountNum = parseFloat((parsedRow.amount || '').replace(',', '.'));
           targetTable = determineTargetTable(parsedRow.description || '', parsedRow.type || 'Spesa', amountNum, parsedRow.category);
         }
+        const determinedCurrency = (accounts ? (accounts.find(a => a.id === accountId)?.currency) : undefined) || 'EUR'
         const row: ImportRow = {
           id: `row-${i}`,
           date: parsedRow.date || '',
@@ -768,7 +772,7 @@ export async function parseExcel(file: File, accountId?: string, setDetectedBank
           targetTable: targetTable,
           status: 'pending',
           code: parsedRow.code || '',
-          currency: 'EUR',
+          currency: parsedRow.currency || determinedCurrency,
           initialAmount: parsedRow.amount || '',
           currentAmount: parsedRow.amount || '',
           note: '',
@@ -932,7 +936,7 @@ export function parseEdenredExcel(jsonData: string[][], accountId?: string): Imp
       targetTable: 'transactions',
       status: 'pending',
       code: '',
-      currency: 'EUR',
+      currency: (accounts ? (accounts.find(a => a.id === accountId)?.currency) : undefined) || 'EUR',
       initialAmount: g.amount.toFixed(2),
       currentAmount: g.amount.toFixed(2),
       note: '',

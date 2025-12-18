@@ -1,9 +1,10 @@
 'use client'
 
-import { useTransactions } from '@/lib/financeCache'
+import { useTransactions, useAccounts } from '@/lib/financeCache'
 import { ArrowUpRight, ArrowDownLeft, Calendar } from 'lucide-react'
 import { useState } from 'react';
 import TransactionDetailsModal from './TransactionDetailsModal';
+import { formatCurrency } from '@/lib/helpers/format'
 
 interface RecentTransactionsProps {
   limit?: number;
@@ -12,6 +13,7 @@ interface RecentTransactionsProps {
 
 export default function RecentTransactions({ limit = 5, onTransactionClick }: RecentTransactionsProps) {
   const { transactions, loading, error } = useTransactions(limit);
+  const { accounts } = useAccounts();
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -35,17 +37,17 @@ export default function RecentTransactions({ limit = 5, onTransactionClick }: Re
     year: new Date(dateString).getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined,
   });
 
-  const formatAmount = (amount: number) => new Intl.NumberFormat('it-IT', {
-    style: 'currency',
-    currency: 'EUR',
-  }).format(Math.abs(amount));
+  const formatAmount = (amount: number, currency?: string) => {
+    const curr = currency || accounts?.[0]?.currency || 'EUR'
+    return formatCurrency(Math.abs(amount), curr)
+  }
 
   const renderTransaction = (transaction: any) => {
     const isIncome = transaction.transaction_type === 'income' || transaction.current_amount > 0;
     const amount = Math.abs(transaction.current_amount);
 
     return (
-      <div
+          <div
         key={transaction.id}
         className="flex items-center space-x-4 p-3 bg-gray-50 rounded-lg shadow-sm hover:bg-gray-100 transition-colors duration-200 cursor-pointer"
         onClick={() => openModal(transaction)}
@@ -73,7 +75,7 @@ export default function RecentTransactions({ limit = 5, onTransactionClick }: Re
         <div
           className={`text-sm font-semibold ${isIncome ? 'text-green-600' : 'text-red-600'}`}
         >
-          {isIncome ? '+' : '-'}{formatAmount(amount)}
+          {isIncome ? '+' : '-'}{formatAmount(amount, (transaction as any).currency || accounts?.find(a => a.name === transaction.account_name)?.currency)}
         </div>
       </div>
     );

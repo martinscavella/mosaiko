@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { TrendingUp, TrendingDown, BarChart3, RefreshCw } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceLine } from 'recharts'
+import { formatCurrency } from '@/lib/helpers/format'
 
 interface PerformanceDataPoint {
   date: string
@@ -383,14 +384,7 @@ export default function AssetPerformanceChart({
   
   const performance = calculatePerformance()
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('it-IT', {
-      style: 'currency',
-      currency: 'EUR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount)
-  }
+  
 
   return (
     <div className={`bg-white rounded-lg border border-gray-200 p-6 ${className}`}>      <div className="flex items-center justify-between mb-4">
@@ -482,7 +476,7 @@ export default function AssetPerformanceChart({
                 axisLine={false}
                 tickLine={false}
                 tick={{ fontSize: 12, fill: '#9CA3AF' }}
-                tickFormatter={(value) => formatCurrency(value)}
+                tickFormatter={(value) => formatCurrency(Number(value), asset.currency || 'EUR')}
                 domain={['dataMin - 100', 'dataMax + 100']}
               />
               <Tooltip
@@ -493,7 +487,7 @@ export default function AssetPerformanceChart({
                         <p className="text-sm text-gray-600">{label}</p>
                         <p className="text-sm font-semibold">
                           <span className={performance.isPositive ? 'text-green-600' : 'text-red-600'}>
-                            {formatCurrency(payload[0].value as number)}
+                            {formatCurrency(payload[0].value as number, asset.currency || 'EUR')}
                           </span>
                         </p>
                       </div>
@@ -554,13 +548,13 @@ export default function AssetPerformanceChart({
                 {performance.noPriceData ? (
                   <span className="text-gray-400">Non disponibile</span>
                 ) : (
-                  formatCurrency(performance.currentValue)
+                  formatCurrency(performance.currentValue, asset.currency || 'EUR')
                 )}
               </p>
             </div>
             <div>
               <span className="block text-sm text-gray-600 mb-1">Capitale Investito</span>
-              <p className="text-lg font-bold text-gray-900">{formatCurrency(totalCost)}</p>
+              <p className="text-lg font-bold text-gray-900">{formatCurrency(totalCost, asset.currency || 'EUR')}</p>
             </div>
           </div>
 
@@ -575,7 +569,7 @@ export default function AssetPerformanceChart({
                     : 'text-red-600'
                 )
               }`}>
-                {performance.noPriceData ? 'Non disponibile' : formatCurrency(performance.absoluteGain)}
+                {performance.noPriceData ? 'Non disponibile' : formatCurrency(performance.absoluteGain, asset.currency || 'EUR')}
               </p>
             </div>
             <div>
@@ -597,14 +591,14 @@ export default function AssetPerformanceChart({
             <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-100">
               <div>
                 <span className="block text-sm text-gray-600 mb-1">Prezzo Medio Acquisto</span>
-                <p className="font-semibold text-gray-900">{formatCurrency(totalCost / totalQuantity)}</p>
+                <p className="font-semibold text-gray-900">{formatCurrency(totalCost / totalQuantity, asset.currency || 'EUR')}</p>
               </div>              <div>
                 <span className="block text-sm text-gray-600 mb-1">Prezzo Attuale</span>
                 <p className="font-semibold text-gray-900">
                   {performance.noPriceData ? (
                     <span className="text-gray-400">Non disponibile</span>
                   ) : (
-                    formatCurrency(currentMarketPrice)
+                    formatCurrency(currentMarketPrice, asset.currency || 'EUR')
                   )}
                 </p>
               </div>
@@ -627,7 +621,7 @@ export default function AssetPerformanceChart({
                   {performance.noPriceData ? (
                     <span className="text-gray-400">Non disponibile</span>
                   ) : (
-                    formatCurrency(currentMarketPrice)
+                    formatCurrency(currentMarketPrice, asset.currency || 'EUR')
                   )}
                 </p>
               </div>

@@ -31,6 +31,7 @@ import {
   AreaChart,
   LineChart
 } from 'recharts'
+import { formatCurrency as _formatCurrency } from '@/lib/helpers/format'
 import ModuleLayout from '@/components/ModuleLayout'
 import ModuleHeader from '@/components/ui/ModuleHeader'
 import CacheStatus from '@/components/ui/CacheStatus'
@@ -242,14 +243,7 @@ export default function ReportsPage() {
     }
   }, [filteredTransactions, assets])
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('it-IT', {
-      style: 'currency',
-      currency: 'EUR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount)
-  }
+  const formatCurrency = (amount: number) => _formatCurrency(amount, accounts?.[0]?.currency || 'EUR')
 
   const formatPercentage = (value: number) => {
     return `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`

@@ -6,8 +6,9 @@ import ModuleHeader from '@/components/ui/ModuleHeader'
 import TransactionsTable, { TransactionTableColumn } from '@/components/ui/TransactionsTable'
 import CacheStatus from '@/components/ui/CacheStatus'
 import NewTransactionModal from '@/components/ui/NewTransactionModal'
-import { useAllTransactions, useFinanceCache, type Transaction } from '@/lib/financeCache'
+import { useAllTransactions, useFinanceCache, useAccounts, type Transaction } from '@/lib/financeCache'
 import { useAuth } from '@/lib/auth'
+import { formatCurrency } from '@/lib/helpers/format'
 import { 
   ArrowUpRight, 
   ArrowDownLeft, 
@@ -20,6 +21,7 @@ import {
 export default function TransactionsPage() {  const { transactions, loading, error, refetch } = useAllTransactions()
   const { isDataStale } = useFinanceCache()
   const { user, loading: authLoading } = useAuth()
+  const { accounts } = useAccounts()
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(10)
   const [sortBy, setSortBy] = useState('transaction_date')
@@ -160,8 +162,7 @@ export default function TransactionsPage() {  const { transactions, loading, err
       weekday: 'short'
     })
   }
-  const formatAmount = (amount: number, isRefunded: boolean = false) => {
-    // Mostra "Rimborsato" solo se l'importo corrente è 0 (rimborso totale)
+  const formatAmount = (amount: number, isRefunded: boolean = false, currency?: string) => {
     if (amount === 0 && isRefunded) {
       return (
         <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
@@ -169,11 +170,8 @@ export default function TransactionsPage() {  const { transactions, loading, err
         </span>
       )
     }
-    // Altrimenti mostra sempre l'importo corrente
-    return new Intl.NumberFormat('it-IT', {
-      style: 'currency',
-      currency: 'EUR'
-    }).format(amount)
+    const curr = currency || (accounts?.find(a => a.name === ({} as any))?.currency) || 'EUR'
+    return formatCurrency(amount, curr)
   }
 
   const getTransactionIcon = (transaction: Transaction) => {
@@ -282,7 +280,10 @@ export default function TransactionsPage() {  const { transactions, loading, err
         <div className="text-right">
           <p className={`text-base font-semibold ${getTransactionColor(transaction)}`}>
             {transaction.current_amount > 0 ? '+' : ''}
-            {formatAmount(transaction.current_amount, transaction.is_refunded)}
+            {(() => {
+              const txnCurrency = (transaction as any).currency || accounts?.find(a => a.name === transaction.account_name)?.currency || 'EUR'
+              return formatAmount(transaction.current_amount, transaction.is_refunded, txnCurrency)
+            })()}
           </p>
           <p className="text-xs text-gray-500 mt-1 capitalize">
             {transaction.transaction_type}
@@ -351,16 +352,12 @@ export default function TransactionsPage() {  const { transactions, loading, err
             },
             {
               label: 'Entrate',
-              value: new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(
-                filteredStats.income
-              ),
+              value: formatCurrency(filteredStats.income, accounts?.[0]?.currency || 'EUR'),
               color: 'green'
             },
             {
               label: 'Uscite',
-              value: new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(
-                filteredStats.expenses
-              ),
+              value: formatCurrency(filteredStats.expenses, accounts?.[0]?.currency || 'EUR'),
               color: 'orange'
             }
           ] : []}

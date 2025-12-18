@@ -124,7 +124,7 @@ export default function FinanceDashboard() {
               stats={[
                 {
                   label: "Saldo Totale",
-                  value: formatCurrency(stats.totalBalance),
+                  value: formatCurrency(stats.totalBalance, data?.accounts?.[0]?.currency || 'EUR'),
                   color: "blue",
                 },
                 {
@@ -169,7 +169,7 @@ export default function FinanceDashboard() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4"> {/* gap e mb uniformati a 4 */}
             <FinanceWidget
               title="Entrate Mensili"
-              value={formatCurrency(stats.monthlyIncome)}
+              value={formatCurrency(stats.monthlyIncome, data?.accounts?.[0]?.currency || 'EUR')}
               subtitle={stats.currentMonth}
               icon="income"
               color="green"
@@ -179,7 +179,7 @@ export default function FinanceDashboard() {
             />
             <FinanceWidget
               title="Uscite Mensili"
-              value={formatCurrency(stats.monthlyExpenses)}
+              value={formatCurrency(stats.monthlyExpenses, data?.accounts?.[0]?.currency || 'EUR')}
               subtitle={
                 stats.topCategory
                   ? `${stats.currentMonth} - Top: ${stats.topCategory}`

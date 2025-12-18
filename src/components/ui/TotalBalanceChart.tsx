@@ -159,7 +159,7 @@ export default function TotalBalanceChart({ data, className = '' }: TotalBalance
                 padding: 8 
               }}
               itemStyle={{ color: '#2563eb', fontWeight: 500 }}
-              formatter={(value) => formatCurrency(Number(value))}
+              formatter={(value) => formatCurrency(Number(value), data?.accounts?.[0]?.currency || 'EUR')}
               labelFormatter={(label) => new Date(label).toLocaleDateString('it-IT')}
             />
             <XAxis dataKey="date" hide />

@@ -7,6 +7,7 @@ import CacheStatus from "@/components/ui/CacheStatus";
 import { useAuth } from "@/lib/auth";
 import { useFinanceCache, useAccounts } from "@/lib/financeCache";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { formatCurrency as _formatCurrency } from '@/lib/helpers/format'
 import {
   RotateCcw,
   Plus,
@@ -264,12 +265,7 @@ export default function RefundsPage() {
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("it-IT", {
-      style: "currency",
-      currency: "EUR",
-    }).format(amount);
-  };
+  const formatCurrency = (amount: number, currency?: string) => _formatCurrency(amount, currency || accounts?.[0]?.currency || 'EUR')
 
   const handleSort = (
     field: "refund_date" | "refund_details" | "current_amount" | "linked_amount"

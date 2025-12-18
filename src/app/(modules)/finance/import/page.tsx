@@ -97,7 +97,7 @@ export default function ImportPage() {
     try {
       const { data: accounts, error } = await supabase
         .from('accounts')
-        .select('id, name, type')
+        .select('id, name, type, currency')
         .eq('user_id', user.id)
         .order('name')
 
