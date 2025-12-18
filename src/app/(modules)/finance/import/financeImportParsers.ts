@@ -12,29 +12,29 @@ interface Account {
 }
 
 // --- Funzione helper per creare mapping account ---
-const createAccountMappings = (accounts: Account[]): {[key: string]: string} => {
-  const mappings: {[key: string]: string} = {};
-  
+const createAccountMappings = (accounts: Account[]): { [key: string]: string } => {
+  const mappings: { [key: string]: string } = {};
+
   // Debug: logga gli account ricevuti
   if (typeof window !== 'undefined' && window.console) {
     console.log('DEBUG createAccountMappings - Account ricevuti:', accounts);
   }
-  
+
   accounts.forEach(account => {
     const normalizedName = account.name.toUpperCase();
     mappings[normalizedName] = account.id;
-    
+
     // Debug: logga ogni mapping creato
     if (typeof window !== 'undefined' && window.console) {
       console.log(`DEBUG createAccountMappings - Mapping creato: "${normalizedName}" -> ${account.id}`);
     }
   });
-  
+
   // Debug: logga il mapping finale
   if (typeof window !== 'undefined' && window.console) {
     console.log('DEBUG createAccountMappings - Mappings finali:', mappings);
   }
-  
+
   return mappings;
 };
 
@@ -75,7 +75,7 @@ export const determineTargetTable = (description: string, type: string, amount: 
   const cat = category?.toLowerCase() || '';
   // Prima: refund/annullamento/credito
   if (
-    desc.includes('rimborso') || desc.includes('refund') || desc.includes('storno') || desc.includes('annullamento') || desc.includes('reso') || 
+    desc.includes('rimborso') || desc.includes('refund') || desc.includes('storno') || desc.includes('annullamento') || desc.includes('reso') ||
     cat.includes('rimborso') || cat.includes('refund') || cat.includes('storno') || cat.includes('annullamento') || cat.includes('reso')
   ) {
     return 'refunds';
@@ -83,7 +83,7 @@ export const determineTargetTable = (description: string, type: string, amount: 
   // Poi: trasferimenti/giroconto/bonifico/versamento/prelievo/ricarica/pagamento
   if (
     desc.includes('trasferimento') || desc.includes('fund transfer') || desc.includes('giroconto') || desc.includes('prelievo') || desc.includes('ricarica') ||
-    cat.includes('trasferimento') || cat.includes('fund transfer') || cat.includes('giroconto') || cat.includes('bonifico') || cat.includes('versamento') || cat.includes('prelievo') 
+    cat.includes('trasferimento') || cat.includes('fund transfer') || cat.includes('giroconto') || cat.includes('bonifico') || cat.includes('versamento') || cat.includes('prelievo')
   ) {
     return 'funds_transfer';
   }
@@ -111,7 +111,7 @@ export const BANK_PARSERS: BankParser[] = [
         lowerHeaders.includes('importo');
       return oldFormat || xmeFormat || genericFormat;
     },
-    parseRow: (headers: string[], values: string[], accountMappings?: {[key: string]: string}) => {
+    parseRow: (headers: string[], values: string[], accountMappings?: { [key: string]: string }) => {
       // DEBUG: logga header e valori per capire cosa arriva
       if (typeof window !== 'undefined' && window.console) {
         console.log('DEBUG Intesa parseRow headers:', headers);
@@ -131,14 +131,14 @@ export const BANK_PARSERS: BankParser[] = [
       let signedAmount = amountNum
       if (
         amountNum > 0 && (
-          (['spesa','acquisto','prelievo'].some(k => (category||'').toLowerCase().includes(k))) ||
+          (['spesa', 'acquisto', 'prelievo'].some(k => (category || '').toLowerCase().includes(k))) ||
           (description.toLowerCase().includes('spesa') || description.toLowerCase().includes('acquisto') || description.toLowerCase().includes('prelievo'))
         )
       ) {
         signedAmount = -Math.abs(amountNum)
       } else if (
         amountNum < 0 && (
-          (['entrata','stipendio','ricarica','income'].some(k => (category||'').toLowerCase().includes(k))) ||
+          (['entrata', 'stipendio', 'ricarica', 'income'].some(k => (category || '').toLowerCase().includes(k))) ||
           (description.toLowerCase().includes('entrata') || description.toLowerCase().includes('stipendio') || description.toLowerCase().includes('ricarica'))
         )
       ) {
@@ -202,7 +202,7 @@ export const BANK_PARSERS: BankParser[] = [
             const day = String(excelDate.getDate()).padStart(2, '0')
             return `${year}-${month}-${day}`
           }
-        } catch (error) {}
+        } catch (error) { }
       }
       if (typeof date === 'string' && date.includes('/')) {
         const parts = date.split('/')
@@ -240,14 +240,14 @@ export const BANK_PARSERS: BankParser[] = [
       // Considera Postepay solo se almeno 2 header tipici sono presenti
       return matchCount >= 2;
     },
-    parseRow: (headers: string[], values: string[], accountMappings?: {[key: string]: string}) => {
+    parseRow: (headers: string[], values: string[], accountMappings?: { [key: string]: string }) => {
       // Mapping header Postepay: Data Contabile, Data Valuta, Importo (euro), Descrizione operazioni
       const date = findValue(headers, values, ['data contabile', 'data operazione', 'data', 'data valuta']) || '';
       const description = findValue(headers, values, ['descrizione operazioni', 'descrizione operazione', 'descrizione', 'causale', 'dettagli']) || '';
       const amountRaw = findValue(headers, values, ['importo (euro)', 'importo', 'importo valuta', 'valore']) || '';
       const saldo = findValue(headers, values, ['saldo', 'saldo contabile']) || '';
-      const category = undefined;
-      const subcategory = undefined;
+      const category = findValue(headers, values, ['categoria', 'category']);
+      const subcategory = findValue(headers, values, ['sottocategoria', 'subcategory']);
       // Postepay: importo negativo = spesa, positivo = entrata
       const amountNum = parseFloat(amountRaw.replace(',', '.'));
       let signedAmount = amountNum;
@@ -277,7 +277,7 @@ export const BANK_PARSERS: BankParser[] = [
             const day = String(excelDate.getDate()).padStart(2, '0')
             return `${year}-${month}-${day}`
           }
-        } catch (error) {}
+        } catch (error) { }
       }
       if (typeof date === 'string' && date.includes('/')) {
         const parts = date.split('/')
@@ -304,7 +304,7 @@ export const BANK_PARSERS: BankParser[] = [
         (lowerHeaders.includes('amount') || lowerHeaders.includes('net'))
       );
     },
-    parseRow: (headers: string[], values: string[], accountMappings?: {[key: string]: string}) => {
+    parseRow: (headers: string[], values: string[], accountMappings?: { [key: string]: string }) => {
       // Paypal: header tipici: Date, Name, Type, Status, Currency, Gross, Fee, Net, Description
       const date = findValue(headers, values, ['date', 'data']) || '';
       const descriptionRaw = findValue(headers, values, ['description', 'descrizione']) || '';
@@ -367,7 +367,7 @@ export const BANK_PARSERS: BankParser[] = [
         lowerHeaders.includes('currency')
       );
     },
-    parseRow: (headers: string[], values: string[], accountMappings?: {[key: string]: string}) => {
+    parseRow: (headers: string[], values: string[], accountMappings?: { [key: string]: string }) => {
       // Header tipici: Type, Product, Started Date, Completed Date, Description, Amount, Fee, Currency, State, Balance
       const state = findValue(headers, values, ['state']) || '';
       if (state.toUpperCase() === 'REVERTED') {
@@ -380,12 +380,12 @@ export const BANK_PARSERS: BankParser[] = [
       const date = findValue(headers, values, ['Started Date']) || '';
       const currency = findValue(headers, values, ['currency']) || 'EUR';
       const productRaw = findValue(headers, values, ['product']) || '';
-      
+
       // Debug: logga l'importo grezzo prima del parsing
       if (typeof window !== 'undefined' && window.console) {
         console.log('DEBUG Revolut - Amount raw:', amountStr, 'Type:', typeRaw);
       }
-      
+
       // Parsing robusto dell'importo preservando il segno
       let amountNum = 0;
       if (amountStr) {
@@ -402,8 +402,8 @@ export const BANK_PARSERS: BankParser[] = [
       }
       // Determina tipo transazione picklist e normalizzato
       let type = '';
-      const category = undefined;
-      const subcategory = undefined;
+      const category = findValue(headers, values, ['categoria', 'category']);
+      const subcategory = findValue(headers, values, ['sottocategoria', 'subcategory']);
       let transactionType = '';
       let targetTable: 'transactions' | 'refunds' | 'funds_transfer' = 'transactions';
       // Mapping robusto - per i TRANSFER NON tocchiamo MAI il segno
@@ -445,41 +445,41 @@ export const BANK_PARSERS: BankParser[] = [
       // Determina account ID basandosi sul campo Product di Revolut
       let accountId = undefined;
       const productUpper = productRaw.toUpperCase();
-      
+
       // HARDCODED FIX: Mapping diretto per Revolut
       if (productUpper === 'SAVINGS') {  // Era SAVING, ora SAVINGS
         accountId = '8f2b03f3-9316-48d6-936b-0960080f2296'; // ID del tuo account REVOLUT SAVINGS
       }
-      
+
       // Fallback al mapping normale se disponibile
-      if (!accountId && accountMappings && productRaw) {        
+      if (!accountId && accountMappings && productRaw) {
         if (productUpper === 'CURRENT') {
           // Cerca un account Revolut principale (non Savings)
-          accountId = accountMappings['REVOLUT'] || 
-                     Object.keys(accountMappings).find(name => 
-                       name.includes('REVOLUT') && !name.includes('SAVING')
-                     ) ? accountMappings[Object.keys(accountMappings).find(name => 
-                       name.includes('REVOLUT') && !name.includes('SAVING')
-                     )!] : undefined;
+          accountId = accountMappings['REVOLUT'] ||
+            Object.keys(accountMappings).find(name =>
+              name.includes('REVOLUT') && !name.includes('SAVING')
+            ) ? accountMappings[Object.keys(accountMappings).find(name =>
+              name.includes('REVOLUT') && !name.includes('SAVING')
+            )!] : undefined;
         } else if (productUpper === 'SAVINGS') {  // Era SAVING, ora SAVINGS
           // Cerca un account Revolut Savings
-          accountId = accountMappings['REVOLUT SAVINGS'] || 
-                     accountMappings['REVOLUT SAVING'] ||
-                     Object.keys(accountMappings).find(name => 
-                       name.includes('REVOLUT') && name.includes('SAVING')
-                     ) ? accountMappings[Object.keys(accountMappings).find(name => 
-                       name.includes('REVOLUT') && name.includes('SAVING')
-                     )!] : undefined;
+          accountId = accountMappings['REVOLUT SAVINGS'] ||
+            accountMappings['REVOLUT SAVING'] ||
+            Object.keys(accountMappings).find(name =>
+              name.includes('REVOLUT') && name.includes('SAVING')
+            ) ? accountMappings[Object.keys(accountMappings).find(name =>
+              name.includes('REVOLUT') && name.includes('SAVING')
+            )!] : undefined;
         }
       }
-      
+
       // Debug: logga l'account trovato e l'importo finale
       if (typeof window !== 'undefined' && window.console) {
         console.log('DEBUG Revolut - Product:', productUpper, '-> Account ID:', accountId);
         console.log('DEBUG Revolut - Final amount:', amountNum, 'Type:', type, 'TransactionType:', transactionType, 'TargetTable:', targetTable);
         console.log('DEBUG Revolut - Returning amount as string:', amountNum.toString());
       }
-      
+
       return {
         date: dateISO,
         description,
@@ -509,7 +509,7 @@ export const BANK_PARSERS: BankParser[] = [
 ];
 
 // --- parseCSV ---
-export async function parseCSV(file: File, accountId?: string, setDetectedBank?: (parser: BankParser|null) => void, setImportData?: (rows: ImportRow[]) => void, setImportStats?: (stats: any) => void, accounts?: Account[]) {
+export async function parseCSV(file: File, accountId?: string, setDetectedBank?: (parser: BankParser | null) => void, setImportData?: (rows: ImportRow[]) => void, setImportStats?: (stats: any) => void, accounts?: Account[]) {
   const text = await file.text();
   if (text.toLowerCase().includes('edenred') || text.toLowerCase().includes('n. e importo buoni')) {
     alert('I file Edenred sono supportati solo in formato Excel (.xlsx).');
@@ -537,8 +537,8 @@ export async function parseCSV(file: File, accountId?: string, setDetectedBank?:
   let headerRowIndex = 0;
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].toLowerCase();
-    if ((line.includes('date') || line.includes('data')) && 
-        (line.includes('amount') || line.includes('importo'))) {
+    if ((line.includes('date') || line.includes('data')) &&
+      (line.includes('amount') || line.includes('importo'))) {
       headerRowIndex = i;
       break;
     }
@@ -546,7 +546,7 @@ export async function parseCSV(file: File, accountId?: string, setDetectedBank?:
   const headers = parseCSVLine(lines[headerRowIndex]).map(h => h.toLowerCase().replace(/"/g, ''));
   const rows: ImportRow[] = [];
   const fileName = file.name.toLowerCase();
-  const bankFileKeywords: {[key: string]: string[]} = {
+  const bankFileKeywords: { [key: string]: string[] } = {
     'edenred': ['edenred'],
     'intesa': ['intesa', 'sanpaolo', 'intesasanpaolo', 'contoxme', 'conto xme'],
     'revolut': ['revolut'],
@@ -575,10 +575,10 @@ export async function parseCSV(file: File, accountId?: string, setDetectedBank?:
       }
     }
   }
-  
+
   // Crea mappings degli account se disponibili
   const accountMappings = accounts ? createAccountMappings(accounts) : undefined;
-  
+
   for (let i = headerRowIndex + 1; i < lines.length; i++) {
     const values = parseCSVLine(lines[i]).map(v => v.replace(/"/g, ''));
     if (values.some(v => v.trim())) {
@@ -593,7 +593,7 @@ export async function parseCSV(file: File, accountId?: string, setDetectedBank?:
         if (detectedParser.transformAmount && parsedRow.amount) {
           const originalAmount = parsedRow.amount;
           parsedRow.amount = detectedParser.transformAmount(parsedRow.amount);
-          
+
           // Debug: traccia la trasformazione dell'importo per Revolut
           if (typeof window !== 'undefined' && window.console && detectedParser.identifier === 'revolut') {
             console.log('DEBUG parseCSV - Transform amount:', originalAmount, '->', parsedRow.amount);
@@ -617,12 +617,12 @@ export async function parseCSV(file: File, accountId?: string, setDetectedBank?:
           note: '',
           transactionType: parsedRow.transactionType || parsedRow.type || 'expense'
         };
-        
+
         // Debug: logga la riga finale per Revolut
         if (typeof window !== 'undefined' && window.console && detectedParser.identifier === 'revolut') {
           console.log('DEBUG parseCSV - Final row amount:', row.amount, 'Type:', row.type, 'TransactionType:', row.transactionType);
         }
-        
+
         rows.push(row);
       } else {
         const description = findValue(headers, values, ['descrizione', 'description', 'causale', 'note']) || '';
@@ -663,7 +663,7 @@ export async function parseCSV(file: File, accountId?: string, setDetectedBank?:
 }
 
 // --- parseExcel ---
-export async function parseExcel(file: File, accountId?: string, setDetectedBank?: (parser: BankParser|null) => void, setImportData?: (rows: ImportRow[]) => void, setImportStats?: (stats: any) => void, accounts?: Account[]) {
+export async function parseExcel(file: File, accountId?: string, setDetectedBank?: (parser: BankParser | null) => void, setImportData?: (rows: ImportRow[]) => void, setImportStats?: (stats: any) => void, accounts?: Account[]) {
   const arrayBuffer = await file.arrayBuffer();
   const workbook = XLSX.read(arrayBuffer, { type: 'array' });
   const sheetName = workbook.SheetNames[0];
@@ -696,7 +696,7 @@ export async function parseExcel(file: File, accountId?: string, setDetectedBank
   headers = headers.map(h => h.trim());
   const rows: ImportRow[] = [];
   const fileName = file.name.toLowerCase();
-  const bankFileKeywords: {[key: string]: string[]} = {
+  const bankFileKeywords: { [key: string]: string[] } = {
     'intesa': ['intesa', 'sanpaolo', 'intesasanpaolo', 'contoxme', 'conto xme'],
     'revolut': ['revolut'],
     'paypal': ['paypal'],
@@ -722,10 +722,10 @@ export async function parseExcel(file: File, accountId?: string, setDetectedBank
       }
     }
   }
-  
+
   // Crea mappings degli account se disponibili
   const accountMappings = accounts ? createAccountMappings(accounts) : undefined;
-  
+
   for (let i = headerRowIndex + 1; i < jsonData.length; i++) {
     let values = jsonData[i].map(v => v?.toString() || '');
     // Allinea la lunghezza dei valori agli header
@@ -744,7 +744,7 @@ export async function parseExcel(file: File, accountId?: string, setDetectedBank
         if (detectedParser.transformAmount && parsedRow.amount) {
           const originalAmount = parsedRow.amount;
           parsedRow.amount = detectedParser.transformAmount(parsedRow.amount);
-          
+
           // Debug: traccia la trasformazione dell'importo per Revolut
           if (typeof window !== 'undefined' && window.console && detectedParser.identifier === 'revolut') {
             console.log('DEBUG parseExcel - Transform amount:', originalAmount, '->', parsedRow.amount);
