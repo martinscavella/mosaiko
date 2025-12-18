@@ -377,120 +377,112 @@ export const BANK_PARSERS: BankParser[] = [
       const typeRaw = findValue(headers, values, ['type']) || '';
       const description = findValue(headers, values, ['description']) || '';
       const amountStr = findValue(headers, values, ['amount']) || '';
-      const date = findValue(headers, values, ['Started Date']) || '';
+      // Prefer Started Date, fallback to Completed Date
+      const dateRaw = findValue(headers, values, ['started date', 'starteddate', 'started_date', 'completed date', 'completeddate', 'completed_date']) || '';
       const currency = findValue(headers, values, ['currency']) || 'EUR';
       const productRaw = findValue(headers, values, ['product']) || '';
-      
+      const fee = findValue(headers, values, ['fee']) || '';
+      const balance = findValue(headers, values, ['balance']) || '';
+
       // Debug: logga l'importo grezzo prima del parsing
       if (typeof window !== 'undefined' && window.console) {
         console.log('DEBUG Revolut - Amount raw:', amountStr, 'Type:', typeRaw);
       }
-      
+
       // Parsing robusto dell'importo preservando il segno
       let amountNum = 0;
       if (amountStr) {
-        // Rimuovi spazi e normalizza virgole/punti
-        const cleanAmount = amountStr.trim().replace(',', '.');
+        const cleanAmount = amountStr.toString().trim().replace(/\s+/g, '').replace(',', '.');
         amountNum = parseFloat(cleanAmount);
         if (isNaN(amountNum)) amountNum = 0;
       }
+
       // Normalizza data: YYYY-MM-DD
-      let dateISO = date;
-      if (date && date.length >= 10) {
-        // Prende solo la parte data se c'è anche l'orario
-        dateISO = date.slice(0, 10);
+      let dateISO = dateRaw;
+      if (dateISO && dateISO.length >= 10) {
+        dateISO = dateISO.slice(0, 10);
       }
-      // Determina tipo transazione picklist e normalizzato
-      let type = '';
-      const category = undefined;
-      const subcategory = undefined;
-      let transactionType = '';
+
+      // Determina tipo transazione (etichette italiane) e tabella
+      let type = amountNum >= 0 ? 'Entrata' : 'Spesa';
+      let transactionType = amountNum >= 0 ? 'Entrata' : 'Spesa';
       let targetTable: 'transactions' | 'refunds' | 'funds_transfer' = 'transactions';
-      // Mapping robusto - per i TRANSFER NON tocchiamo MAI il segno
-      switch (typeRaw.toUpperCase()) {
-        case 'CARD_PAYMENT':
-          type = 'Spesa';
-          transactionType = 'Spesa';
-          targetTable = 'transactions';
-          // Per i pagamenti con carta, forza negativo
-          amountNum = -Math.abs(amountNum);
-          break;
-        case 'TRANSFER':
-          // PER I TRASFERIMENTI: NON TOCCARE MAI IL SEGNO ORIGINALE!
-          type = amountNum >= 0 ? 'Entrata' : 'Spesa';
-          transactionType = amountNum >= 0 ? 'Entrata' : 'Spesa';
-          targetTable = 'funds_transfer';
-          // NON modificare amountNum - lascia il segno originale
-          break;
-        case 'TOPUP':
-          type = 'Ricarica';
-          transactionType = 'Ricarica';
-          targetTable = 'funds_transfer';
-          // Per le ricariche, forza positivo
-          amountNum = Math.abs(amountNum);
-          break;
-        case 'CARD_REFUND':
-          type = 'Rimborso';
-          transactionType = 'Rimborso';
-          targetTable = 'refunds';
-          // Per i rimborsi, forza positivo
-          amountNum = Math.abs(amountNum);
-          break;
-        default:
-          // Fallback: mantieni il segno originale
-          type = amountNum >= 0 ? 'Entrata' : 'Spesa';
-          transactionType = amountNum >= 0 ? 'Entrata' : 'Spesa';
-          targetTable = 'transactions';
+
+      const typeNorm = typeRaw.toUpperCase().replace(/\s+/g, '_');
+      if (/CARD[_ ]?PAYMENT|CARDPAYMENT/.test(typeRaw.toUpperCase())) {
+        type = 'Spesa';
+        transactionType = 'Spesa';
+        targetTable = 'transactions';
+        amountNum = -Math.abs(amountNum);
+      } else if (/TRANSFER/.test(typeRaw.toUpperCase())) {
+        type = amountNum >= 0 ? 'Entrata' : 'Spesa';
+        transactionType = 'Trasferimento';
+        targetTable = 'funds_transfer';
+        // non cambiare il segno
+      } else if (/TOPUP|TOP[_ ]?UP|RELOAD/.test(typeRaw.toUpperCase())) {
+        type = 'Entrata';
+        transactionType = 'Ricarica';
+        targetTable = 'funds_transfer';
+        amountNum = Math.abs(amountNum);
+      } else if (/CARD[_ ]?REFUND|CARDREFUND/.test(typeRaw.toUpperCase())) {
+        type = 'Rimborso';
+        transactionType = 'Rimborso';
+        targetTable = 'refunds';
+        amountNum = Math.abs(amountNum);
+      } else if (/REWARD|INTEREST|PAYMENT FROM|GROSS|NET/.test(typeRaw.toUpperCase())) {
+        type = 'Entrata';
+        transactionType = 'Entrata';
+        targetTable = 'transactions';
       }
+
       // Determina account ID basandosi sul campo Product di Revolut
       let accountId = undefined;
       const productUpper = productRaw.toUpperCase();
-      
-      // HARDCODED FIX: Mapping diretto per Revolut
-      if (productUpper === 'SAVINGS') {  // Era SAVING, ora SAVINGS
-        accountId = '8f2b03f3-9316-48d6-936b-0960080f2296'; // ID del tuo account REVOLUT SAVINGS
-      }
-      
-      // Fallback al mapping normale se disponibile
-      if (!accountId && accountMappings && productRaw) {        
-        if (productUpper === 'CURRENT') {
-          // Cerca un account Revolut principale (non Savings)
-          accountId = accountMappings['REVOLUT'] || 
-                     Object.keys(accountMappings).find(name => 
-                       name.includes('REVOLUT') && !name.includes('SAVING')
-                     ) ? accountMappings[Object.keys(accountMappings).find(name => 
-                       name.includes('REVOLUT') && !name.includes('SAVING')
-                     )!] : undefined;
-        } else if (productUpper === 'SAVINGS') {  // Era SAVING, ora SAVINGS
-          // Cerca un account Revolut Savings
-          accountId = accountMappings['REVOLUT SAVINGS'] || 
-                     accountMappings['REVOLUT SAVING'] ||
-                     Object.keys(accountMappings).find(name => 
-                       name.includes('REVOLUT') && name.includes('SAVING')
-                     ) ? accountMappings[Object.keys(accountMappings).find(name => 
-                       name.includes('REVOLUT') && name.includes('SAVING')
-                     )!] : undefined;
+      if (accountMappings && productRaw) {
+        // Preferenze: se il product indica un 'DEPOSIT' o 'DEPOSITO', mappa su account deposito
+        if (productUpper.includes('DEPOSIT') || productUpper.includes('DEPOSITO') || productUpper.includes('CONTO')) {
+          const foundDepositKey = Object.keys(accountMappings).find(k =>
+            k.includes('DEPOSIT') || k.includes('DEPOSITO') || k.includes('CONTO DEPOSITO') || k.includes('REVOLUT DEPOSIT')
+          );
+          if (foundDepositKey) {
+            accountId = accountMappings[foundDepositKey];
+          }
+        }
+
+        // Se non trovato, supporta Savings/Current/etc.
+        if (!accountId) {
+          if (accountMappings[productUpper]) {
+            accountId = accountMappings[productUpper];
+          } else {
+            const found = Object.keys(accountMappings).find(k => k.includes(productUpper) || productUpper.includes(k));
+            if (found) accountId = accountMappings[found];
+          }
         }
       }
-      
-      // Debug: logga l'account trovato e l'importo finale
+
+      const noteParts: string[] = [];
+      if (state) noteParts.push(`State: ${state}`);
+      if (fee) noteParts.push(`Fee: ${fee}`);
+      if (balance) noteParts.push(`Balance: ${balance}`);
+      const note = noteParts.length ? noteParts.join(' | ') : undefined;
+
       if (typeof window !== 'undefined' && window.console) {
         console.log('DEBUG Revolut - Product:', productUpper, '-> Account ID:', accountId);
         console.log('DEBUG Revolut - Final amount:', amountNum, 'Type:', type, 'TransactionType:', transactionType, 'TargetTable:', targetTable);
-        console.log('DEBUG Revolut - Returning amount as string:', amountNum.toString());
       }
-      
+
       return {
         date: dateISO,
         description,
         amount: amountNum.toString(),
         type,
         account: accountId,
-        category,
-        subcategory,
+        category: undefined,
+        subcategory: undefined,
         targetTable,
         transactionType,
-        currency
+        currency,
+        note
       };
     },
     transformDate: (date: string) => {
