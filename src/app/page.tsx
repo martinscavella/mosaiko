@@ -32,14 +32,14 @@ export default function HomePage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500">
-        <div className="relative">
-          {/* Animated loader with modern design */}
-          <div className="animate-spin rounded-full h-16 w-16 border-4 border-white border-opacity-30 border-t-white" />
-          <div className="absolute inset-0 animate-ping rounded-full h-16 w-16 border-4 border-white border-opacity-20" />
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-white font-semibold text-xl">
-            <MosaikoLogo size={32} />
+          <div className="relative">
+            {/* Animated loader with modern design */}
+            <div className="animate-spin rounded-full h-16 w-16 border-4 border-white border-opacity-30 border-t-white" />
+            <div className="absolute inset-0 animate-ping rounded-full h-16 w-16 border-4 border-white border-opacity-20" />
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-white font-semibold text-xl">
+              <MosaikoLogo size={32} src="/mosaiko.png" />
+            </div>
           </div>
-        </div>
       </div>
     )
   }
@@ -56,8 +56,8 @@ export default function HomePage() {
         
         <div className={`max-w-md w-full mx-auto p-8 text-center text-white relative z-10 transform transition-all duration-1000 ${mounted ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
           {/* Logo/Brand with animation */}
-          <div className="mb-8 relative">
-            <MosaikoLogo size={64} className="inline-block" />
+            <div className="mb-8 relative">
+            <MosaikoLogo size={64} className="inline-block" src="/mosaiko.png" />
           </div>
           
           <h1 className="text-5xl font-debbie font-bold mb-4 text-white drop-shadow-lg">
@@ -227,8 +227,8 @@ export default function HomePage() {
         <div className={`mt-16 text-center transform transition-all duration-1000 ${mounted ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`} style={{ transitionDelay: '700ms' }}>
           <div className="inline-flex items-center space-x-2 text-gray-500 text-sm mb-4">
             <span>Powered by</span>
-            <div className="inline-flex items-center space-x-1 font-semibold text-blue-600">
-              <MosaikoLogo size={20} />
+              <div className="inline-flex items-center space-x-1 font-semibold text-blue-600">
+              <MosaikoLogo size={20} src="/mosaiko.png" />
               <span>Mosaiko</span>
             </div>
           </div>

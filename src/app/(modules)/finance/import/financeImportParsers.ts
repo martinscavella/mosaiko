@@ -369,38 +369,42 @@ export const BANK_PARSERS: BankParser[] = [
     },
     parseRow: (headers: string[], values: string[], accountMappings?: { [key: string]: string }) => {
       // Header tipici: Type, Product, Started Date, Completed Date, Description, Amount, Fee, Currency, State, Balance
-      const state = findValue(headers, values, ['state']) || '';
+      const state = findValue(headers, values, ['state', 'stato']) || '';
       if (state.toUpperCase() === 'REVERTED') {
         // Riga da ignorare
         return {};
       }
-      const typeRaw = findValue(headers, values, ['type']) || '';
-      const description = findValue(headers, values, ['description']) || '';
-      const amountStr = findValue(headers, values, ['amount']) || '';
-      // Prefer Started Date, fallback to Completed Date
-      const dateRaw = findValue(headers, values, ['started date', 'starteddate', 'started_date', 'completed date', 'completeddate', 'completed_date']) || '';
-      const currency = findValue(headers, values, ['currency']) || 'EUR';
-      const productRaw = findValue(headers, values, ['product']) || '';
-      const fee = findValue(headers, values, ['fee']) || '';
-      const balance = findValue(headers, values, ['balance']) || '';
 
-      // Debug: logga l'importo grezzo prima del parsing
+      const typeRaw = findValue(headers, values, ['type']) || '';
+      const description = findValue(headers, values, ['description', 'descrizione']) || '';
+      const amountStr = findValue(headers, values, ['amount', 'importo']) || '';
+      const date = findValue(headers, values, ['Started Date', 'data']) || '';
+      const currency = findValue(headers, values, ['currency', 'valuta']) || 'EUR';
+      const productRaw = findValue(headers, values, ['product']) || '';
+
+      // MODIFICA: Prova a leggere Type, Category e Subcategory dal CSV
+      const typeFromCSV = findValue(headers, values, ['tipo']);
+      const categoryFromCSV = findValue(headers, values, ['categoria', 'category']);
+      const subcategoryFromCSV = findValue(headers, values, ['sottocategoria', 'subcategory']);
+
+      // Debug
       if (typeof window !== 'undefined' && window.console) {
-        console.log('DEBUG Revolut - Amount raw:', amountStr, 'Type:', typeRaw);
+        console.log('DEBUG Revolut - Amount raw:', amountStr, 'TypeRaw:', typeRaw, 'TypeFromCSV:', typeFromCSV);
+        console.log('DEBUG Revolut - CategoryFromCSV:', categoryFromCSV, 'SubcategoryFromCSV:', subcategoryFromCSV);
       }
 
       // Parsing robusto dell'importo preservando il segno
       let amountNum = 0;
       if (amountStr) {
-        const cleanAmount = amountStr.toString().trim().replace(/\s+/g, '').replace(',', '.');
+        const cleanAmount = amountStr.trim().replace(',', '.');
         amountNum = parseFloat(cleanAmount);
         if (isNaN(amountNum)) amountNum = 0;
       }
 
       // Normalizza data: YYYY-MM-DD
-      let dateISO = dateRaw;
-      if (dateISO && dateISO.length >= 10) {
-        dateISO = dateISO.slice(0, 10);
+      let dateISO = date;
+      if (date && date.length >= 10) {
+        dateISO = date.slice(0, 10);
       }
       // Determina tipo transazione picklist e normalizzato
       let type = '';
@@ -409,67 +413,96 @@ export const BANK_PARSERS: BankParser[] = [
       let transactionType = '';
       let targetTable: 'transactions' | 'refunds' | 'funds_transfer' = 'transactions';
 
-      const typeNorm = typeRaw.toUpperCase().replace(/\s+/g, '_');
-      if (/CARD[_ ]?PAYMENT|CARDPAYMENT/.test(typeRaw.toUpperCase())) {
-        type = 'Spesa';
-        transactionType = 'Spesa';
-        targetTable = 'transactions';
-        amountNum = -Math.abs(amountNum);
-      } else if (/TRANSFER/.test(typeRaw.toUpperCase())) {
-        type = amountNum >= 0 ? 'Entrata' : 'Spesa';
-        transactionType = 'Trasferimento';
-        targetTable = 'funds_transfer';
-        // non cambiare il segno
-      } else if (/TOPUP|TOP[_ ]?UP|RELOAD/.test(typeRaw.toUpperCase())) {
-        type = 'Entrata';
-        transactionType = 'Ricarica';
-        targetTable = 'funds_transfer';
-        amountNum = Math.abs(amountNum);
-      } else if (/CARD[_ ]?REFUND|CARDREFUND/.test(typeRaw.toUpperCase())) {
-        type = 'Rimborso';
-        transactionType = 'Rimborso';
-        targetTable = 'refunds';
-        amountNum = Math.abs(amountNum);
-      } else if (/REWARD|INTEREST|PAYMENT FROM|GROSS|NET/.test(typeRaw.toUpperCase())) {
-        type = 'Entrata';
-        transactionType = 'Entrata';
-        targetTable = 'transactions';
+      // Se abbiamo il Tipo dal CSV (formato italiano), usalo
+      if (typeFromCSV) {
+        type = typeFromCSV;
+        // Mappa il tipo al transactionType
+        transactionType = TRANSACTION_TYPE_MAP[type] || (amountNum >= 0 ? 'Entrata' : 'Spesa');
+
+        // Determina targetTable in base al tipo
+        if (type.toLowerCase().includes('rimborso') || type.toLowerCase().includes('refund')) {
+          targetTable = 'refunds';
+          amountNum = Math.abs(amountNum);
+        } else if (type.toLowerCase().includes('transfer') || type.toLowerCase().includes('ricarica') ||
+          type.toLowerCase().includes('bonifico') || type.toLowerCase().includes('prelievo')) {
+          targetTable = 'funds_transfer';
+        } else {
+          targetTable = 'transactions';
+        }
+      } else {
+        // Fallback: usa il mapping originale basato su typeRaw
+        switch (typeRaw.toUpperCase()) {
+          case 'CARD_PAYMENT':
+            type = 'Spesa';
+            transactionType = 'Spesa';
+            targetTable = 'transactions';
+            amountNum = -Math.abs(amountNum);
+            break;
+          case 'TRANSFER':
+            type = amountNum >= 0 ? 'Entrata' : 'Spesa';
+            transactionType = amountNum >= 0 ? 'income' : 'expense';
+            targetTable = 'funds_transfer';
+            break;
+          case 'TOPUP':
+            type = 'Ricarica';
+            transactionType = 'income';
+            targetTable = 'funds_transfer';
+            amountNum = Math.abs(amountNum);
+            break;
+          case 'CARD_REFUND':
+            type = 'Rimborso';
+            transactionType = 'refund';
+            targetTable = 'refunds';
+            amountNum = Math.abs(amountNum);
+            break;
+          case 'INTEREST':
+            type = 'Entrata';
+            transactionType = 'income';
+            targetTable = 'transactions';
+            break;
+          case 'EXCHANGE':
+            type = amountNum >= 0 ? 'Entrata' : 'Spesa';
+            transactionType = amountNum >= 0 ? 'income' : 'expense';
+            targetTable = 'transactions';
+            break;
+          default:
+            type = amountNum >= 0 ? 'Entrata' : 'Spesa';
+            targetTable = 'transactions';
+        }
       }
 
       // Determina account ID basandosi sul campo Product di Revolut
       let accountId = undefined;
       const productUpper = productRaw.toUpperCase();
-      if (accountMappings && productRaw) {
-        // Preferenze: se il product indica un 'DEPOSIT' o 'DEPOSITO', mappa su account deposito
-        if (productUpper.includes('DEPOSIT') || productUpper.includes('DEPOSITO') || productUpper.includes('CONTO')) {
-          const foundDepositKey = Object.keys(accountMappings).find(k =>
-            k.includes('DEPOSIT') || k.includes('DEPOSITO') || k.includes('CONTO DEPOSITO') || k.includes('REVOLUT DEPOSIT')
-          );
-          if (foundDepositKey) {
-            accountId = accountMappings[foundDepositKey];
-          }
-        }
 
-        // Se non trovato, supporta Savings/Current/etc.
-        if (!accountId) {
-          if (accountMappings[productUpper]) {
-            accountId = accountMappings[productUpper];
-          } else {
-            const found = Object.keys(accountMappings).find(k => k.includes(productUpper) || productUpper.includes(k));
-            if (found) accountId = accountMappings[found];
-          }
+      if (productUpper === 'SAVINGS') {
+        accountId = '8f2b03f3-9316-48d6-936b-0960080f2296';
+      }
+
+      if (!accountId && accountMappings && productRaw) {
+        if (productUpper === 'CURRENT') {
+          accountId = accountMappings['REVOLUT'] ||
+            Object.keys(accountMappings).find(name =>
+              name.includes('REVOLUT') && !name.includes('SAVING')
+            ) ? accountMappings[Object.keys(accountMappings).find(name =>
+              name.includes('REVOLUT') && !name.includes('SAVING')
+            )!] : undefined;
+        } else if (productUpper === 'SAVINGS') {
+          accountId = accountMappings['REVOLUT SAVINGS'] ||
+            accountMappings['REVOLUT SAVING'] ||
+            Object.keys(accountMappings).find(name =>
+              name.includes('REVOLUT') && name.includes('SAVING')
+            ) ? accountMappings[Object.keys(accountMappings).find(name =>
+              name.includes('REVOLUT') && name.includes('SAVING')
+            )!] : undefined;
         }
       }
 
-      const noteParts: string[] = [];
-      if (state) noteParts.push(`State: ${state}`);
-      if (fee) noteParts.push(`Fee: ${fee}`);
-      if (balance) noteParts.push(`Balance: ${balance}`);
-      const note = noteParts.length ? noteParts.join(' | ') : undefined;
-
+      // Debug finale
       if (typeof window !== 'undefined' && window.console) {
-        console.log('DEBUG Revolut - Product:', productUpper, '-> Account ID:', accountId);
-        console.log('DEBUG Revolut - Final amount:', amountNum, 'Type:', type, 'TransactionType:', transactionType, 'TargetTable:', targetTable);
+        console.log('DEBUG Revolut - Final:', {
+          type, category, subcategory, amount: amountNum, transactionType, targetTable
+        });
       }
 
       return {
@@ -478,27 +511,23 @@ export const BANK_PARSERS: BankParser[] = [
         amount: amountNum.toString(),
         type,
         account: accountId,
-        category: undefined,
-        subcategory: undefined,
+        category,
+        subcategory,
         targetTable,
         transactionType,
-        currency,
-        note
+        currency
       };
     },
     transformDate: (date: string) => {
-      // Normalizza sempre in YYYY-MM-DD
       if (typeof date === 'string' && date.length >= 10) {
         return date.slice(0, 10);
       }
       return date;
     },
     transformAmount: (amount: string) => {
-      // Per Revolut: NON fare nessuna trasformazione, restituisci così com'è
       return amount;
     }
-  },
-  // ...altri parser da page.tsx...
+  }
 ];
 
 // --- parseCSV ---

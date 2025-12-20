@@ -228,7 +228,7 @@ export function Sidebar() {
       <div className={`flex h-16 shrink-0 items-center ${isCompact ? 'justify-center px-4' : 'justify-between px-6'} border-b border-white border-opacity-20 transition-all duration-500 ease-in-out transform ${mounted ? 'translate-y-0 opacity-100' : '-translate-y-4 opacity-0'}`}>
         {/* Logo section */}
         <div className="flex items-center">
-          <MosaikoLogo size={isCompact ? 24 : 32} className={!isCompact ? "mr-3" : ""} />
+          <MosaikoLogo size={isCompact ? 24 : 32} className={!isCompact ? "mr-3" : ""} src="/mosaiko.png" />
           {!isCompact && <h1 className="text-xl font-bold text-white">Mosaiko</h1>}
         </div>
         
