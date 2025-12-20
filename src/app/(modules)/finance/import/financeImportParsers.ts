@@ -406,11 +406,10 @@ export const BANK_PARSERS: BankParser[] = [
       if (date && date.length >= 10) {
         dateISO = date.slice(0, 10);
       }
-
-      // MODIFICA: Se abbiamo Type/Category/Subcategory dal CSV, usali direttamente
+      // Determina tipo transazione picklist e normalizzato
       let type = '';
-      const category = categoryFromCSV;
-      const subcategory = subcategoryFromCSV;
+      const category = findValue(headers, values, ['categoria', 'category']);
+      const subcategory = findValue(headers, values, ['sottocategoria', 'subcategory']);
       let transactionType = '';
       let targetTable: 'transactions' | 'refunds' | 'funds_transfer' = 'transactions';
 
