@@ -468,7 +468,6 @@ export const BANK_PARSERS: BankParser[] = [
             break;
           default:
             type = amountNum >= 0 ? 'Entrata' : 'Spesa';
-            transactionType = amountNum >= 0 ? 'income' : 'expense';
             targetTable = 'transactions';
         }
       }
