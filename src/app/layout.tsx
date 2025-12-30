@@ -156,13 +156,15 @@ export default function RootLayout({
           <FinanceCacheProvider>
             <div className="flex h-screen bg-gray-50 safe-area-container">
               {/* Desktop Sidebar - hidden on mobile */}
-              <div className="hidden md:block">
+              <div className="hidden md:block flex-shrink-0">
                 <Sidebar />
               </div>
               
-              {/* Main content */}
+              {/* Main content with ultrawide optimization */}
               <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
-                {children}
+                <div className="w-full max-w-[2000px] mx-auto 3xl:px-8 4xl:px-12">
+                  {children}
+                </div>
               </main>
               
               {/* Mobile Bottom Menu */}

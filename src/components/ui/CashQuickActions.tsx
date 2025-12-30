@@ -6,6 +6,7 @@ import { useAccounts } from '@/lib/financeCache'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import NewTransactionModal from './NewTransactionModal'
 import { Wallet } from 'lucide-react'
+import { clsx } from 'clsx'
 
 interface Account {
   id: string
@@ -232,20 +233,17 @@ export default function CashQuickActions() {
     return null
   }
 
+  // Account non trovato
   if (!cashAccount) {
     return (
-      <div className="bg-amber-50/95 backdrop-blur-xl border border-amber-200/50 shadow-xl rounded-2xl p-6 mb-8 min-h-[300px] max-h-[300px]">
-        <div className="flex items-center space-x-3">
-          <div className="p-3 bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl shadow-lg">
-            <Wallet className="w-6 h-6 text-white" />
+      <div className="bg-amber-50 border border-amber-200 rounded-xl shadow-sm p-5">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-amber-100 text-amber-600">
+            <Wallet className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-amber-900 tracking-tight">
-              Account Contanti Non Trovato
-            </h3>
-            <p className="text-sm text-amber-700 font-medium">
-              Crea un account di tipo "Contanti" per utilizzare le quick actions
-            </p>
+            <h3 className="text-base font-semibold text-amber-900">Account Contanti Non Trovato</h3>
+            <p className="text-sm text-amber-700">Crea un account di tipo "Contanti"</p>
           </div>
         </div>
       </div>
@@ -254,85 +252,57 @@ export default function CashQuickActions() {
 
   return (
     <>
-      <div className="bg-white/95 backdrop-blur-xl border border-white/50 shadow-2xl rounded-2xl p-6 mb-4 min-h-[300px] max-h-[300px]">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center space-x-3">
-            <div className="p-3 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl shadow-lg">
-              <Wallet className="w-6 h-6 text-white" />
+      <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-5">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-green-100 text-green-600">
+              <Wallet className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-gray-900 tracking-tight">
-                Quick Actions Contanti
-              </h3>
-              <p className="text-sm text-gray-600 font-medium">
-                Registra velocemente le tue spese in contanti
-              </p>
+              <h3 className="text-base font-semibold text-gray-900">Quick Actions</h3>
+              <p className="text-sm text-gray-500">Registra spese contanti</p>
             </div>
           </div>
           <div className="text-right">
-            <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold">Saldo</p>
-            <p className={`text-lg font-bold ${cashAccount.current_balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            <p className="text-xs text-gray-500">Saldo</p>
+            <p className={clsx(
+              'text-lg font-semibold tabular-nums',
+              cashAccount.current_balance >= 0 ? 'text-green-600' : 'text-red-600'
+            )}>
               €{cashAccount.current_balance.toFixed(2)}
             </p>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+        {/* Quick actions grid */}
+        <div className="grid grid-cols-3 gap-3">
           {QUICK_ACTIONS.map((action) => (
             <button
               key={action.id}
               onClick={() => handleQuickAction(action)}
               disabled={isLoading}
-              className="group relative overflow-hidden bg-gradient-to-br from-gray-50/80 to-white/40 hover:from-blue-50/80 hover:to-purple-50/40 border border-gray-200/60 hover:border-blue-200/80 rounded-xl p-4 transition-all duration-300 hover:shadow-lg hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex flex-col items-center gap-2 p-4 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 hover:border-gray-300 transition-all duration-150 disabled:opacity-50 active:scale-95"
             >
-              {/* Background decoration */}
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-50/0 to-purple-50/0 group-hover:from-blue-50/20 group-hover:to-purple-50/20 transition-all duration-300 rounded-xl"></div>
-              
-              <div className="relative flex flex-col items-center space-y-2">
-                <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-gray-100 to-gray-200 group-hover:from-blue-100 group-hover:to-purple-100 rounded-xl transition-all duration-300 group-hover:scale-110">
-                  {isLoading ? (
-                    <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
-                  ) : (
-                    <span className="text-lg group-hover:scale-110 transition-transform duration-300">
-                      {action.emoji}
-                    </span>
-                  )}
-                </div>
-                <div className="text-center">
-                  <p className="text-sm font-medium text-gray-700 group-hover:text-gray-900 transition-colors">
-                    {action.label}
-                  </p>
-                  {action.typical_amount && (
-                    <p className="text-xs text-gray-500 group-hover:text-blue-600 transition-colors">
-                      ~ {action.typical_amount} €
-                    </p>
-                  )}
-                </div>
-              </div>
-              
-              {/* Subtle animation overlay */}
-              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-all duration-700 ease-out"></div>
+              <span className="text-2xl">{action.emoji}</span>
+              <span className="text-sm font-medium text-gray-700">{action.label}</span>
+              {action.typical_amount && (
+                <span className="text-xs text-gray-500">{action.typical_amount}€</span>
+              )}
             </button>
           ))}
         </div>
 
-        {/* Indicatore account */}
-        <div className="mt-4 pt-4 border-t border-gray-200/60">
-          <div className="flex items-center justify-between text-sm">
-            <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-              <span className="text-gray-600 font-medium">
-                Account collegato: <span className="text-gray-900 font-semibold">{cashAccount.name}</span>
-              </span>
-            </div>
-            <div className="text-gray-500 text-xs">
-              {isLoading ? 'Caricamento...' : 'Tap per registrare velocemente'}
-            </div>
+        {/* Footer */}
+        <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-green-500 rounded-full" />
+            <span>{cashAccount.name}</span>
           </div>
+          <span>{isLoading ? 'Caricamento...' : 'Tap per registrare'}</span>
         </div>
       </div>
 
-      {/* Modal per nuova transazione con dati precompilati */}
       <NewTransactionModal
         isOpen={showNewTransactionModal}
         onClose={handleModalClose}

@@ -4,6 +4,14 @@
 import type { ImportRow, BankParser } from './types.js';
 import * as XLSX from 'xlsx';
 
+// Tipo per le statistiche di import
+export type ImportStats = {
+  total: number;
+  processed: number;
+  success: number;
+  errors: number;
+}
+
 // --- Interfaccia per Account ---
 interface Account {
   id: string;
@@ -111,8 +119,9 @@ export const BANK_PARSERS: BankParser[] = [
         lowerHeaders.includes('importo');
       return oldFormat || xmeFormat || genericFormat;
     },
-    parseRow: (headers: string[], values: string[], accountMappings?: { [key: string]: string }) => {
+    parseRow: (headers: string[], values: string[], _accountMappings?: { [key: string]: string }) => {
       // DEBUG: logga header e valori per capire cosa arriva
+      void _accountMappings;
       if (typeof window !== 'undefined' && window.console) {
         console.log('DEBUG Intesa parseRow headers:', headers);
         console.log('DEBUG Intesa parseRow values:', values);
@@ -202,7 +211,7 @@ export const BANK_PARSERS: BankParser[] = [
             const day = String(excelDate.getDate()).padStart(2, '0')
             return `${year}-${month}-${day}`
           }
-        } catch (error) { }
+        } catch { }
       }
       if (typeof date === 'string' && date.includes('/')) {
         const parts = date.split('/')
@@ -240,7 +249,8 @@ export const BANK_PARSERS: BankParser[] = [
       // Considera Postepay solo se almeno 2 header tipici sono presenti
       return matchCount >= 2;
     },
-    parseRow: (headers: string[], values: string[], accountMappings?: { [key: string]: string }) => {
+    parseRow: (headers: string[], values: string[], _accountMappings?: { [key: string]: string }) => {
+      void _accountMappings;
       // Mapping header Postepay: Data Contabile, Data Valuta, Importo (euro), Descrizione operazioni
       const date = findValue(headers, values, ['data contabile', 'data operazione', 'data', 'data valuta']) || '';
       const description = findValue(headers, values, ['descrizione operazioni', 'descrizione operazione', 'descrizione', 'causale', 'dettagli']) || '';
@@ -277,7 +287,7 @@ export const BANK_PARSERS: BankParser[] = [
             const day = String(excelDate.getDate()).padStart(2, '0')
             return `${year}-${month}-${day}`
           }
-        } catch (error) { }
+        } catch { }
       }
       if (typeof date === 'string' && date.includes('/')) {
         const parts = date.split('/')
@@ -304,7 +314,8 @@ export const BANK_PARSERS: BankParser[] = [
         (lowerHeaders.includes('amount') || lowerHeaders.includes('net'))
       );
     },
-    parseRow: (headers: string[], values: string[], accountMappings?: { [key: string]: string }) => {
+    parseRow: (headers: string[], values: string[], _accountMappings?: { [key: string]: string }) => {
+      void _accountMappings;
       // Paypal: header tipici: Date, Name, Type, Status, Currency, Gross, Fee, Net, Description
       const date = findValue(headers, values, ['date', 'data']) || '';
       const descriptionRaw = findValue(headers, values, ['description', 'descrizione']) || '';
@@ -481,20 +492,21 @@ export const BANK_PARSERS: BankParser[] = [
 
       if (!accountId && accountMappings && productRaw) {
         if (productUpper === 'CURRENT') {
-          accountId = accountMappings['REVOLUT'] ||
-            Object.keys(accountMappings).find(name =>
-              name.includes('REVOLUT') && !name.includes('SAVING')
-            ) ? accountMappings[Object.keys(accountMappings).find(name =>
-              name.includes('REVOLUT') && !name.includes('SAVING')
-            )!] : undefined;
+          if (accountMappings['REVOLUT']) {
+            accountId = accountMappings['REVOLUT'];
+          } else {
+            const found = Object.keys(accountMappings).find(name => name.includes('REVOLUT') && !name.includes('SAVING'));
+            if (found) accountId = accountMappings[found];
+          }
         } else if (productUpper === 'SAVINGS') {
-          accountId = accountMappings['REVOLUT SAVINGS'] ||
-            accountMappings['REVOLUT SAVING'] ||
-            Object.keys(accountMappings).find(name =>
-              name.includes('REVOLUT') && name.includes('SAVING')
-            ) ? accountMappings[Object.keys(accountMappings).find(name =>
-              name.includes('REVOLUT') && name.includes('SAVING')
-            )!] : undefined;
+          if (accountMappings['REVOLUT SAVINGS']) {
+            accountId = accountMappings['REVOLUT SAVINGS'];
+          } else if (accountMappings['REVOLUT SAVING']) {
+            accountId = accountMappings['REVOLUT SAVING'];
+          } else {
+            const found = Object.keys(accountMappings).find(name => name.includes('REVOLUT') && name.includes('SAVING'));
+            if (found) accountId = accountMappings[found];
+          }
         }
       }
 
@@ -531,7 +543,7 @@ export const BANK_PARSERS: BankParser[] = [
 ];
 
 // --- parseCSV ---
-export async function parseCSV(file: File, accountId?: string, setDetectedBank?: (parser: BankParser | null) => void, setImportData?: (rows: ImportRow[]) => void, setImportStats?: (stats: any) => void, accounts?: Account[]) {
+export async function parseCSV(file: File, accountId?: string, setDetectedBank?: (parser: BankParser | null) => void, setImportData?: (rows: ImportRow[]) => void, setImportStats?: (stats: ImportStats) => void, accounts?: Account[]) {
   const text = await file.text();
   if (text.toLowerCase().includes('edenred') || text.toLowerCase().includes('n. e importo buoni')) {
     alert('I file Edenred sono supportati solo in formato Excel (.xlsx).');
@@ -582,7 +594,7 @@ export async function parseCSV(file: File, accountId?: string, setDetectedBank?:
     const keywords = bankFileKeywords[parser.identifier] || [];
     if (keywords.some(keyword => fileName.includes(keyword))) {
       detectedParser = parser;
-      setDetectedBank && setDetectedBank(parser);
+      if (setDetectedBank) setDetectedBank(parser);
       foundByFilename = true;
       break;
     }
@@ -592,7 +604,7 @@ export async function parseCSV(file: File, accountId?: string, setDetectedBank?:
     for (const parser of BANK_PARSERS) {
       if (parser.detectFormat(headers.map(h => h.toLowerCase()))) {
         detectedParser = parser;
-        setDetectedBank && setDetectedBank(parser);
+        if (setDetectedBank) setDetectedBank(parser);
         break;
       }
     }
@@ -675,8 +687,8 @@ export async function parseCSV(file: File, accountId?: string, setDetectedBank?:
       }
     }
   }
-  setImportData && setImportData(rows);
-  setImportStats && setImportStats({
+  if (setImportData) setImportData(rows);
+  if (setImportStats) setImportStats({
     total: rows.length,
     processed: 0,
     success: 0,
@@ -685,7 +697,7 @@ export async function parseCSV(file: File, accountId?: string, setDetectedBank?:
 }
 
 // --- parseExcel ---
-export async function parseExcel(file: File, accountId?: string, setDetectedBank?: (parser: BankParser | null) => void, setImportData?: (rows: ImportRow[]) => void, setImportStats?: (stats: any) => void, accounts?: Account[]) {
+export async function parseExcel(file: File, accountId?: string, setDetectedBank?: (parser: BankParser | null) => void, setImportData?: (rows: ImportRow[]) => void, setImportStats?: (stats: ImportStats) => void, accounts?: Account[]) {
   const arrayBuffer = await file.arrayBuffer();
   const workbook = XLSX.read(arrayBuffer, { type: 'array' });
   const sheetName = workbook.SheetNames[0];
@@ -731,7 +743,7 @@ export async function parseExcel(file: File, accountId?: string, setDetectedBank
     const keywords = bankFileKeywords[parser.identifier] || [];
     if (keywords.some(keyword => fileName.includes(keyword))) {
       detectedParser = parser;
-      setDetectedBank && setDetectedBank(parser);
+      if (setDetectedBank) setDetectedBank(parser);
       break;
     }
   }
@@ -739,7 +751,7 @@ export async function parseExcel(file: File, accountId?: string, setDetectedBank
     for (const parser of BANK_PARSERS) {
       if (parser.detectFormat(headers.map(h => h.toLowerCase()))) {
         detectedParser = parser;
-        setDetectedBank && setDetectedBank(parser);
+        if (setDetectedBank) setDetectedBank(parser);
         break;
       }
     }
@@ -826,8 +838,8 @@ export async function parseExcel(file: File, accountId?: string, setDetectedBank
       }
     }
   }
-  setImportData && setImportData(rows);
-  setImportStats && setImportStats({
+  if (setImportData) setImportData(rows);
+  if (setImportStats) setImportStats({
     total: rows.length,
     processed: 0,
     success: 0,
@@ -892,8 +904,8 @@ export function parseEdenredExcel(jsonData: string[][], accountId?: string): Imp
     }
     let description = values[1]?.toString() || '';
     if (tipoMov.includes('ordine cloud')) {
-      const [anno, mese, giorno] = dataISO.split('-');
-      let meseNum = parseInt(mese, 10) - 1;
+        const [anno, mese] = dataISO.split('-');
+        let meseNum = parseInt(mese, 10) - 1;
       let annoNum = parseInt(anno, 10);
       if (meseNum === 0) {
         meseNum = 12;

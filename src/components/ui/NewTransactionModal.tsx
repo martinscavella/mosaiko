@@ -1,10 +1,12 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { useAuth } from '@/lib/auth'
 import { useAllTransactions, useFinanceCache } from '@/lib/financeCache'
-import { X, DollarSign, Calendar, FileText, Tag, CreditCard, TrendingUp, TrendingDown, ArrowRightLeft, Check, ChevronDown } from 'lucide-react'
+import { DollarSign, Calendar, FileText, Tag, CreditCard, TrendingUp, TrendingDown, ArrowRightLeft, Check, ChevronDown } from 'lucide-react'
+import clsx from 'clsx'
+import Modal, { ModalButton } from './Modal'
 
 interface Account {
   id: string
@@ -44,6 +46,8 @@ interface NewTransactionModalProps {
   }
 }
 
+type TransactionType = 'Abbonamento' | 'Acquisto' | 'AZIONE' | 'Bonifico' | 'Buono fruttifero' | 'Cancellazione rimborso' | 'Commissione' | 'Competenze' | 'Delivery' | 'Eccesso Rimborso' | 'Entrata' | 'ETF' | 'Imposte' | 'Iscrizione' | 'Ordine' | 'Prelievo' | 'Quattordicesima' | 'Rata' | 'Refund' | 'Ricarica' | 'Spesa' | 'Stipendio' | 'TFR' | 'Tredicesima'
+
 export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefilledData }: NewTransactionModalProps) {
   const { user } = useAuth()
   const { refetch } = useAllTransactions()
@@ -61,55 +65,13 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
     category_id: '',
     subcategory_id: '',
     transaction_date: new Date().toISOString().split('T')[0],
-    transaction_type: 'Spesa' as 'Abbonamento' | 'Acquisto' | 'AZIONE' | 'Bonifico' | 'Buono fruttifero' | 'Cancellazione rimborso' | 'Commissione' | 'Competenze' | 'Delivery' | 'Eccesso Rimborso' | 'Entrata' | 'ETF' | 'Imposte' | 'Iscrizione' | 'Ordine' | 'Prelievo' | 'Quattordicesima' | 'Rata' | 'Refund' | 'Ricarica' | 'Spesa' | 'Stipendio' | 'TFR' | 'Tredicesima',
+    transaction_type: 'Spesa' as TransactionType,
     transaction_note: '',
     is_refunded: false
   })
 
   // Carica dati iniziali
-  useEffect(() => {
-    if (isOpen && user) {
-      loadInitialData()
-    }
-  }, [isOpen, user])
-
-  // Account filtrati per saldo disponibile (solo quelli con saldo > 0, ordinati per saldo decrescente)
-  const filteredAccounts = useMemo(() => {
-    return accounts
-  }, [accounts])
-
-  // Reset form quando si apre/chiude
-  useEffect(() => {
-    if (isOpen) {
-      setFormData({
-        transaction_details: prefilledData?.transaction_details || '',
-        amount: prefilledData?.amount || '',
-        account_id: prefilledData?.account_id || (filteredAccounts.length > 0 ? filteredAccounts[0].id : ''),
-        category_id: prefilledData?.category_id || '',
-        subcategory_id: prefilledData?.subcategory_id || '',
-        transaction_date: prefilledData?.transaction_date || new Date().toISOString().split('T')[0],
-        transaction_type: (prefilledData?.transaction_type as typeof formData.transaction_type) || 'Spesa',
-        transaction_note: prefilledData?.transaction_note || '',
-        is_refunded: prefilledData?.is_refunded || false
-      })
-    }
-  }, [isOpen, filteredAccounts, prefilledData])
-
-  // Sottocategorie filtrate per categoria selezionata
-  const filteredSubcategories = useMemo(() => {
-    if (!formData.category_id) return []
-    return subcategories.filter(sub => sub.category_id === formData.category_id)
-  }, [subcategories, formData.category_id])
-
-  // Reset sottocategoria quando cambia categoria
-  useEffect(() => {
-    if (formData.category_id && filteredSubcategories.length > 0 && 
-        !filteredSubcategories.find(sub => sub.id === formData.subcategory_id)) {
-      setFormData(prev => ({ ...prev, subcategory_id: '' }))
-    }
-  }, [formData.category_id, filteredSubcategories, formData.subcategory_id])
-
-  const loadInitialData = async () => {
+  const loadInitialData = useCallback(async () => {
     if (!user) return
 
     try {
@@ -159,7 +121,49 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
     } catch (error) {
       console.error('Error loading initial data:', error)
     }
-  }
+  }, [user])
+
+  useEffect(() => {
+    if (isOpen && user) {
+      loadInitialData()
+    }
+  }, [isOpen, user, loadInitialData])
+
+  // Account filtrati per saldo disponibile (solo quelli con saldo > 0, ordinati per saldo decrescente)
+  const filteredAccounts = useMemo(() => {
+    return accounts
+  }, [accounts])
+
+  // Reset form quando si apre/chiude
+  useEffect(() => {
+    if (isOpen) {
+      setFormData({
+        transaction_details: prefilledData?.transaction_details || '',
+        amount: prefilledData?.amount || '',
+        account_id: prefilledData?.account_id || (filteredAccounts.length > 0 ? filteredAccounts[0].id : ''),
+        category_id: prefilledData?.category_id || '',
+        subcategory_id: prefilledData?.subcategory_id || '',
+        transaction_date: prefilledData?.transaction_date || new Date().toISOString().split('T')[0],
+        transaction_type: (prefilledData?.transaction_type as TransactionType) || 'Spesa',
+        transaction_note: prefilledData?.transaction_note || '',
+        is_refunded: prefilledData?.is_refunded || false
+      })
+    }
+  }, [isOpen, filteredAccounts, prefilledData])
+
+  // Sottocategorie filtrate per categoria selezionata
+  const filteredSubcategories = useMemo(() => {
+    if (!formData.category_id) return []
+    return subcategories.filter(sub => sub.category_id === formData.category_id)
+  }, [subcategories, formData.category_id])
+
+  // Reset sottocategoria quando cambia categoria
+  useEffect(() => {
+    if (formData.category_id && filteredSubcategories.length > 0 && 
+        !filteredSubcategories.find(sub => sub.id === formData.subcategory_id)) {
+      setFormData(prev => ({ ...prev, subcategory_id: '' }))
+    }
+  }, [formData.category_id, filteredSubcategories, formData.subcategory_id])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -241,40 +245,49 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
 
 
 
-  if (!isOpen) return null
-
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
-      <div className="bg-white/95 backdrop-blur-xl border border-white/50 shadow-2xl rounded-2xl w-full max-w-lg max-h-[95vh] overflow-hidden animate-in zoom-in-95 duration-200">
-        {/* Header con lo stile del design system */}
-        <div className="relative bg-gradient-to-r from-blue-500 via-purple-500 to-indigo-600 px-6 py-6 text-white">
-          <div className="absolute inset-0 bg-black/10 backdrop-blur-sm"></div>
-          <div className="relative flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="relative p-3 bg-white/20 backdrop-blur-sm rounded-xl border border-white/30 shadow-lg">
-                <DollarSign className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h3 className="text-xl font-bold tracking-tight">
-                  Nuova Transazione
-                </h3>
-                <p className="text-blue-100 text-sm font-medium">
-                  Aggiungi una nuova operazione finanziaria
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={onClose}
-              className="p-2.5 hover:bg-white/20 rounded-xl transition-all duration-200 group"
-            >
-              <X className="w-5 h-5 text-white group-hover:rotate-90 transition-transform duration-200" />
-            </button>
-          </div>
-        </div>
-
-        {/* Form con stile coerente al design system */}
-        <div className="max-h-[calc(95vh-160px)] overflow-y-auto custom-scrollbar">
-          <form onSubmit={handleSubmit} className="p-6 space-y-6">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Nuova Transazione"
+      subtitle="Aggiungi una nuova operazione finanziaria"
+      size="lg"
+      footer={
+        <>
+          <ModalButton
+            variant="secondary"
+            onClick={onClose}
+            disabled={loading}
+          >
+            Annulla
+          </ModalButton>
+          <button
+            type="submit"
+            form="new-transaction-form"
+            disabled={loading || !formData.transaction_details || !formData.amount || !formData.account_id}
+            className={clsx(
+              'px-4 py-2 rounded-lg font-medium text-sm transition-all duration-150 active:scale-95',
+              loading || !formData.transaction_details || !formData.amount || !formData.account_id
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                : 'bg-blue-600 hover:bg-blue-700 text-white'
+            )}
+          >
+            {loading ? (
+              <span className="flex items-center gap-2">
+                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                Caricamento...
+              </span>
+            ) : (
+              'Crea Transazione'
+            )}
+          </button>
+        </>
+      }
+    >
+      <form id="new-transaction-form" onSubmit={handleSubmit} className="space-y-6">
             {/* Prima riga - 2 colonne su desktop */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Tipo di transazione */}
@@ -517,38 +530,7 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
                 placeholder="Note opzionali..."
               />
             </div>
-
-            {/* Actions */}
-            <div className="flex gap-4 pt-6 border-t border-gray-200">
-              <button
-                type="button"
-                onClick={onClose}
-                disabled={loading}
-                className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all font-medium disabled:opacity-50"
-              >
-                Annulla
-              </button>
-              <button
-                type="submit"
-                disabled={loading || !formData.transaction_details || !formData.amount || !formData.account_id}
-                className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-500 via-purple-500 to-indigo-600 hover:from-blue-600 hover:via-purple-600 hover:to-indigo-700 text-white rounded-lg transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl transform hover:scale-105 disabled:hover:scale-100"
-              >
-                {loading ? (
-                  <div className="flex items-center space-x-2">
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    <span>Salvando...</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center space-x-2">
-                    {getTransactionTypeIcon(formData.transaction_type)}
-                    <span>Crea Transazione</span>
-                  </div>
-                )}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-  )
-}
+        </form>
+      </Modal>
+    )
+  }

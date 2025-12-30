@@ -8,8 +8,8 @@ export const isIOS = (): boolean => {
 }
 
 export const isStandalone = (): boolean => {
-  return window.matchMedia('(display-mode: standalone)').matches || 
-         (window.navigator as any).standalone === true;
+  const nav = window.navigator as unknown as { standalone?: boolean }
+  return window.matchMedia('(display-mode: standalone)').matches || nav.standalone === true;
 }
 
 export const isIOSStandalone = (): boolean => {
@@ -47,9 +47,9 @@ export const setupIOSPWA = (): void => {
 
   // Hide Safari UI elements in standalone mode
   if (isStandalone()) {
-    document.body.style.webkitUserSelect = 'none';
-    (document.body.style as any).webkitTouchCallout = 'none';
-    (document.body.style as any).webkitTapHighlightColor = 'transparent';
+    document.body.style.setProperty('-webkit-user-select', 'none')
+    document.body.style.setProperty('-webkit-touch-callout', 'none')
+    document.body.style.setProperty('-webkit-tap-highlight-color', 'transparent')
   }
 };
 

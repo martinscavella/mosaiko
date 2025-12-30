@@ -7,10 +7,14 @@ module.exports = {
   ],
   theme: {
     extend: {
+      // Breakpoint per schermi ultrawide
+      screens: {
+        '3xl': '1920px',
+        '4xl': '2560px',
+      },
       fontFamily: {
-        'debbie': ['var(--font-debbie-bc)', 'serif'], // EB Garamond
-        'sans': ['var(--font-geist-sans)', 'sans-serif'],
-        'mono': ['var(--font-geist-mono)', 'monospace'],
+        'sans': ['var(--font-inter)', 'system-ui', '-apple-system', 'sans-serif'],
+        'mono': ['Fira Code', 'Menlo', 'monospace'],
       },
       colors: {
         background: "var(--background)",

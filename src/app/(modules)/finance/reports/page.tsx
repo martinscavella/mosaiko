@@ -329,7 +329,7 @@ export default function ReportsPage() {
   if (authLoading) {
     return (
       <ModuleLayout moduleId="finance">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-7xl 3xl:max-w-[1600px] 4xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 3xl:px-10 py-8">
           <div className="animate-pulse">
             <div className="h-8 bg-gray-200 rounded w-64 mb-8"></div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -346,7 +346,7 @@ export default function ReportsPage() {
   if (!user) {
     return (
       <ModuleLayout moduleId="finance">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-7xl 3xl:max-w-[1600px] 4xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 3xl:px-10 py-8">
           <div className="text-center">
             <p className="text-gray-500">Devi effettuare il login per visualizzare i report finanziari</p>
           </div>
@@ -505,7 +505,7 @@ export default function ReportsPage() {
             value={filteredTransactions.length}
             subtitle={`${formatPercentage((filteredTransactions.length / transactions.length) * 100 - 100)} vs totale`}
             icon="transactions"
-            color="orange"
+            color="purple"
             trend={filteredTransactions.length === transactions.length ? 'neutral' : 'down'}
             loading={loading}
           />
@@ -530,7 +530,7 @@ export default function ReportsPage() {
             value={filteredActiveAccounts}
             subtitle={selectedAccounts.length > 0 ? "Account filtrati" : "Tutti gli account"}
             icon="balance"
-            color="gray"
+            color="blue"
             loading={loading}
           />
         </div>
@@ -1002,7 +1002,7 @@ export default function ReportsPage() {
               Object.values(advancedStats.categoryStats).reduce((sum, cat) => sum + cat.total, 0) / Object.keys(advancedStats.categoryStats).length : 0)}
             subtitle="Per categoria"
             icon="balance"
-            color="orange"
+            color="purple"
             loading={loading}
           />
         </div>
@@ -1622,7 +1622,7 @@ export default function ReportsPage() {
       `}</style>
       
       <ModuleLayout moduleId="finance">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 custom-scrollbar">
+        <div className="max-w-7xl 3xl:max-w-[1600px] 4xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 3xl:px-10 py-8 custom-scrollbar">
           <ModuleHeader
             title="Report Finanziari"
             subtitle="Analisi dettagliate e statistiche avanzate delle tue finanze" 

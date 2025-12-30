@@ -5,21 +5,14 @@ import { usePathname } from "next/navigation";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useAuth } from "@/lib/auth";
 import { MosaikoLogo } from "@/components/ui/MosaikoLogo";
+import clsx from "clsx";
 import { 
   Home, 
   Banknote, 
-  /* Heart, 
-  BookOpen,
-  CheckSquare, */
   User,
   ChevronRight,
   Settings,
   LogOut,
-  ChevronUp,
-  ChevronDown,
-  Moon,
-  Sun,
-  Search,
   PanelLeftClose,
   PanelLeftOpen
 } from "lucide-react";
@@ -30,7 +23,8 @@ const navigation = [
     href: "/", 
     icon: Home,
     type: "single"
-  },  { 
+  },
+  { 
     name: "Finanze", 
     icon: Banknote,
     type: "module",
@@ -43,62 +37,20 @@ const navigation = [
       { name: "Rimborsi", href: "/finance/refunds" },
       { name: "Import Dati", href: "/finance/import" },
       { name: "Report", href: "/finance/reports" },
-      // Qui puoi aggiungere altre sottopagine come:
-      // { name: "Budget", href: "/finance/budget" },
-      // { name: "Spese", href: "/finance/expenses" },
     ]
-  }/*  ,
-  { 
-    name: "Salute", 
-    icon: Heart,
-    type: "module",
-    basePath: "/health",
-    children: [
-      { name: "Dashboard", href: "/health/dashboard" },
-      // { name: "Allenamenti", href: "/health/workouts" },
-      // { name: "Dieta", href: "/health/diet" },
-    ]
-  },
-  { 
-    name: "Apprendimento", 
-    icon: BookOpen,
-    type: "module",
-    basePath: "/learning",
-    children: [
-      { name: "Dashboard", href: "/learning/dashboard" },
-      // { name: "Corsi", href: "/learning/courses" },
-      // { name: "Progresso", href: "/learning/progress" },
-    ]
-  },
-  { 
-    name: "Tasks", 
-    icon: CheckSquare,
-    type: "module",
-    basePath: "/tasks",
-    children: [
-      { name: "Dashboard", href: "/tasks/dashboard" },
-      // { name: "Progetti", href: "/tasks/projects" },
-      // { name: "Calendario", href: "/tasks/calendar" },
-    ]
-  },*/
+  }
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
   const { user, signOut } = useAuth();
-  const [mounted, setMounted] = useState(false);
+  
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set());
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
   const [isCompact, setIsCompact] = useState(false);
-  const [hoverButtonPos, setHoverButtonPos] = useState({ x: 0, y: 0 });
-  const [showHoverButton, setShowHoverButton] = useState(false);
 
   // Initialize expanded modules based on current path
   useEffect(() => {
-    setMounted(true);
     const currentModule = navigation.find(item => 
       item.type === "module" && item.basePath && pathname.startsWith(item.basePath)
     );
@@ -138,61 +90,13 @@ export function Sidebar() {
     setProfileMenuOpen(false);
   }, [signOut]);
 
-  const toggleDarkMode = useCallback(() => {
-    setDarkMode(prev => !prev);
-    // Qui potresti aggiungere la logica per salvare la preferenza
-  }, []);
-
   const toggleCompact = useCallback(() => {
     setIsCompact(prev => !prev);
     if (!isCompact) {
-      // Chiudi tutti i moduli quando compatti
       setExpandedModules(new Set());
       setProfileMenuOpen(false);
     }
-    setShowHoverButton(false);
   }, [isCompact]);
-
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    
-    // Per sidebar compatta: mostra bottone di espansione vicino al bordo destro
-    if (isCompact && x > rect.width - 20) {
-      setHoverButtonPos({
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top
-      });
-      setShowHoverButton(true);
-    }
-    // Per sidebar espansa: mostra bottone di chiusura vicino al bordo destro
-    else if (!isCompact && x > rect.width - 30) {
-      setHoverButtonPos({
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top
-      });
-      setShowHoverButton(true);
-    } else {
-      setShowHoverButton(false);
-    }
-  }, [isCompact]);
-
-  const handleMouseLeave = useCallback(() => {
-    setShowHoverButton(false);
-  }, []);
-
-  // Keyboard shortcut for search
-  useEffect(() => {
-    const handleKeydown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault();
-        setSearchOpen(true);
-      }
-    };
-
-    document.addEventListener('keydown', handleKeydown);
-    return () => document.removeEventListener('keydown', handleKeydown);
-  }, []);
 
   // Non mostrare la sidebar se l'utente non è autenticato
   if (!user) {
@@ -201,284 +105,209 @@ export function Sidebar() {
 
   return (
     <div 
-      className={`relative flex h-full flex-col bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 shadow-xl transition-all duration-300 ${isCompact ? 'w-16' : 'w-72'}`}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-    >
-      {/* Bottone di espansione/chiusura che segue il mouse */}
-      {showHoverButton && (
-        <button
-          onClick={toggleCompact}
-          className="absolute w-8 h-8 bg-white bg-opacity-20 backdrop-blur-sm rounded-lg shadow-lg flex items-center justify-center text-white hover:bg-opacity-30 hover:shadow-xl transition-all duration-200 z-20 pointer-events-auto"
-          style={{
-            left: `${hoverButtonPos.x - 16}px`,
-            top: `${hoverButtonPos.y - 16}px`,
-          }}
-          title={isCompact ? "Espandi sidebar" : "Compatta sidebar"}
-        >
-          {isCompact ? (
-            <PanelLeftOpen className="w-4 h-4" />
-          ) : (
-            <PanelLeftClose className="w-4 h-4" />
-          )}
-        </button>
+      className={clsx(
+        "relative flex h-full flex-col bg-white border-r border-gray-200 transition-all duration-200",
+        isCompact ? "w-16" : "w-64"
       )}
-      
-      {/* Header with logo and actions */}
-      <div className={`flex h-16 shrink-0 items-center ${isCompact ? 'justify-center px-4' : 'justify-between px-6'} border-b border-white border-opacity-20 transition-all duration-500 ease-in-out transform ${mounted ? 'translate-y-0 opacity-100' : '-translate-y-4 opacity-0'}`}>
-        {/* Logo section */}
-        <div className="flex items-center">
-          <MosaikoLogo size={isCompact ? 24 : 32} className={!isCompact ? "mr-3" : ""} src="/mosaiko.png" />
-          {!isCompact && <h1 className="text-xl font-bold text-white">Mosaiko</h1>}
+    >
+      {/* Header */}
+      <div className={clsx(
+        "flex h-16 shrink-0 items-center border-b border-gray-200",
+        isCompact ? "justify-center px-3" : "justify-between px-4"
+      )}>
+        <div className="flex items-center gap-3">
+          <MosaikoLogo size={isCompact ? 24 : 28} src="/mosaiko.png" />
+          {!isCompact && <span className="font-semibold text-gray-900">Mosaiko</span>}
         </div>
         
-        {/* Actions - Only show in expanded mode */}
         {!isCompact && (
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={() => setSearchOpen(true)}
-              className="p-2 rounded-md text-white text-opacity-70 hover:text-white hover:bg-white hover:bg-opacity-10 transition-all duration-200"
-              title="Cerca (⌘K)"
-            >
-              <Search className="w-4 h-4" />
-            </button>
-            <button
-              onClick={toggleDarkMode}
-              className="p-2 rounded-md text-white text-opacity-70 hover:text-white hover:bg-white hover:bg-opacity-10 transition-all duration-200"
-            >
-              {darkMode ? (
-                <Sun className="w-4 h-4" />
-              ) : (
-                <Moon className="w-4 h-4" />
-              )}
-            </button>
-          </div>
+          <button
+            onClick={toggleCompact}
+            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            title="Comprimi sidebar"
+          >
+            <PanelLeftClose className="w-4 h-4" />
+          </button>
         )}
       </div>
 
+      {/* Expand button for compact mode */}
+      {isCompact && (
+        <button
+          onClick={toggleCompact}
+          className="mx-auto mt-3 p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+          title="Espandi sidebar"
+        >
+          <PanelLeftOpen className="w-4 h-4" />
+        </button>
+      )}
+
       {/* Navigation */}
-      <nav className={`flex flex-1 flex-col ${isCompact ? 'px-2 py-6' : 'px-4 py-6'}`}>
-        <ul role="list" className="flex flex-1 flex-col space-y-2">
-          {navigation.map((item, index) => {
+      <nav className={clsx("flex-1 py-4", isCompact ? "px-2" : "px-3")}>
+        <ul className="space-y-1">
+          {navigation.map((item) => {
             if (item.type === "single") {
               const isActive = pathname === item.href;
               return (
-                <li 
-                  key={item.name}
-                  className={`transition-all duration-400 ease-in-out transform ${mounted ? 'translate-x-0 opacity-100' : '-translate-x-4 opacity-0'}`}
-                  style={{ transitionDelay: `${index * 75}ms` }}
-                >
+                <li key={item.name}>
                   <Link
                     href={item.href!}
-                    className={`
-                      group flex items-center ${isCompact ? 'justify-center px-2 py-3' : 'gap-x-3 px-4 py-3'} rounded-lg text-sm font-medium transition-all duration-200 ease-in-out
-                      ${isActive 
-                        ? 'bg-white bg-opacity-20 text-white shadow-sm' 
-                        : 'text-white text-opacity-90 hover:bg-white hover:bg-opacity-10 hover:text-white'
-                      }
-                    `}
+                    className={clsx(
+                      "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                      isCompact && "justify-center",
+                      isActive 
+                        ? "bg-blue-50 text-blue-600" 
+                        : "text-gray-700 hover:bg-gray-100"
+                    )}
                     title={isCompact ? item.name : undefined}
                   >
-                    {isCompact ? (
-                      <item.icon className="h-5 w-5 text-white" aria-hidden="true" />
-                    ) : (
-                      <>
-                        <div className="p-1.5 rounded-md transition-all duration-200 group-hover:bg-white group-hover:bg-opacity-15">
-                          <item.icon className="h-4 w-4 text-white" aria-hidden="true" />
-                        </div>
-                        <span>{item.name}</span>
-                      </>
-                    )}
+                    <item.icon className="w-5 h-5 shrink-0" />
+                    {!isCompact && <span>{item.name}</span>}
                   </Link>
                 </li>
               );
             } else {
-              // Module with children - nascosto in modalità compatta
+              const isExpanded = isModuleExpanded(item.name);
+              const isModuleActive = pathname.startsWith(item.basePath!);
+              
               if (isCompact) {
-                const isModuleActive = pathname.startsWith(item.basePath!);
                 return (
-                  <li 
-                    key={item.name}
-                    className={`transition-all duration-400 ease-in-out transform ${mounted ? 'translate-x-0 opacity-100' : '-translate-x-4 opacity-0'}`}
-                    style={{ transitionDelay: `${index * 75}ms` }}
-                  >
+                  <li key={item.name}>
                     <Link
                       href={item.basePath + '/dashboard'}
-                      className={`
-                        group flex items-center justify-center px-2 py-3 rounded-lg text-sm font-medium transition-all duration-200 ease-in-out
-                        ${isModuleActive 
-                          ? 'bg-white bg-opacity-20 text-white shadow-sm' 
-                          : 'text-white text-opacity-90 hover:bg-white hover:bg-opacity-10 hover:text-white'
-                        }
-                      `}
+                      className={clsx(
+                        "flex items-center justify-center rounded-lg p-2 transition-colors",
+                        isModuleActive 
+                          ? "bg-blue-50 text-blue-600" 
+                          : "text-gray-700 hover:bg-gray-100"
+                      )}
                       title={item.name}
                     >
-                      <item.icon className="h-5 w-5 text-white" aria-hidden="true" />
+                      <item.icon className="w-5 h-5" />
                     </Link>
                   </li>
                 );
               }
               
-              // Modalità espansa normale
-              const isExpanded = isModuleExpanded(item.name);
-              const isModuleActive = pathname.startsWith(item.basePath!);
-              
               return (
-                <li 
-                  key={item.name}
-                  className={`transition-all duration-400 ease-in-out transform ${mounted ? 'translate-x-0 opacity-100' : '-translate-x-4 opacity-0'}`}
-                  style={{ transitionDelay: `${index * 75}ms` }}
-                >
-                  {/* Module Header */}
+                <li key={item.name}>
                   <button
                     onClick={() => toggleModule(item.name)}
-                    className={`
-                      group w-full flex items-center gap-x-3 rounded-lg px-4 py-3 text-sm font-medium transition-all duration-200 ease-in-out
-                      ${isModuleActive 
-                        ? 'bg-white bg-opacity-20 text-white shadow-sm' 
-                        : 'text-white text-opacity-90 hover:bg-white hover:bg-opacity-10 hover:text-white'
-                      }
-                    `}
+                    className={clsx(
+                      "w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                      isModuleActive 
+                        ? "bg-blue-50 text-blue-600" 
+                        : "text-gray-700 hover:bg-gray-100"
+                    )}
                   >
-                    <div className={`p-1.5 rounded-md transition-all duration-200 ${isModuleActive ? 'bg-white bg-opacity-25' : 'group-hover:bg-white group-hover:bg-opacity-15'}`}>
-                      <item.icon className="h-4 w-4 text-white" aria-hidden="true" />
-                    </div>
+                    <item.icon className="w-5 h-5 shrink-0" />
                     <span className="flex-1 text-left">{item.name}</span>
                     <ChevronRight 
-                      className={`h-4 w-4 transition-all duration-200 ease-in-out ${isExpanded ? 'rotate-90' : ''} text-white text-opacity-80`}
+                      className={clsx(
+                        "w-4 h-4 transition-transform",
+                        isExpanded && "rotate-90"
+                      )}
                     />
                   </button>
 
-                  {/* Children */}
-                  <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-96 opacity-100 mt-2' : 'max-h-0 opacity-0'}`}>
-                    {isExpanded && (
-                      <ul className="ml-6 space-y-1">
-                        {item.children?.map((child, childIndex) => {
-                          const isChildActive = pathname === child.href;
-                          return (
-                            <li 
-                              key={child.name}
-                              className="transition-all duration-200 ease-in-out"
-                              style={{ transitionDelay: `${childIndex * 50}ms` }}
+                  {isExpanded && (
+                    <ul className="mt-1 ml-4 space-y-1 border-l border-gray-200 pl-3">
+                      {item.children?.map((child) => {
+                        const isChildActive = pathname === child.href;
+                        return (
+                          <li key={child.name}>
+                            <Link
+                              href={child.href}
+                              className={clsx(
+                                "block rounded-md px-3 py-1.5 text-sm transition-colors",
+                                isChildActive 
+                                  ? "bg-blue-50 text-blue-600 font-medium" 
+                                  : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                              )}
                             >
-                              <Link
-                                href={child.href}
-                                className={`
-                                  flex items-center gap-x-3 rounded-md px-4 py-2 text-sm transition-all duration-200 ease-in-out
-                                  ${isChildActive 
-                                    ? 'bg-white bg-opacity-15 text-white font-medium' 
-                                    : 'text-white text-opacity-80 hover:bg-white hover:bg-opacity-10 hover:text-white'
-                                  }
-                                `}
-                              >
-                                <div className={`w-1.5 h-1.5 rounded-full transition-colors ${isChildActive ? 'bg-white' : 'bg-white bg-opacity-60'}`}></div>
-                                <span>{child.name}</span>
-                              </Link>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    )}
-                  </div>
+                              {child.name}
+                            </Link>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
                 </li>
               );
             }
           })}
         </ul>
+      </nav>
 
-
-
-        {/* Profile Section */}
-        <div className={`mt-6 transition-all duration-500 ease-in-out transform ${mounted ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}`} style={{ transitionDelay: '400ms' }}>
-          {user ? (
-            <div className="relative">
-              {/* Profile Button */}
-              {isCompact ? (
-                <Link
-                  href="/profile"
-                  className="w-full flex items-center justify-center px-2 py-3 rounded-lg text-sm transition-all duration-200 ease-in-out hover:bg-white hover:bg-opacity-10 group"
-                  title={`${userDisplayName} - Vai al profilo`}
+      {/* Profile Section */}
+      <div className={clsx("border-t border-gray-200 p-3", isCompact && "px-2")}>
+        {user ? (
+          <div className="relative">
+            {isCompact ? (
+              <Link
+                href="/profile"
+                className="flex items-center justify-center p-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
+                title={userDisplayName}
+              >
+                {user.user_metadata?.avatar_url ? (
+                  <div 
+                    className="w-8 h-8 rounded-full bg-cover bg-center border border-gray-200"
+                    style={{ backgroundImage: `url(${user.user_metadata.avatar_url})` }}
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
+                    <User className="w-4 h-4 text-gray-500" />
+                  </div>
+                )}
+              </Link>
+            ) : (
+              <>
+                <button
+                  onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+                  className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-gray-100 transition-colors"
                 >
-                  {/* Avatar */}
                   {user.user_metadata?.avatar_url ? (
                     <div 
-                      className="w-8 h-8 rounded-full bg-cover bg-center border-2 border-white border-opacity-30 transition-all duration-200 ease-in-out group-hover:border-opacity-50"
+                      className="w-9 h-9 rounded-full bg-cover bg-center border border-gray-200 shrink-0"
                       style={{ backgroundImage: `url(${user.user_metadata.avatar_url})` }}
                     />
                   ) : (
-                    <User className="w-6 h-6 text-white" />
-                  )}
-                </Link>
-              ) : (
-                <button
-                  onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-                  className="w-full flex items-center gap-x-3 px-4 py-3 rounded-lg text-sm transition-all duration-200 ease-in-out hover:bg-white hover:bg-opacity-10 group"
-                >
-                  {/* Avatar */}
-                  <div className="w-10 h-10 bg-white bg-opacity-20 rounded-full flex items-center justify-center transition-all duration-200 ease-in-out group-hover:bg-opacity-30 shrink-0">
-                    {user.user_metadata?.avatar_url ? (
-                      <div 
-                        className="w-8 h-8 rounded-full bg-cover bg-center"
-                        style={{ backgroundImage: `url(${user.user_metadata.avatar_url})` }}
-                      />
-                    ) : (
-                      <User className="w-5 h-5 text-white" />
-                    )}
-                  </div>
-                  
-                  {/* User Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <p className="text-white font-semibold truncate">
-                        {userDisplayName}
-                      </p>
-                      {profileMenuOpen ? (
-                        <ChevronUp className="w-4 h-4 text-white text-opacity-60 group-hover:text-white transition-colors duration-200" />
-                      ) : (
-                        <ChevronDown className="w-4 h-4 text-white text-opacity-60 group-hover:text-white transition-colors duration-200" />
-                      )}
+                    <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
+                      <User className="w-5 h-5 text-gray-500" />
                     </div>
-                    <p className="text-white text-opacity-70 text-xs">
-                      {user.user_metadata?.subscription_type || 'Free Plan'}
-                    </p>
+                  )}
+                  <div className="flex-1 min-w-0 text-left">
+                    <p className="text-sm font-medium text-gray-900 truncate">{userDisplayName}</p>
+                    <p className="text-xs text-gray-500 truncate">{user.email}</p>
                   </div>
                 </button>
-              )}
 
-              {/* Dropdown Menu - Only show in expanded mode */}
-              {!isCompact && (
-                <div className={`absolute bottom-full left-0 right-0 mb-2 bg-white bg-opacity-20 backdrop-blur-sm rounded-lg shadow-lg border border-white border-opacity-20 overflow-hidden transition-all duration-200 ease-in-out ${profileMenuOpen ? 'max-h-32 opacity-100' : 'max-h-0 opacity-0'}`}>
-                  {profileMenuOpen && (
-                    <div className="p-2 space-y-1">
+                {profileMenuOpen && (
+                  <div className="absolute bottom-full left-0 right-0 mb-2 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
+                    <div className="p-1">
                       <Link
                         href="/profile"
                         onClick={() => setProfileMenuOpen(false)}
-                        className="flex items-center gap-x-3 rounded-md px-3 py-2 text-sm text-white text-opacity-90 hover:bg-white hover:bg-opacity-15 hover:text-white transition-all duration-200 ease-in-out"
+                        className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
                       >
                         <Settings className="w-4 h-4" />
                         <span>Impostazioni</span>
                       </Link>
                       <button
                         onClick={handleLogout}
-                        className="w-full flex items-center gap-x-3 rounded-md px-3 py-2 text-sm text-white text-opacity-90 hover:bg-red-500 hover:bg-opacity-20 hover:text-white transition-all duration-200 ease-in-out"
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors"
                       >
                         <LogOut className="w-4 h-4" />
                         <span>Logout</span>
                       </button>
                     </div>
-                  )}
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="text-center">
-              <div className="text-xs text-white/60">
-                <span>Powered by Mosaiko</span>
-              </div>
-            </div>
-          )}
-        </div>
-      </nav>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }

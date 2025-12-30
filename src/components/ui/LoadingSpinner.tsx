@@ -1,15 +1,19 @@
 import React from 'react';
+import clsx from 'clsx';
+
+interface LoadingSpinnerProps {
+  size?: number;
+  className?: string;
+}
 
 /**
- * Componente di caricamento generico con spinner centrato.
- * Può essere usato ovunque nell'app per una UX uniforme.
- * Props opzionali: size (dimensione spinner), className (stile extra), color (colore bordo)
+ * Spinner di caricamento semplice e pulito.
  */
-export default function LoadingSpinner({ size = 48, className = '', color = 'border-blue-500' }) {
+export default function LoadingSpinner({ size = 32, className = '' }: LoadingSpinnerProps) {
   return (
-    <div className={`flex items-center justify-center w-full h-full min-h-[120px] ${className}`}>
+    <div className={clsx('flex items-center justify-center', className)}>
       <div
-        className={`animate-spin rounded-full border-t-4 ${color} border-solid`}
+        className="animate-spin rounded-full border-2 border-gray-200 border-t-blue-600"
         style={{ width: size, height: size }}
       />
     </div>

@@ -21,7 +21,7 @@ export default function PWAManager() {
     
     // Check if running in standalone mode (app-like)
     const standalone = window.matchMedia('(display-mode: standalone)').matches || 
-                      (window.navigator as any).standalone === true || 
+                      (window.navigator as unknown as { standalone?: boolean }).standalone === true || 
                       document.referrer.includes('android-app://') ||
                       window.location.search.includes('source=pwa')
     setIsStandalone(standalone)

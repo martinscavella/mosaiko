@@ -20,9 +20,9 @@ import {
 } from "@/lib/helpers/format";
 import TotalBalanceChart from "@/components/ui/TotalBalanceChart";
 import { useRouter } from "next/navigation";
-import { RefreshCw, BarChart3, BadgePercent } from "lucide-react";
+import { RefreshCw, BarChart3 } from "lucide-react";
 import { useState } from "react";
-import TransactionDetailsModal from '@/components/ui/TransactionDetailsModal';
+import TransactionDetailsModal, { Transaction } from '@/components/ui/TransactionDetailsModal';
 
 // Componente principale della dashboard finanziaria
 
@@ -35,10 +35,10 @@ export default function FinanceDashboard() {
   // Recupera info utente e stato autenticazione
   const { user, loading: authLoading } = useAuth();
 
-  const [selectedTransaction, setSelectedTransaction] = useState(null);
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const openModal = (transaction: any) => {
+  const openModal = (transaction: Transaction) => {
     setSelectedTransaction(transaction);
     setIsModalOpen(true);
   };
@@ -76,22 +76,8 @@ export default function FinanceDashboard() {
   if (!user) {
     return (
       <ModuleLayout moduleId="finance">
-        <div className="relative flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 backdrop-blur-xl overflow-hidden">
-          {/* Animated background elements come nella login */}
-          <div className="absolute inset-0 pointer-events-none select-none">
-            <div className="absolute top-20 left-20 w-72 h-72 bg-white bg-opacity-10 rounded-full filter blur-xl animate-pulse" />
-            <div
-              className="absolute bottom-20 right-20 w-96 h-96 bg-white bg-opacity-5 rounded-full filter blur-2xl animate-pulse"
-              style={{ animationDelay: "1s" }}
-            />
-            <div
-              className="absolute top-1/2 left-1/4 w-48 h-48 bg-purple-300 bg-opacity-20 rounded-full filter blur-xl animate-bounce"
-              style={{ animationDuration: "3s" }}
-            />
-          </div>
-          <div className="relative z-10 w-full flex items-center justify-center">
-            <AuthRequiredMessage />
-          </div>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <AuthRequiredMessage />
         </div>
       </ModuleLayout>
     );
@@ -102,7 +88,7 @@ export default function FinanceDashboard() {
     <>
       {/* Layout principale della dashboard finanza */}
       <ModuleLayout moduleId="finance">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 custom-scrollbar">
+        <div className="max-w-7xl 3xl:max-w-[1600px] 4xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 3xl:px-10 py-8 custom-scrollbar">
           {/* Header fisso e fluttante - solo il box stondato */}
           <ModuleHeader
               title="Dashboard Finanziaria"
@@ -148,7 +134,7 @@ export default function FinanceDashboard() {
             />
 
           {/* Griglia principale: CashQuickActions a sinistra, saldo e obiettivi a destra */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-2"> {/* gap e mb uniformati a 4 */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 3xl:gap-6 mb-2"> {/* gap e mb uniformati a 4 */}
             {/* Sinistra: CashQuickActions (occupa metà schermo su desktop) */}
             <div className="w-full h-full flex flex-col">
               <CashQuickActions />
@@ -166,7 +152,7 @@ export default function FinanceDashboard() {
           </div>
 
           {/* Seconda riga: statistiche mensili, responsive */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4"> {/* gap e mb uniformati a 4 */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 3xl:grid-cols-3 gap-4 3xl:gap-6 mb-4"> {/* gap e mb uniformati a 4 */}
             <FinanceWidget
               title="Entrate Mensili"
               value={formatCurrency(stats.monthlyIncome)}
@@ -209,7 +195,7 @@ export default function FinanceDashboard() {
           </div>
 
           {/* Transazioni Recenti e Obiettivi */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4"> {/* gap e mb uniformati a 4 */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 3xl:gap-6 mb-4"> {/* gap e mb uniformati a 4 */}
             <RecentTransactions limit={5} onTransactionClick={openModal} />
             <FinancialGoalsWidget limit={4} />
           </div>
