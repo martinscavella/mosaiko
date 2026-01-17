@@ -220,9 +220,8 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
       const refunds = refundsResult.data || [];
       const fundsTransfer = fundsTransferResult.data || [];
 
-      const assetPurchaseTransactions = allTransactions.filter((transaction: Transaction) => {
-        return transaction.asset_id != null;
-      });
+      // Filtraggio asset-related disponibile se necessario in futuro
+      // const assetPurchaseTransactions = allTransactions.filter((transaction: Transaction) => transaction.asset_id != null);
 
       const assets = rawAssets.map((asset: RawAssetData) => {
         return asset as Asset;
@@ -1094,14 +1093,6 @@ export function useAssetOperations() {
 }
 
 // Aggiungi queste interfacce dopo le interfacce esistenti
-interface TransactionWithRelations extends Transaction {
-  accounts?: {
-    type: string;
-    color?: string;
-  } | null
-  categories: { name: string } | null
-}
-
 interface RawAssetData {
   id: string
   name: string

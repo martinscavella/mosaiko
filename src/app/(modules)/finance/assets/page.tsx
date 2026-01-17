@@ -83,6 +83,16 @@ export default function AssetsPage() {
   // Stati per l'aggiornamento dei valori degli asset
   const [isUpdatingValues, setIsUpdatingValues] = useState(false)
 
+  // Listener per il FAB della navbar mobile
+  useEffect(() => {
+    const handleOpenModal = () => {
+      setShowAddModal(true);
+    };
+    
+    window.addEventListener('openNewItemModal', handleOpenModal);
+    return () => window.removeEventListener('openNewItemModal', handleOpenModal);
+  }, []);
+
   // Debug: log dei dati per capire cosa sta succedendo
   useEffect(() => {
     if (financeData) {
@@ -105,7 +115,7 @@ export default function AssetsPage() {
   if (authLoading) {
     return (
       <ModuleLayout moduleId="finance">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-7xl 3xl:max-w-[1600px] 4xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 3xl:px-10 py-8">
           <div className="animate-pulse">
             {/* ...existing loading skeleton... */}
           </div>
@@ -117,7 +127,7 @@ export default function AssetsPage() {
   if (!user) {
     return (
       <ModuleLayout moduleId="finance">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-7xl 3xl:max-w-[1600px] 4xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 3xl:px-10 py-8">
           {/* ...existing user check JSX... */}
         </div>
       </ModuleLayout>
@@ -699,7 +709,7 @@ export default function AssetsPage() {
 
   return (
     <ModuleLayout moduleId="finance">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl 3xl:max-w-[1600px] 4xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 3xl:px-10 py-8">
         <ModuleHeader 
           title="Asset"
           subtitle="Gestisci i tuoi beni e investimenti"

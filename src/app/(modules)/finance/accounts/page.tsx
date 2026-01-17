@@ -53,6 +53,16 @@ export default function AccountsPage() {
   const [sortField, setSortField] = useState<'name' | 'type' | 'balance'>('balance')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
 
+  // Listener per il FAB della navbar mobile
+  useEffect(() => {
+    const handleOpenModal = () => {
+      setShowAddModal(true);
+    };
+    
+    window.addEventListener('openNewItemModal', handleOpenModal);
+    return () => window.removeEventListener('openNewItemModal', handleOpenModal);
+  }, []);
+
   // Trasforma gli account dalla cache aggiungendo proprietà di visibilità e ultime transazioni
   useEffect(() => {
     if (!cacheAccounts.length || !financeData || !user) return
@@ -174,7 +184,7 @@ export default function AccountsPage() {
     }
 
     processAccountsWithAllOperations()
-  }, [cacheAccounts, financeData, user])
+  }, [cacheAccounts, financeData, user, supabase])
 
   const formatCurrency = (amount: number, currency: string = 'EUR') => {
     return new Intl.NumberFormat('it-IT', {
@@ -314,7 +324,7 @@ export default function AccountsPage() {
   if (authLoading) {
     return (
       <ModuleLayout moduleId="finance">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-7xl 3xl:max-w-[1600px] 4xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 3xl:px-10 py-8">
           <div className="animate-pulse">
             <div className="h-8 bg-gray-200 rounded w-64 mb-8"></div>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -331,7 +341,7 @@ export default function AccountsPage() {
   if (!user) {
     return (
       <ModuleLayout moduleId="finance">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-7xl 3xl:max-w-[1600px] 4xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 3xl:px-10 py-8">
           <div className="text-center">
             <p className="text-gray-500">Devi effettuare il login per visualizzare i tuoi account</p>
           </div>
@@ -372,7 +382,7 @@ export default function AccountsPage() {
           animation: shimmer 0.7s ease-out;
         }
       `}</style>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 custom-scrollbar">
+      <div className="max-w-7xl 3xl:max-w-[1600px] 4xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 3xl:px-10 py-8 custom-scrollbar">
         
         {/* Header utilizzando il componente riutilizzabile */}
         <ModuleHeader
@@ -410,7 +420,8 @@ export default function AccountsPage() {
               onClick: () => setShowAddModal(true),
               icon: <Plus className="w-4 h-4" />,
               color: 'green',
-              hideTextOnMobile: true
+              hideTextOnMobile: true,
+              hideOnMobile: true
             },
             {
               label: 'Aggiorna',

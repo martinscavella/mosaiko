@@ -1,40 +1,34 @@
-
 import Link from 'next/link';
+import { Lock } from 'lucide-react';
 
 /**
- * Componente per mostrare un messaggio di autenticazione richiesta,
- * con pulsanti per login e registrazione, in stile coerente con l'app.
+ * Messaggio di autenticazione richiesta con stile minimale.
  */
 export default function AuthRequiredMessage() {
   return (
-    <div className="relative w-full max-w-md mx-auto p-8 rounded-2xl shadow-3xl border border-white/30 bg-white/80 dark:bg-gray-900/80 backdrop-blur-lg">
-      {/* Sfondo gradient statico come login */}
-      <div className="absolute inset-0 -z-10 rounded-2xl overflow-hidden">
-        <div className="w-full h-full bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 opacity-60" />
+    <div className="w-full max-w-sm mx-auto bg-white border border-gray-200 rounded-xl shadow-sm p-8 text-center">
+      <div className="w-14 h-14 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
+        <Lock className="w-7 h-7 text-blue-600" />
       </div>
-      <div className="flex flex-col items-center justify-center">
-        <h2 className="text-3xl font-bold text-white drop-shadow-lg mb-3 text-center">Accesso richiesto</h2>
-        <p className="text-lg text-white text-opacity-90 leading-relaxed drop-shadow-md mb-8 text-center">
-          Devi effettuare il login o registrarti per visualizzare i dati finanziari e accedere alla dashboard personale.
-        </p>
-        <div className="flex flex-col sm:flex-row gap-4 w-full justify-center">
-          <Link href="/auth/login" passHref legacyBehavior>
-            <a className="group relative w-full sm:w-auto bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-xl font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-blue-400 text-center">
-              <span className="relative z-10 flex items-center justify-center">
-                <span className="mr-2">🚀</span> Login
-              </span>
-              <div className="absolute inset-0 rounded-xl bg-white bg-opacity-20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            </a>
-          </Link>
-          <Link href="/auth/register" passHref legacyBehavior>
-            <a className="group relative w-full sm:w-auto bg-gray-100 text-gray-700 rounded-xl font-semibold px-6 py-3 border border-gray-200 hover:bg-gray-200 transition-all duration-300 transform hover:scale-105 shadow focus:outline-none focus:ring-2 focus:ring-blue-200 text-center dark:bg-gray-800 dark:text-white dark:border-gray-700">
-              <span className="relative z-10 flex items-center justify-center">
-                <span className="mr-2">✨</span> Registrati
-              </span>
-              <div className="absolute inset-0 rounded-xl bg-white bg-opacity-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            </a>
-          </Link>
-        </div>
+      <h2 className="text-xl font-semibold text-gray-900 mb-2">
+        Accesso richiesto
+      </h2>
+      <p className="text-gray-600 mb-6">
+        Effettua il login o registrati per accedere ai tuoi dati.
+      </p>
+      <div className="flex flex-col gap-3">
+        <Link
+          href="/auth/login"
+          className="block w-full bg-blue-600 text-white px-4 py-2.5 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+        >
+          Login
+        </Link>
+        <Link
+          href="/auth/register"
+          className="block w-full bg-gray-100 text-gray-700 px-4 py-2.5 rounded-lg font-medium hover:bg-gray-200 transition-colors"
+        >
+          Registrati
+        </Link>
       </div>
     </div>
   );

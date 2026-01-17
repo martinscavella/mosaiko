@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import ModuleLayout from '@/components/ModuleLayout'
 import ModuleHeader from '@/components/ui/ModuleHeader'
 import TransactionsTable, { TransactionTableColumn } from '@/components/ui/TransactionsTable'
@@ -29,7 +29,19 @@ export default function TransactionsPage() {  const { transactions, loading, err
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [selectedSubcategory, setSelectedSubcategory] = useState('all')
   const [selectedDateRange, setSelectedDateRange] = useState('all')
-  const [showNewTransactionModal, setShowNewTransactionModal] = useState(false)  // Logica di filtri duplicata dalla tabella per calcolare le statistiche
+  const [showNewTransactionModal, setShowNewTransactionModal] = useState(false)
+
+  // Listener per il FAB della navbar mobile
+  useEffect(() => {
+    const handleOpenModal = () => {
+      setShowNewTransactionModal(true);
+    };
+    
+    window.addEventListener('openNewItemModal', handleOpenModal);
+    return () => window.removeEventListener('openNewItemModal', handleOpenModal);
+  }, []);
+
+  // Logica di filtri duplicata dalla tabella per calcolare le statistiche
   const filteredData = useMemo(() => {
     // Funzione helper per filtrare in base alla data
     const isInDateRange = (transactionDate: string, range: string): boolean => {
@@ -197,6 +209,36 @@ export default function TransactionsPage() {  const { transactions, loading, err
       return 'text-red-600'
     }
   }
+  // Paginazione per vista mobile
+  const sortedAndFilteredData = useMemo(() => {
+    const data = [...filteredData]
+    
+    // Ordinamento
+    data.sort((a, b) => {
+      const aVal = a[sortBy as keyof Transaction]
+      const bVal = b[sortBy as keyof Transaction]
+      
+      if (aVal === null || aVal === undefined) return 1
+      if (bVal === null || bVal === undefined) return -1
+      
+      if (sortOrder === 'asc') {
+        return aVal > bVal ? 1 : -1
+      } else {
+        return aVal < bVal ? 1 : -1
+      }
+    })
+    
+    return data
+  }, [filteredData, sortBy, sortOrder])
+
+  const paginatedMobileData = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage
+    const endIndex = startIndex + itemsPerPage
+    return sortedAndFilteredData.slice(startIndex, endIndex)
+  }, [sortedAndFilteredData, currentPage, itemsPerPage])
+
+  const totalPages = Math.ceil(sortedAndFilteredData.length / itemsPerPage)
+
   // Definizione colonne tabella
   const columns: TransactionTableColumn[] = [
     {
@@ -300,7 +342,7 @@ export default function TransactionsPage() {  const { transactions, loading, err
   if (authLoading) {
     return (
       <ModuleLayout moduleId="finance">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-7xl 3xl:max-w-[1600px] 4xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 3xl:px-10 py-8">
           <div className="animate-pulse">
             <div className="h-8 bg-gray-200 rounded w-64 mb-8"></div>
             <div className="space-y-4">
@@ -317,7 +359,7 @@ export default function TransactionsPage() {  const { transactions, loading, err
   if (!user) {
     return (
       <ModuleLayout moduleId="finance">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-7xl 3xl:max-w-[1600px] 4xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 3xl:px-10 py-8">
           <div className="text-center">
             <p className="text-gray-500">Devi effettuare il login per visualizzare le transazioni</p>
           </div>
@@ -328,7 +370,7 @@ export default function TransactionsPage() {  const { transactions, loading, err
 
   return (
     <ModuleLayout moduleId="finance">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">        <ModuleHeader
+      <div className="max-w-7xl 3xl:max-w-[1600px] 4xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 3xl:px-10 py-8">        <ModuleHeader
           title="Transazioni"
           subtitle="Visualizza e gestisci tutte le tue transazioni finanziarie"
           icon={<Calendar className="h-6 w-6 text-white" />}
@@ -370,7 +412,8 @@ export default function TransactionsPage() {  const { transactions, loading, err
               onClick: () => setShowNewTransactionModal(true),
               icon: <Plus className="w-4 h-4" />,
               color: 'green',
-              hideTextOnMobile: true
+              hideTextOnMobile: true,
+              hideOnMobile: true
             },
             {
               label: 'Aggiorna',
@@ -381,7 +424,150 @@ export default function TransactionsPage() {  const { transactions, loading, err
               loading: loading,
               hideTextOnMobile: true
             }
-          ]}        />        {/* Tabella con filtri integrati */}        <TransactionsTable
+          ]}        />        {/* Vista Mobile - Card compatte */}
+        <div className="md:hidden space-y-4">
+          {/* Barra ricerca e filtri mobile */}
+          <div className="bg-white rounded-xl border border-gray-200 p-3 space-y-3">
+            <input
+              type="text"
+              placeholder="Cerca transazioni..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            <div className="grid grid-cols-2 gap-2">
+              <select
+                value={selectedFilter}
+                onChange={(e) => setSelectedFilter(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">Tutti</option>
+                <option value="income">Entrate</option>
+                <option value="expense">Uscite</option>
+                <option value="transfer">Bonifici</option>
+                <option value="refunded">Rimborsati</option>
+                <option value="assets">Asset</option>
+              </select>
+              <select
+                value={selectedDateRange}
+                onChange={(e) => handleDateRangeChange(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">Tutte le date</option>
+                <option value="today">Oggi</option>
+                <option value="week">Ultima settimana</option>
+                <option value="month">Ultimo mese</option>
+                <option value="quarter">Ultimo trimestre</option>
+                <option value="year">Ultimo anno</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Lista transazioni mobile */}
+          {loading ? (
+            <div className="space-y-3">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="bg-gray-100 rounded-xl h-24 animate-pulse"></div>
+              ))}
+            </div>
+          ) : paginatedMobileData.length === 0 ? (
+            <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
+              <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+              <p className="text-gray-500 text-sm">Nessuna transazione trovata</p>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-3">
+                {paginatedMobileData.map((transaction: Transaction, index: number) => (
+                  <div
+                    key={`${transaction.transaction_date}-${index}`}
+                    className="bg-white rounded-xl border border-gray-200 p-4 active:bg-gray-50 transition-colors"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3 flex-1 min-w-0">
+                        <div className="flex-shrink-0 mt-0.5">
+                          <div className="h-10 w-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                            {getTransactionIcon(transaction)}
+                          </div>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-gray-900 text-sm mb-1 break-words leading-tight">
+                            {transaction.transaction_details}
+                          </p>
+                          <div className="flex flex-wrap items-center gap-2 mb-2">
+                            <span className="text-xs text-gray-500">
+                              {formatDate(transaction.transaction_date)}
+                            </span>
+                            {transaction.account_name && (
+                              <>
+                                <span className="text-gray-300">•</span>
+                                <span className="text-xs text-gray-500 truncate">
+                                  {transaction.account_name}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {transaction.categories?.name && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                {transaction.categories.name}
+                              </span>
+                            )}
+                            {transaction.subcategories?.name && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                {transaction.subcategories.name}
+                              </span>
+                            )}
+                            {transaction.is_refunded && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                Rimborsato
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex-shrink-0 text-right">
+                        <p className={`text-base font-bold ${getTransactionColor(transaction)}`}>
+                          {transaction.current_amount > 0 ? '+' : ''}
+                          {new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(transaction.current_amount)}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-0.5 capitalize">
+                          {transaction.transaction_type}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Paginazione mobile */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between bg-white rounded-xl border border-gray-200 p-3">
+                  <button
+                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Prec
+                  </button>
+                  <span className="text-sm text-gray-600">
+                    Pagina {currentPage} di {totalPages}
+                  </span>
+                  <button
+                    onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Succ
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Tabella con filtri integrati - Solo Desktop */}        <div className="hidden md:block">
+          <TransactionsTable
           data={transactions}
           columns={columns}
           currentPage={currentPage}
@@ -409,6 +595,7 @@ export default function TransactionsPage() {  const { transactions, loading, err
           selectedDateRange={selectedDateRange}
           onDateRangeChange={handleDateRangeChange}
         />
+        </div>
 
         {error && (
           <div className="mt-4 bg-red-50 border border-red-200 rounded-xl p-6">

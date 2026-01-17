@@ -4,6 +4,14 @@
 import type { ImportRow, BankParser } from './types.js';
 import * as XLSX from 'xlsx';
 
+// Tipo per le statistiche di import
+export type ImportStats = {
+  total: number;
+  processed: number;
+  success: number;
+  errors: number;
+}
+
 // --- Interfaccia per Account ---
 interface Account {
   id: string;
@@ -111,8 +119,9 @@ export const BANK_PARSERS: BankParser[] = [
         lowerHeaders.includes('importo');
       return oldFormat || xmeFormat || genericFormat;
     },
-    parseRow: (headers: string[], values: string[], accountMappings?: { [key: string]: string }) => {
+    parseRow: (headers: string[], values: string[], _accountMappings?: { [key: string]: string }) => {
       // DEBUG: logga header e valori per capire cosa arriva
+      void _accountMappings;
       if (typeof window !== 'undefined' && window.console) {
         console.log('DEBUG Intesa parseRow headers:', headers);
         console.log('DEBUG Intesa parseRow values:', values);
@@ -202,7 +211,7 @@ export const BANK_PARSERS: BankParser[] = [
             const day = String(excelDate.getDate()).padStart(2, '0')
             return `${year}-${month}-${day}`
           }
-        } catch (error) { }
+        } catch { }
       }
       if (typeof date === 'string' && date.includes('/')) {
         const parts = date.split('/')
@@ -240,7 +249,8 @@ export const BANK_PARSERS: BankParser[] = [
       // Considera Postepay solo se almeno 2 header tipici sono presenti
       return matchCount >= 2;
     },
-    parseRow: (headers: string[], values: string[], accountMappings?: { [key: string]: string }) => {
+    parseRow: (headers: string[], values: string[], _accountMappings?: { [key: string]: string }) => {
+      void _accountMappings;
       // Mapping header Postepay: Data Contabile, Data Valuta, Importo (euro), Descrizione operazioni
       const date = findValue(headers, values, ['data contabile', 'data operazione', 'data', 'data valuta']) || '';
       const description = findValue(headers, values, ['descrizione operazioni', 'descrizione operazione', 'descrizione', 'causale', 'dettagli']) || '';
@@ -277,7 +287,7 @@ export const BANK_PARSERS: BankParser[] = [
             const day = String(excelDate.getDate()).padStart(2, '0')
             return `${year}-${month}-${day}`
           }
-        } catch (error) { }
+        } catch { }
       }
       if (typeof date === 'string' && date.includes('/')) {
         const parts = date.split('/')
@@ -297,27 +307,29 @@ export const BANK_PARSERS: BankParser[] = [
     identifier: 'paypal',
     detectFormat: (headers: string[]) => {
       const lowerHeaders = headers.map(h => h.toLowerCase());
-      // Paypal CSV: tipici header inglesi
+      // Paypal CSV: header italiani o inglesi
       return (
-        lowerHeaders.includes('date') &&
-        (lowerHeaders.includes('name') || lowerHeaders.includes('description')) &&
-        (lowerHeaders.includes('amount') || lowerHeaders.includes('net'))
+        (lowerHeaders.includes('data') || lowerHeaders.includes('date')) &&
+        (lowerHeaders.includes('nome') || lowerHeaders.includes('name') || lowerHeaders.includes('descrizione') || lowerHeaders.includes('description')) &&
+        (lowerHeaders.includes('netto') || lowerHeaders.includes('net') || lowerHeaders.includes('lordo') || lowerHeaders.includes('gross'))
       );
     },
-    parseRow: (headers: string[], values: string[], accountMappings?: { [key: string]: string }) => {
-      // Paypal: header tipici: Date, Name, Type, Status, Currency, Gross, Fee, Net, Description
-      const date = findValue(headers, values, ['date', 'data']) || '';
-      const descriptionRaw = findValue(headers, values, ['description', 'descrizione']) || '';
-      const name = findValue(headers, values, ['name', 'nome']) || '';
-      // Descrizione: description + name
+    parseRow: (headers: string[], values: string[], _accountMappings?: { [key: string]: string }) => {
+      void _accountMappings;
+      // Paypal: header tipici italiani: Data, Ora, Fuso orario, Descrizione, Valuta, Lordo, Tariffa, Netto, Saldo, Nome
+      // Header inglesi: Date, Time, Name, Type, Status, Currency, Gross, Fee, Net, Balance, Description
+      const date = findValue(headers, values, ['data', 'date']) || '';
+      const descriptionRaw = findValue(headers, values, ['descrizione', 'description']) || '';
+      const name = findValue(headers, values, ['nome', 'name']) || '';
+      // Descrizione: description + name (priorità description, poi nome)
       let description = descriptionRaw;
-      if (name && descriptionRaw && !descriptionRaw.includes(name)) {
-        description = `${descriptionRaw} - ${name}`;
-      } else if (name && !descriptionRaw) {
+      if (name && !descriptionRaw) {
         description = name;
+      } else if (name && descriptionRaw && !descriptionRaw.toLowerCase().includes(name.toLowerCase())) {
+        description = `${descriptionRaw} - ${name}`;
       }
-      // Importo: solo campo Netto (supporta anche 'Netto' con spazi)
-      const amountStr = findValue(headers, values, ['net', 'netto', 'netto ', ' netto']) || '';
+      // Importo: campo Netto (supporta varianti con spazi)
+      const amountStr = findValue(headers, values, ['netto', 'net', 'netto ', ' netto']) || '';
       let amountNum = parseFloat(amountStr.replace(',', '.'));
       if (isNaN(amountNum)) amountNum = 0;
       // Tipo: entrata se >0, spesa se <0
@@ -331,7 +343,7 @@ export const BANK_PARSERS: BankParser[] = [
       };
     },
     transformDate: (date: string) => {
-      // Paypal: normalizza DD/MM/YYYY (italiano) e YYYY-MM-DD in YYYY-MM-DD
+      // Paypal: normalizza D/M/YYYY (italiano) e YYYY-MM-DD in YYYY-MM-DD
       if (typeof date === 'string') {
         // YYYY-MM-DD
         if (date.match(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/)) {
@@ -367,6 +379,30 @@ export const BANK_PARSERS: BankParser[] = [
         lowerHeaders.includes('currency')
       );
     },
+    // MAPPING REVOLUT TYPE → MOSAIKO:
+    // ═══════════════════════════════════════════════════════════════
+    // Type (CSV)       → Mosaiko Type   TargetTable       Comportamento
+    // ───────────────────────────────────────────────────────────────
+    // CARD_PAYMENT     → Spesa          transactions      Forza negativo
+    // CARD_REFUND      → Rimborso       refunds           Forza positivo
+    // TRANSFER         → Entrata/Spesa  funds_transfer    Basato su segno
+    // TOPUP            → Ricarica       funds_transfer    Forza positivo
+    // EXCHANGE         → Entrata/Spesa  transactions      Cambio valuta
+    // INTEREST         → Entrata        transactions      Interessi
+    // REWARD           → Entrata        transactions      Premi/Referral
+    // ═══════════════════════════════════════════════════════════════
+    // MAPPING REVOLUT PRODUCT → ACCOUNT:
+    // ═══════════════════════════════════════════════════════════════
+    // Product (CSV)    → Mosaiko Account
+    // ───────────────────────────────────────────────────────────────
+    // Current          → Account "Revolut"
+    // Savings          → Account "Revolut Savings"
+    // Deposit          → Account "Revolut Deposit"
+    // ═══════════════════════════════════════════════════════════════
+    // Puoi aggiungere colonne al CSV per override:
+    // - tipo: Mappa al tipo italiano (Spesa, Entrata, Rimborso, ecc.)
+    // - categoria: Categoria Mosaiko (es. FOOD & DRINK, SPORT & WELLNESS)
+    // - sottocategoria: Sottocategoria (es. Ristorante, Padel)
     parseRow: (headers: string[], values: string[], accountMappings?: { [key: string]: string }) => {
       // Header tipici: Type, Product, Started Date, Completed Date, Description, Amount, Fee, Currency, State, Balance
       const state = findValue(headers, values, ['state', 'stato']) || '';
@@ -430,13 +466,27 @@ export const BANK_PARSERS: BankParser[] = [
           targetTable = 'transactions';
         }
       } else {
-        // Fallback: usa il mapping originale basato su typeRaw
+        // Fallback: usa il mapping originale basato su typeRaw (Type field Revolut)
+        // Mapping Revolut Types → Mosaiko Types:
+        // CARD_PAYMENT → Spesa (transazioni con carta)
+        // CARD_REFUND → Rimborso (rimborsi su carta)
+        // TRANSFER → Trasferimento (trasferimenti da/a altri conti)
+        // TOPUP → Ricarica (ricariche conto)
+        // EXCHANGE → Cambio valuta (basato su segno)
+        // INTEREST → Entrata (interessi)
+        // REWARD → Entrata (premi/referral)
         switch (typeRaw.toUpperCase()) {
           case 'CARD_PAYMENT':
             type = 'Spesa';
-            transactionType = 'Spesa';
+            transactionType = 'expense';
             targetTable = 'transactions';
             amountNum = -Math.abs(amountNum);
+            break;
+          case 'CARD_REFUND':
+            type = 'Rimborso';
+            transactionType = 'refund';
+            targetTable = 'refunds';
+            amountNum = Math.abs(amountNum);
             break;
           case 'TRANSFER':
             type = amountNum >= 0 ? 'Entrata' : 'Spesa';
@@ -449,24 +499,28 @@ export const BANK_PARSERS: BankParser[] = [
             targetTable = 'funds_transfer';
             amountNum = Math.abs(amountNum);
             break;
-          case 'CARD_REFUND':
-            type = 'Rimborso';
-            transactionType = 'refund';
-            targetTable = 'refunds';
-            amountNum = Math.abs(amountNum);
-            break;
           case 'INTEREST':
             type = 'Entrata';
             transactionType = 'income';
             targetTable = 'transactions';
             break;
           case 'EXCHANGE':
-            type = amountNum >= 0 ? 'Entrata' : 'Spesa';
-            transactionType = amountNum >= 0 ? 'income' : 'expense';
+            // Scambio valuta: determina da importo
+            type = amountNum > 0 ? 'Entrata' : (amountNum < 0 ? 'Spesa' : 'Trasferimento');
+            transactionType = amountNum > 0 ? 'income' : (amountNum < 0 ? 'expense' : 'transfer');
             targetTable = 'transactions';
             break;
+          case 'REWARD':
+            // Premi/Referral bonus
+            type = 'Entrata';
+            transactionType = 'income';
+            targetTable = 'transactions';
+            amountNum = Math.abs(amountNum);
+            break;
           default:
+            // Default fallback: determina da segno importo
             type = amountNum >= 0 ? 'Entrata' : 'Spesa';
+            transactionType = amountNum >= 0 ? 'income' : 'expense';
             targetTable = 'transactions';
         }
       }
@@ -481,27 +535,35 @@ export const BANK_PARSERS: BankParser[] = [
 
       if (!accountId && accountMappings && productRaw) {
         if (productUpper === 'CURRENT') {
-          accountId = accountMappings['REVOLUT'] ||
-            Object.keys(accountMappings).find(name =>
-              name.includes('REVOLUT') && !name.includes('SAVING')
-            ) ? accountMappings[Object.keys(accountMappings).find(name =>
-              name.includes('REVOLUT') && !name.includes('SAVING')
-            )!] : undefined;
+          if (accountMappings['REVOLUT']) {
+            accountId = accountMappings['REVOLUT'];
+          } else {
+            const found = Object.keys(accountMappings).find(name => name.includes('REVOLUT') && !name.includes('SAVING') && !name.includes('DEPOSIT'));
+            if (found) accountId = accountMappings[found];
+          }
         } else if (productUpper === 'SAVINGS') {
-          accountId = accountMappings['REVOLUT SAVINGS'] ||
-            accountMappings['REVOLUT SAVING'] ||
-            Object.keys(accountMappings).find(name =>
-              name.includes('REVOLUT') && name.includes('SAVING')
-            ) ? accountMappings[Object.keys(accountMappings).find(name =>
-              name.includes('REVOLUT') && name.includes('SAVING')
-            )!] : undefined;
+          if (accountMappings['REVOLUT SAVINGS']) {
+            accountId = accountMappings['REVOLUT SAVINGS'];
+          } else if (accountMappings['REVOLUT SAVING']) {
+            accountId = accountMappings['REVOLUT SAVING'];
+          } else {
+            const found = Object.keys(accountMappings).find(name => name.includes('REVOLUT') && name.includes('SAVING'));
+            if (found) accountId = accountMappings[found];
+          }
+        } else if (productUpper === 'DEPOSIT') {
+          if (accountMappings['REVOLUT DEPOSIT']) {
+            accountId = accountMappings['REVOLUT DEPOSIT'];
+          } else {
+            const found = Object.keys(accountMappings).find(name => name.includes('REVOLUT') && name.includes('DEPOSIT'));
+            if (found) accountId = accountMappings[found];
+          }
         }
       }
 
       // Debug finale
       if (typeof window !== 'undefined' && window.console) {
         console.log('DEBUG Revolut - Final:', {
-          type, category, subcategory, amount: amountNum, transactionType, targetTable
+          type, category, subcategory, amount: amountNum, transactionType, targetTable, product: productRaw, account: accountId
         });
       }
 
@@ -527,11 +589,143 @@ export const BANK_PARSERS: BankParser[] = [
     transformAmount: (amount: string) => {
       return amount;
     }
+  },
+  // Contanti
+  {
+    name: 'Contanti',
+    identifier: 'contanti',
+    detectFormat: (headers: string[]) => {
+      const lowerHeaders = headers.map(h => h.toLowerCase());
+      // Riconosce header tipici Contanti custom: Transaction Date, Category, Amount (€), Note
+      return (
+        lowerHeaders.includes('transaction date') &&
+        lowerHeaders.includes('category') &&
+        (lowerHeaders.includes('amount (€)') || lowerHeaders.includes('amount')) &&
+        lowerHeaders.includes('note')
+      );
+    },
+    parseRow: (headers: string[], values: string[], _accountMappings?: { [key: string]: string }) => {
+      void _accountMappings;
+      // Header: Transaction Date, Category, Amount (€), Note
+      const dateRaw = findValue(headers, values, ['transaction date', 'data']) || '';
+      const categoryRaw = findValue(headers, values, ['category', 'categoria']) || '';
+      const amountStr = findValue(headers, values, ['amount (€)', 'amount', 'importo']) || '';
+      const note = findValue(headers, values, ['note', 'descrizione']) || '';
+
+      // Parsing data: "31 dic 2025, 20:02" -> YYYY-MM-DD
+      let dateISO = '';
+      if (dateRaw) {
+        // Formato italiano: "31 dic 2025, 20:02" o "31 dic 2025"
+        const match = dateRaw.match(/(\d{1,2})\s+(gen|feb|mar|apr|mag|giu|lug|ago|set|ott|nov|dic)[a-z]*\s+(\d{4})/i);
+        if (match) {
+          const day = match[1].padStart(2, '0');
+          const monthMap: { [key: string]: string } = {
+            'gen': '01', 'feb': '02', 'mar': '03', 'apr': '04', 'mag': '05', 'giu': '06',
+            'lug': '07', 'ago': '08', 'set': '09', 'ott': '10', 'nov': '11', 'dic': '12'
+          };
+          const month = monthMap[match[2].toLowerCase()];
+          const year = match[3];
+          dateISO = `${year}-${month}-${day}`;
+        }
+      }
+
+      // Parsing importo: preserva segno
+      let amountNum = 0;
+      if (amountStr) {
+        const cleanAmount = amountStr.trim().replace(',', '.');
+        amountNum = parseFloat(cleanAmount);
+        if (isNaN(amountNum)) amountNum = 0;
+      }
+
+      // Mapping categoria -> categoria/sottocategoria Mosaiko
+      let category = '';
+      let subcategory = '';
+      let type = '';
+      let targetTable: 'transactions' | 'refunds' | 'funds_transfer' = 'transactions';
+
+      const catUpper = categoryRaw.toUpperCase();
+      
+      // Entrate
+      if (catUpper.includes('ENTRATE VARIE') || (amountNum > 0 && note.toLowerCase().includes('rimborso'))) {
+        category = 'INCOME & SALARY';
+        if (note.toLowerCase().includes('rimborso')) {
+          type = 'Rimborso';
+          targetTable = 'refunds';
+          amountNum = Math.abs(amountNum);
+        } else if (note.toLowerCase().includes('regalo')) {
+          subcategory = 'Regalo';
+          type = 'Entrata';
+        } else if (note.toLowerCase().includes('giochi')) {
+          subcategory = 'Altro';
+          type = 'Entrata';
+        } else {
+          subcategory = 'Altro';
+          type = 'Entrata';
+        }
+      }
+      // Sport
+      else if (catUpper.includes('SPORT')) {
+        category = 'SPORT & WELLNESS';
+        if (note.toLowerCase().includes('padel')) {
+          subcategory = 'Padel';
+        } else if (note.toLowerCase().includes('tennis')) {
+          subcategory = 'Tennis';
+        } else if (note.toLowerCase().includes('calcio')) {
+          subcategory = 'Calcio';
+        } else {
+          subcategory = 'Sport';
+        }
+        type = 'Spesa';
+        amountNum = -Math.abs(amountNum);
+      }
+      // Food/Drink
+      else if (catUpper.includes('FOOD') || catUpper.includes('DRINK')) {
+        category = 'FOOD & DRINK';
+        subcategory = 'Ristorante';
+        type = 'Spesa';
+        amountNum = -Math.abs(amountNum);
+      }
+      // Entertainment
+      else if (catUpper.includes('ENTERTAINMENT')) {
+        category = 'ENTERTAINMENT';
+        subcategory = 'Giochi';
+        type = 'Spesa';
+        amountNum = -Math.abs(amountNum);
+      }
+      // Giroconto
+      else if (catUpper.includes('GIROCONTO')) {
+        type = 'Bonifico';
+        targetTable = 'funds_transfer';
+      }
+      // Default: determina da importo
+      else {
+        type = amountNum >= 0 ? 'Entrata' : 'Spesa';
+        category = amountNum >= 0 ? 'INCOME & SALARY' : 'OTHER';
+        subcategory = amountNum >= 0 ? 'Altro' : 'Altro';
+      }
+
+      return {
+        date: dateISO,
+        description: note,
+        amount: amountNum.toString(),
+        type,
+        category,
+        subcategory,
+        targetTable,
+      };
+    },
+    transformDate: (date: string) => {
+      // Già gestito in parseRow
+      return date;
+    },
+    transformAmount: (amount: string) => {
+      return amount.replace(',', '.');
+    }
   }
 ];
 
 // --- parseCSV ---
-export async function parseCSV(file: File, accountId?: string, setDetectedBank?: (parser: BankParser | null) => void, setImportData?: (rows: ImportRow[]) => void, setImportStats?: (stats: any) => void, accounts?: Account[]) {
+export async function parseCSV(file: File, accountId?: string, setDetectedBank?: (parser: BankParser | null) => void, setImportData?: (rows: ImportRow[]) => void, setImportStats?: (stats: ImportStats) => void, accounts?: Account[]) {
   const text = await file.text();
   if (text.toLowerCase().includes('edenred') || text.toLowerCase().includes('n. e importo buoni')) {
     alert('I file Edenred sono supportati solo in formato Excel (.xlsx).');
@@ -582,7 +776,7 @@ export async function parseCSV(file: File, accountId?: string, setDetectedBank?:
     const keywords = bankFileKeywords[parser.identifier] || [];
     if (keywords.some(keyword => fileName.includes(keyword))) {
       detectedParser = parser;
-      setDetectedBank && setDetectedBank(parser);
+      if (setDetectedBank) setDetectedBank(parser);
       foundByFilename = true;
       break;
     }
@@ -592,7 +786,7 @@ export async function parseCSV(file: File, accountId?: string, setDetectedBank?:
     for (const parser of BANK_PARSERS) {
       if (parser.detectFormat(headers.map(h => h.toLowerCase()))) {
         detectedParser = parser;
-        setDetectedBank && setDetectedBank(parser);
+        if (setDetectedBank) setDetectedBank(parser);
         break;
       }
     }
@@ -675,8 +869,8 @@ export async function parseCSV(file: File, accountId?: string, setDetectedBank?:
       }
     }
   }
-  setImportData && setImportData(rows);
-  setImportStats && setImportStats({
+  if (setImportData) setImportData(rows);
+  if (setImportStats) setImportStats({
     total: rows.length,
     processed: 0,
     success: 0,
@@ -685,7 +879,7 @@ export async function parseCSV(file: File, accountId?: string, setDetectedBank?:
 }
 
 // --- parseExcel ---
-export async function parseExcel(file: File, accountId?: string, setDetectedBank?: (parser: BankParser | null) => void, setImportData?: (rows: ImportRow[]) => void, setImportStats?: (stats: any) => void, accounts?: Account[]) {
+export async function parseExcel(file: File, accountId?: string, setDetectedBank?: (parser: BankParser | null) => void, setImportData?: (rows: ImportRow[]) => void, setImportStats?: (stats: ImportStats) => void, accounts?: Account[]) {
   const arrayBuffer = await file.arrayBuffer();
   const workbook = XLSX.read(arrayBuffer, { type: 'array' });
   const sheetName = workbook.SheetNames[0];
@@ -731,7 +925,7 @@ export async function parseExcel(file: File, accountId?: string, setDetectedBank
     const keywords = bankFileKeywords[parser.identifier] || [];
     if (keywords.some(keyword => fileName.includes(keyword))) {
       detectedParser = parser;
-      setDetectedBank && setDetectedBank(parser);
+      if (setDetectedBank) setDetectedBank(parser);
       break;
     }
   }
@@ -739,7 +933,7 @@ export async function parseExcel(file: File, accountId?: string, setDetectedBank
     for (const parser of BANK_PARSERS) {
       if (parser.detectFormat(headers.map(h => h.toLowerCase()))) {
         detectedParser = parser;
-        setDetectedBank && setDetectedBank(parser);
+        if (setDetectedBank) setDetectedBank(parser);
         break;
       }
     }
@@ -826,8 +1020,8 @@ export async function parseExcel(file: File, accountId?: string, setDetectedBank
       }
     }
   }
-  setImportData && setImportData(rows);
-  setImportStats && setImportStats({
+  if (setImportData) setImportData(rows);
+  if (setImportStats) setImportStats({
     total: rows.length,
     processed: 0,
     success: 0,
@@ -892,8 +1086,8 @@ export function parseEdenredExcel(jsonData: string[][], accountId?: string): Imp
     }
     let description = values[1]?.toString() || '';
     if (tipoMov.includes('ordine cloud')) {
-      const [anno, mese, giorno] = dataISO.split('-');
-      let meseNum = parseInt(mese, 10) - 1;
+        const [anno, mese] = dataISO.split('-');
+        let meseNum = parseInt(mese, 10) - 1;
       let annoNum = parseInt(anno, 10);
       if (meseNum === 0) {
         meseNum = 12;

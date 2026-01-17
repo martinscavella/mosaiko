@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useAuth } from "@/lib/auth";
+import { clsx } from "clsx";
 import { 
   Home, 
   PiggyBank, 
@@ -11,174 +12,292 @@ import {
   Receipt,
   User,
   LogOut,
-  Settings
+  Settings,
+  Wallet,
+  TrendingUp,
+  FileText,
+  RotateCcw,
+  Upload,
+  BarChart3,
+  Menu
 } from "lucide-react";
 import NewTransactionModal from "./NewTransactionModal";
-
-interface MenuItem {
-  name: string;
-  href?: string;
-  icon: React.ComponentType<{ size?: number; className?: string }>;
-  action?: () => void;
-  isAction: boolean;
-  active: boolean;
-}
 
 export function BottomMenu() {
   const pathname = usePathname();
   const { user, signOut } = useAuth();
   const [showTransactionModal, setShowTransactionModal] = useState(false);
-  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
 
-  const menuItems: MenuItem[] = [
-    {
-      name: "Home",
-      href: "/",
-      icon: Home,
-      active: pathname === "/",
-      isAction: false
-    },
-    {
-      name: "Finanze",
-      href: "/finance/dashboard",
-      icon: PiggyBank,
-      active: pathname.startsWith("/finance"),
-      isAction: false
-    },
-    {
-      name: "Nuova",
-      icon: Plus,
-      action: () => setShowTransactionModal(true),
-      isAction: true,
-      active: false
-    },
-    {
-      name: "Transazioni",
-      href: "/finance/transactions",
-      icon: Receipt,
-      active: pathname === "/finance/transactions",
-      isAction: false
-    },
-    {
-      name: "Profilo",
-      icon: User,
-      action: () => setShowProfileMenu(!showProfileMenu),
-      isAction: true,
-      active: pathname.startsWith("/profile")
+  const isFinanceModule = pathname.startsWith("/finance");
+
+  // Menu principale - cambia in base al modulo attivo
+  const mainMenuItems = useMemo(() => {
+    // Determina l'azione del FAB in base al pathname
+    const handleFabClick = () => {
+      // Emette un evento custom che le pagine possono intercettare
+      const event = new CustomEvent('openNewItemModal', { 
+        detail: { pathname } 
+      });
+      window.dispatchEvent(event);
+    };
+
+    if (isFinanceModule) {
+      // In Finance: Dashboard | Transazioni | Aggiungi | Account | Menu
+      return [
+        { name: "Dashboard", href: "/finance/dashboard", icon: BarChart3, active: pathname === "/finance/dashboard" },
+        { name: "Transazioni", href: "/finance/transactions", icon: Receipt, active: pathname === "/finance/transactions" },
+        { name: "Aggiungi", action: handleFabClick, icon: Plus, active: false, isFab: true },
+        { name: "Account", href: "/finance/accounts", icon: Wallet, active: pathname === "/finance/accounts" },
+        { name: "Altro", action: () => setShowMoreMenu(!showMoreMenu), icon: Menu, active: false },
+      ];
     }
-  ];
+    
+    // Home o altre sezioni: Home | Finanze | Aggiungi | Profilo
+    return [
+      { name: "Home", href: "/", icon: Home, active: pathname === "/" },
+      { name: "Finanze", href: "/finance/dashboard", icon: PiggyBank, active: pathname.startsWith("/finance") },
+      { name: "Aggiungi", action: handleFabClick, icon: Plus, active: false, isFab: true },
+      { name: "Profilo", action: () => setShowMoreMenu(!showMoreMenu), icon: User, active: pathname.startsWith("/profile") },
+    ];
+  }, [pathname, isFinanceModule, showMoreMenu]);
+
+  // Menu secondario - voci che vanno nel popup "Altro/Profilo"
+  const secondaryMenuItems = useMemo(() => {
+    if (isFinanceModule) {
+      return [
+        { name: "Asset", href: "/finance/assets", icon: TrendingUp },
+        { name: "Rimborsi", href: "/finance/refunds", icon: RotateCcw },
+        { name: "Import Dati", href: "/finance/import", icon: Upload },
+        { name: "Report", href: "/finance/reports", icon: FileText },
+        { type: "divider" },
+        { name: "Profilo", href: "/profile", icon: Settings },
+      ];
+    }
+    
+    return [
+      { name: "Impostazioni", href: "/profile", icon: Settings },
+    ];
+  }, [isFinanceModule]);
 
   const handleSignOut = async () => {
     await signOut();
-    setShowProfileMenu(false);
+    setShowMoreMenu(false);
   };
+
+  // Preparazione voci non-FAB divise in sinistra/destra per allineamento simmetrico
+  const nonFabItems = mainMenuItems.filter(i => !i.isFab);
+  const midIndex = Math.floor(nonFabItems.length / 2);
+  const leftItems = nonFabItems.slice(0, midIndex);
+  const rightItems = nonFabItems.slice(midIndex);
 
   return (
     <>
-      {/* Bottom Menu - visible only on mobile */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-lg border-t border-gray-200 px-2 py-2 z-40 shadow-lg">
-        <div className="flex justify-around items-center max-w-sm mx-auto">
-          {menuItems.map((item) => (
-            <div key={item.name} className="relative">
-              {item.isAction ? (
-                <button
-                  onClick={item.action}
-                  className={`
-                    flex flex-col items-center justify-center p-3 rounded-xl transition-all duration-200 transform
-                    ${item.name === "Nuova" 
-                      ? "bg-blue-600 text-white hover:bg-blue-700 hover:scale-105 shadow-lg shadow-blue-200" 
-                      : item.active 
-                        ? "text-blue-600 bg-blue-50 scale-105" 
-                        : "text-gray-600 hover:text-blue-600 hover:bg-gray-50 hover:scale-105"
-                    }
-                  `}
-                >
-                  <item.icon 
-                    size={item.name === "Nuova" ? 26 : 22} 
-                    className={`${item.name === "Nuova" ? "mb-0" : "mb-1"} transition-transform duration-200`} 
-                  />
-                  {item.name !== "Nuova" && (
-                    <span className="text-xs font-medium">{item.name}</span>
-                  )}
-                </button>
-              ) : (
-                item.href && (
-                  <Link
-                    href={item.href}
-                    className={`
-                      flex flex-col items-center justify-center p-3 rounded-xl transition-all duration-200 transform
-                      ${item.active 
-                        ? "text-blue-600 bg-blue-50 scale-105" 
-                        : "text-gray-600 hover:text-blue-600 hover:bg-gray-50 hover:scale-105"
-                      }
-                    `}
-                  >
-                    <item.icon size={22} className="mb-1 transition-transform duration-200" />
-                    <span className="text-xs font-medium">{item.name}</span>
-                  </Link>
-                )
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
+      {/* Bottom Menu - mobile only */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40 safe-bottom">
+        <div className="max-w-7xl 3xl:max-w-[1600px] 4xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 3xl:px-10">
+          <div className="max-w-md mx-auto w-full px-2">
+            <div className="flex items-center justify-center h-16 gap-1">
+              {/* Left Items */}
+              <div className="flex-1 flex items-center justify-center gap-0">
+                {leftItems.map((item) => {
+                  const IconComponent = item.icon;
 
-      {/* Profile Menu Popup */}
-      {showProfileMenu && (
-        <div className="md:hidden fixed bottom-20 right-4 bg-white/90 backdrop-blur-lg rounded-2xl shadow-xl border border-gray-200 z-50 w-56 overflow-hidden">
-          <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
-                <User size={20} className="text-white" />
+                  if (item.action) {
+                    return (
+                      <button
+                        key={item.name}
+                        onClick={item.action}
+                        className={clsx(
+                          "flex-1 flex flex-col items-center justify-center gap-1 px-1 py-1.5 rounded-lg transition-all duration-200",
+                          item.active ? "text-blue-600" : "text-gray-500 active:bg-gray-50"
+                        )}
+                      >
+                        <IconComponent size={24} strokeWidth={item.active ? 2.5 : 2} />
+                        <span className={clsx(
+                          "text-[10px] font-medium",
+                          item.active && "font-semibold"
+                        )}>
+                          {item.name}
+                        </span>
+                      </button>
+                    );
+                  }
+
+                  return (
+                    <Link
+                      key={item.name}
+                      href={item.href!}
+                      className={clsx(
+                        "flex-1 flex flex-col items-center justify-center gap-1 px-1 py-1.5 rounded-lg transition-all duration-200",
+                        item.active ? "text-blue-600" : "text-gray-500 active:bg-gray-50"
+                      )}
+                    >
+                      <IconComponent size={24} strokeWidth={item.active ? 2.5 : 2} />
+                      <span className={clsx(
+                        "text-[10px] font-medium",
+                        item.active && "font-semibold"
+                      )}>
+                        {item.name}
+                      </span>
+                    </Link>
+                  );
+                })}
               </div>
-              <div>
-                <p className="text-sm font-semibold text-gray-900">
-                  {user?.user_metadata?.first_name && user?.user_metadata?.last_name
-                    ? `${user.user_metadata.first_name} ${user.user_metadata.last_name}`
-                    : user?.email?.split('@')[0] || 'User'}
-                </p>
-                <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+
+              {/* Center FAB - nel flusso normale con shrink-0 */}
+              {mainMenuItems.find(i => i.isFab) && (() => {
+                const fab = mainMenuItems.find(i => i.isFab)!;
+                const Icon = fab.icon;
+
+                if (fab.action) {
+                  return (
+                    <button
+                      key={fab.name}
+                      onClick={fab.action}
+                      aria-label={fab.name}
+                      className="flex-shrink-0 -mt-6 bg-blue-600 text-white w-14 h-14 rounded-xl shadow-lg flex items-center justify-center active:scale-95 hover:shadow-xl transition-transform"
+                    >
+                      <Icon size={26} strokeWidth={2} />
+                    </button>
+                  );
+                }
+
+                return (
+                  <Link 
+                    key={fab.name}
+                    href={fab.href!} 
+                    className="flex-shrink-0 -mt-6 bg-blue-600 text-white w-14 h-14 rounded-xl shadow-lg flex items-center justify-center active:scale-95 hover:shadow-xl transition-transform"
+                  >
+                    <Icon size={26} strokeWidth={2} />
+                  </Link>
+                );
+              })()}
+
+              {/* Right Items */}
+              <div className="flex-1 flex items-center justify-center gap-0">
+                {rightItems.map((item) => {
+                  const IconComponent = item.icon;
+
+                  if (item.action) {
+                    return (
+                      <button
+                        key={item.name}
+                        onClick={item.action}
+                        className={clsx(
+                          "flex-1 flex flex-col items-center justify-center gap-1 px-1 py-1.5 rounded-lg transition-all duration-200",
+                          item.active ? "text-blue-600" : "text-gray-500 active:bg-gray-50"
+                        )}
+                      >
+                        <IconComponent size={24} strokeWidth={item.active ? 2.5 : 2} />
+                        <span className={clsx(
+                          "text-[10px] font-medium",
+                          item.active && "font-semibold"
+                        )}>
+                          {item.name}
+                        </span>
+                      </button>
+                    );
+                  }
+
+                  return (
+                    <Link
+                      key={item.name}
+                      href={item.href!}
+                      className={clsx(
+                        "flex-1 flex flex-col items-center justify-center gap-1 px-1 py-1.5 rounded-lg transition-all duration-200",
+                        item.active ? "text-blue-600" : "text-gray-500 active:bg-gray-50"
+                      )}
+                    >
+                      <IconComponent size={24} strokeWidth={item.active ? 2.5 : 2} />
+                      <span className={clsx(
+                        "text-[10px] font-medium",
+                        item.active && "font-semibold"
+                      )}>
+                        {item.name}
+                      </span>
+                    </Link>
+                  );
+                })}
               </div>
             </div>
           </div>
+        </div>
+      </nav>
+
+      {/* More Menu Popup */}
+      {showMoreMenu && (
+        <div className="md:hidden fixed bottom-20 right-4 left-4 sm:left-auto sm:w-72 bg-white rounded-2xl shadow-2xl border border-gray-200 z-50 overflow-hidden animate-in slide-in-from-bottom-4 duration-200">
+          {/* Header solo se utente loggato */}
+          {user && (
+            <div className="p-4 bg-gradient-to-br from-blue-50 to-white border-b border-gray-100">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-blue-700 rounded-full flex items-center justify-center ring-2 ring-blue-100">
+                  <User size={20} className="text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-900 truncate">
+                    {user?.user_metadata?.first_name && user?.user_metadata?.last_name
+                      ? `${user.user_metadata.first_name} ${user.user_metadata.last_name}`
+                      : user?.email?.split('@')[0] || 'User'}
+                  </p>
+                  <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                </div>
+              </div>
+            </div>
+          )}
           
           <div className="py-2">
-            <Link
-              href="/profile"
-              onClick={() => setShowProfileMenu(false)}
-              className="flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              <Settings size={18} className="mr-3 text-gray-500" />
-              Impostazioni
-            </Link>
+            {secondaryMenuItems.map((item, index) => {
+              if (item.type === 'divider') {
+                return <div key={`divider-${index}`} className="h-px bg-gray-200 my-2" />;
+              }
+              
+              const IconComponent = item.icon!;
+              const isActive = pathname === item.href;
+              
+              return (
+                <Link
+                  key={item.name}
+                  href={item.href!}
+                  onClick={() => setShowMoreMenu(false)}
+                  className={clsx(
+                    "flex items-center px-4 py-3 text-sm font-medium transition-colors",
+                    isActive 
+                      ? "bg-blue-50 text-blue-600" 
+                      : "text-gray-700 hover:bg-gray-50 active:bg-gray-100"
+                  )}
+                >
+                  <IconComponent size={20} className={clsx("mr-3", isActive ? "text-blue-600" : "text-gray-400")} />
+                  {item.name}
+                </Link>
+              );
+            })}
             
+            {/* Logout sempre presente */}
             <button
               onClick={handleSignOut}
-              className="flex items-center w-full px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors"
+              className="flex items-center w-full px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 active:bg-red-100 transition-colors"
             >
-              <LogOut size={18} className="mr-3" />
-              Logout
+              <LogOut size={20} className="mr-3" />
+              Esci dall'Account
             </button>
           </div>
         </div>
       )}
 
-      {/* Overlay to close profile menu */}
-      {showProfileMenu && (
+      {/* Overlay */}
+      {showMoreMenu && (
         <div 
-          className="md:hidden fixed inset-0 z-40"
-          onClick={() => setShowProfileMenu(false)}
+          className="md:hidden fixed inset-0 bg-black/20 backdrop-blur-sm z-40 animate-in fade-in duration-200"
+          onClick={() => setShowMoreMenu(false)}
         />
       )}
 
-      {/* New Transaction Modal */}
       <NewTransactionModal
         isOpen={showTransactionModal}
         onClose={() => setShowTransactionModal(false)}
-        onSuccess={() => {
-          setShowTransactionModal(false);
-          // Optionally refresh data or show success message
-        }}
+        onSuccess={() => setShowTransactionModal(false)}
       />
     </>
   );

@@ -120,6 +120,16 @@ export default function RefundsPage() {
   const [selectedTransactionId, setSelectedTransactionId] = useState("");
   const [linkAmount, setLinkAmount] = useState("");
   const [linkingTransaction, setLinkingTransaction] = useState(false);
+
+  // Listener per il FAB della navbar mobile
+  useEffect(() => {
+    const handleOpenModal = () => {
+      setShowAddModal(true);
+    };
+    
+    window.addEventListener('openNewItemModal', handleOpenModal);
+    return () => window.removeEventListener('openNewItemModal', handleOpenModal);
+  }, []);
   const [unlinkingTransaction, setUnlinkingTransaction] = useState<
     string | null
   >(null);
@@ -542,7 +552,7 @@ export default function RefundsPage() {
   if (authLoading) {
     return (
       <ModuleLayout moduleId="finance">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-7xl 3xl:max-w-[1600px] 4xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 3xl:px-10 py-8">
           <div className="animate-pulse">
             <div className="h-8 bg-gray-200 rounded w-64 mb-8"></div>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -559,7 +569,7 @@ export default function RefundsPage() {
   if (!user) {
     return (
       <ModuleLayout moduleId="finance">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-7xl 3xl:max-w-[1600px] 4xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 3xl:px-10 py-8">
           <div className="text-center">
             <p className="text-gray-500">
               Devi effettuare il login per visualizzare i refund
@@ -574,7 +584,7 @@ export default function RefundsPage() {
 
   return (
     <ModuleLayout moduleId="finance">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl 3xl:max-w-[1600px] 4xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 3xl:px-10 py-8">
         <ModuleHeader
           title="Rimborsi"
           subtitle="Gestisci i tuoi rimborsi e collegali alle transazioni"
@@ -617,6 +627,7 @@ export default function RefundsPage() {
               icon: <Plus className="w-4 h-4" />,
               color: "green",
               hideTextOnMobile: true,
+              hideOnMobile: true,
             },
             {
               label: "Aggiorna",

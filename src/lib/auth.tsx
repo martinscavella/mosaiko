@@ -9,9 +9,9 @@ type AuthContextType = {
   user: User | null
   loading: boolean
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>
-  signUp: (email: string, password: string, metadata?: { [key: string]: any }) => Promise<{ error: Error | null }>
+  signUp: (email: string, password: string, metadata?: Partial<ProfileData>) => Promise<{ error: Error | null }>
   signOut: () => Promise<void>
-  updateProfile: (data: any) => Promise<{ error: Error | null }>
+  updateProfile: (data: Record<string, unknown>) => Promise<{ error: Error | null }>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -70,7 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const signUp = async (email: string, password: string, metadata?: { [key: string]: any }) => {
+  const signUp = async (email: string, password: string, metadata?: Partial<ProfileData>) => {
     try {
       console.log('Tentativo di registrazione con:', { email, metadata })
       
@@ -92,17 +92,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Se la registrazione ha successo e abbiamo i metadati, creiamo anche il profilo
       if (!error && data.user && metadata) {
         // Assicuriamoci che first_name e last_name non siano vuoti (sono NOT NULL nel database)
-        const firstName = metadata.firstName?.trim() || 'Nome'
-        const lastName = metadata.lastName?.trim() || 'Utente'
+        // metadata may use snake_case keys matching ProfileData or camelCase from forms
+        const md = metadata as Partial<Record<string, unknown>>
+        const firstName = typeof md['first_name'] === 'string' ? (md['first_name'] as string).trim() : typeof md['firstName'] === 'string' ? (md['firstName'] as string).trim() : 'Nome'
+        const lastName = typeof md['last_name'] === 'string' ? (md['last_name'] as string).trim() : typeof md['lastName'] === 'string' ? (md['lastName'] as string).trim() : 'Utente'
         
         const profileData: ProfileData = {
           first_name: firstName,
           last_name: lastName,
-          birth_date: metadata.birth_date || null,
-          phone_number: metadata.phone_number || null,
-          language: metadata.language || 'it',
-          app_theme: metadata.app_theme || 'dark',
-          notifications_enabled: metadata.notifications_enabled ?? true,
+          birth_date: typeof md['birth_date'] === 'string' ? (md['birth_date'] as string) : typeof md['birthDate'] === 'string' ? (md['birthDate'] as string) : null,
+          phone_number: typeof md['phone_number'] === 'string' ? (md['phone_number'] as string) : typeof md['phoneNumber'] === 'string' ? (md['phoneNumber'] as string) : null,
+          language: typeof md['language'] === 'string' ? (md['language'] as string) : 'it',
+          app_theme: typeof md['app_theme'] === 'string' ? (md['app_theme'] as string) : typeof md['appTheme'] === 'string' ? (md['appTheme'] as string) : 'dark',
+          notifications_enabled: typeof md['notifications_enabled'] === 'boolean' ? (md['notifications_enabled'] as boolean) : typeof md['notificationsEnabled'] === 'boolean' ? (md['notificationsEnabled'] as boolean) : true,
         }
 
         console.log('Creazione profilo con dati:', profileData)
@@ -129,7 +131,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await supabase.auth.signOut()
   }
 
-  const updateProfile = async (data: any) => {
+  const updateProfile = async (data: Record<string, unknown>) => {
     try {
       const { error } = await supabase.auth.updateUser({
         data: data
