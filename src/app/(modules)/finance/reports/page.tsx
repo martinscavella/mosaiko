@@ -212,6 +212,8 @@ export default function ReportsPage() {
     
     // Trend mensile per categorie (ultimi 6 mesi)
     const categoryTrend = {} as Record<string, Array<{ month: string, amount: number }>>
+    const monthTotals: Array<{ month: string; amount: number }> = []
+
     for (let i = 5; i >= 0; i--) {
       const targetDate = new Date(now.getFullYear(), now.getMonth() - i, 1)
       const monthName = targetDate.toLocaleDateString('it-IT', { month: 'short' })
@@ -222,6 +224,12 @@ export default function ReportsPage() {
                transactionDate.getFullYear() === targetDate.getFullYear()
       })
       
+      // totale spese di quel mese (tutte le categorie)
+      const totalForMonth = monthTransactions
+        .filter(t => t.current_amount < 0 && !t.asset_id)
+        .reduce((sum, t) => sum + Math.abs(t.current_amount), 0)
+      monthTotals.push({ month: monthName, amount: totalForMonth })
+
       Object.keys(categoryStats).forEach(category => {
         if (!categoryTrend[category]) categoryTrend[category] = []
         
@@ -249,6 +257,23 @@ export default function ReportsPage() {
       const totalPrev = prevMonths.reduce((s, d) => s + d.amount, 0)
       avgSpentByCategory[category] = prevMonths.length > 0 ? totalPrev / prevMonths.length : 0
     })
+
+    //Insights: anomalie e previsione totale
+    const anomalyCategories: string[] = []
+    Object.keys(categoryStats).forEach(category => {
+      const current = categoryStats[category]?.total || 0
+      const avg = avgSpentByCategory[category] || 0
+      if (avg > 0 && current / avg > 1.5) {
+        anomalyCategories.push(category)
+      }
+    })
+
+    let predictedNextMonthExpenses = 0
+    if (monthTotals.length >= 3) {
+      const lastThree = monthTotals.slice(-3).map(m => m.amount)
+      predictedNextMonthExpenses = lastThree.reduce((s, v) => s + v, 0) / lastThree.length
+    }
+
     
     const topCategory = Object.entries(categoryStats).sort((a, b) => b[1].total - a[1].total)[0]
     
@@ -304,7 +329,9 @@ export default function ReportsPage() {
       budgetByCategory,
       totalBudget,
       prevMonthSpentByCategory,
-      avgSpentByCategory
+      avgSpentByCategory,
+      anomalyCategories,
+      predictedNextMonthExpenses
     }
   }, [filteredTransactions, assets, categories])
 
@@ -1058,6 +1085,27 @@ export default function ReportsPage() {
             color="purple"
             loading={loading}
           />
+        </div>
+
+        {/* Quick insights */}
+        <div className="space-y-4">
+          {advancedStats.anomalyCategories.length > 0 && (
+            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
+              <p className="font-semibold text-yellow-800">Anomalie spesa</p>
+              <p className="text-sm text-yellow-700">Categorie con spese oltre il 150% della media recente:</p>
+              <ul className="list-disc ml-5 mt-1 text-yellow-800">
+                {advancedStats.anomalyCategories.map(cat => (
+                  <li key={cat}>{cat}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded">
+            <p className="font-semibold text-blue-800">Previsione spese prossimo mese</p>
+            <p className="text-sm text-blue-700">
+              {formatCurrency(advancedStats.predictedNextMonthExpenses)} (media ultimi 3 mesi)
+            </p>
+          </div>
         </div>
 
         {/* Budget Tracking Section */}
