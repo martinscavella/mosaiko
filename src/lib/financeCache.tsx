@@ -207,7 +207,21 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
           throw transactionsBatch.error;
         }
 
-        const batchData = (transactionsBatch.data as Transaction[]) || [];
+        // Map Supabase data to Transaction type
+        const batchData: Transaction[] = (transactionsBatch.data || []).map((item: any) => ({
+          id: item.id,
+          transaction_date: item.transaction_date,
+          transaction_details: item.transaction_details,
+          current_amount: item.current_amount,
+          transaction_type: item.transaction_type,
+          is_refunded: item.is_refunded,
+          account_name: item.account_name,
+          asset_id: item.asset_id,
+          asset_quantity: item.asset_quantity,
+          accounts: item.accounts,
+          categories: item.categories,
+          subcategories: item.subcategories
+        }));
         allTransactions = [...allTransactions, ...batchData];
 
         hasMore = batchData.length === batchSize;

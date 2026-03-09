@@ -8,7 +8,7 @@ import CacheStatus from '@/components/ui/CacheStatus'
 import NewTransactionModal from '@/components/ui/NewTransactionModal'
 import { useAllTransactions, useFinanceCache, type Transaction } from '@/lib/financeCache'
 import { useAuth } from '@/lib/auth'
-import { isInDateRange } from '@/lib/helpers/dateRange'
+import { isInDateRange, type DateRangeType } from '@/lib/helpers/dateRange'
 import { 
   ArrowUpRight, 
   ArrowDownLeft, 
@@ -94,7 +94,7 @@ export default function TransactionsPage() {  const { transactions, loading, err
     // Filtro per intervallo di date
     if (selectedDateRange !== 'all') {
       filtered = filtered.filter((t: Transaction) => 
-        isInDateRange(t.transaction_date, selectedDateRange)
+        isInDateRange(t.transaction_date, selectedDateRange as DateRangeType)
       )
     }
 

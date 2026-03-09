@@ -18,7 +18,7 @@ import {
   Package,
 } from "lucide-react";
 import { Transaction } from "@/lib/financeCache";
-import { isInDateRange } from "@/lib/helpers/dateRange";
+import { isInDateRange, type DateRangeType } from "@/lib/helpers/dateRange";
 
 export interface FilterOption {
   id: string;
@@ -238,7 +238,7 @@ export default function TransactionsTable({
     // Filtro per intervallo di date
     if (selectedDateRange !== "all") {
       filtered = filtered.filter(transaction => 
-        isInDateRange(transaction.transaction_date, selectedDateRange)
+        isInDateRange(transaction.transaction_date, selectedDateRange as DateRangeType)
       );
     }
 
