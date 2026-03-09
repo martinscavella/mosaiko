@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
-import ProtectedRoute from '@/components/ProtectedRoute'
+import AuthRequiredMessage from '@/components/ui/AuthRequiredMessage'
 import { getUserProfile, updateUserProfile, ProfileData } from '@/lib/profiles'
 import ModuleLayout from '@/components/ModuleLayout'
 import ModuleHeader from '@/components/ui/ModuleHeader'
@@ -79,8 +79,10 @@ export default function ProfilePage() {
   }
 
   return (
-    <ProtectedRoute>
-      <ModuleLayout moduleId="profile">
+    <>
+      {!user && <AuthRequiredMessage />}
+      {user && (
+        <ModuleLayout moduleId="profile">
         <div className="max-w-7xl 3xl:max-w-[1600px] 4xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 3xl:px-10 py-8">
           <ModuleHeader
             title="Profilo Utente"
@@ -392,6 +394,7 @@ export default function ProfilePage() {
           </div>
         </div>
       </ModuleLayout>
-    </ProtectedRoute>
+      )}
+    </>
   )
 }

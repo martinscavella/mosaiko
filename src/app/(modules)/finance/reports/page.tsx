@@ -130,6 +130,13 @@ export default function ReportsPage() {
   }, [allOperations])
 
   // Calcoli per statistiche avanzate (usando transazioni filtrate)
+  // TODO: Spezzare questo useMemo in 5-6 useMemo più piccoli e focalizzati:
+  // 1. currentMonthTransactions + lastMonthTransactions
+  // 2. categoryStats
+  // 3. categoryTrend
+  // 4. accountActivity
+  // 5. refundedTransactions + totalAssetValue
+  // 6. Income/Expenses + netFlow (Questo ridurrà re-computation non necessaria)
   const advancedStats = useMemo(() => {
     const now = new Date()
     const currentMonth = now.getMonth()

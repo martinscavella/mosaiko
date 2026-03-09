@@ -528,25 +528,6 @@ export function useAssetStats() {
 //   ...
 // }
 
-// Hook per transazioni di acquisto asset
-export function useAssetPurchaseTransactions() {
-  const { data } = useFinanceCache();
-  
-  const allTransactions = data?.transactions || []
-  const assetPurchaseTransactions = allTransactions.filter(transaction => {
-    const accountType = transaction.accounts?.type
-    const categoryName = transaction.categories?.name
-    return accountType === 'saving_account' && categoryName === 'ASSET & INVESTIMENTI'
-  })
-  
-  return {
-    assetPurchaseTransactions,
-    count: assetPurchaseTransactions.length,
-    totalSpent: assetPurchaseTransactions.reduce((sum, transaction) => 
-      sum + Math.abs(transaction.current_amount), 0
-    )
-  }
-}
 
 // Hook per recuperare le transazioni correlate a un asset
 export function useAssetTransactions(assetId: string | null) {
