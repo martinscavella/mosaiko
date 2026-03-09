@@ -10,6 +10,11 @@ interface BudgetCategoryWidgetProps {
   remaining: number
   percentUsed: number
   status: 'under' | 'warning' | 'over'
+  comparison?: {
+    label: string
+    value: number
+    percentDiff: number
+  }
 }
 
 export default function BudgetCategoryWidget({
@@ -104,6 +109,17 @@ export default function BudgetCategoryWidget({
           </p>
         </div>
       </div>
+
+      {/* Comparison info (optional) */}
+      {comparison && (
+        <div className="mt-3 p-2 bg-gray-50 rounded text-xs text-gray-700">
+          <p className="font-medium">{comparison.label}</p>
+          <p>
+            {formatCurrency(comparison.value)} ({comparison.percentDiff >= 0 ? '+' : '-'}
+            {formatPercentage(Math.abs(comparison.percentDiff))})
+          </p>
+        </div>
+      )}
 
       {/* Status message */}
       <p className="mt-3 text-xs text-gray-700 flex items-center space-x-1">

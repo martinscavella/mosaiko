@@ -78,6 +78,7 @@ export default function ReportsPage() {
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>([])
   const [showFilters, setShowFilters] = useState(false)
   const [showExportModal, setShowExportModal] = useState(false)
+  const [budgetMode, setBudgetMode] = useState<'fixed' | 'previous' | 'average'>('fixed')
 
   // Funzione per filtrare le operazioni finanziarie (transactions + refunds + transfers)
   const filteredOperations = useMemo(() => {
@@ -231,6 +232,23 @@ export default function ReportsPage() {
         categoryTrend[category].push({ month: monthName, amount: monthAmount })
       })
     }
+
+    // Calcoli spesa mese precedente e media mesi passati per ogni categoria
+    const prevMonthSpentByCategory: Record<string, number> = {}
+    const avgSpentByCategory: Record<string, number> = {}
+
+    Object.entries(categoryTrend).forEach(([category, trend]) => {
+      // trend array contiene 6 mesi con ultimo elemento = mese corrente
+      if (trend.length > 1) {
+        prevMonthSpentByCategory[category] = trend[trend.length - 2].amount
+      } else {
+        prevMonthSpentByCategory[category] = 0
+      }
+
+      const prevMonths = trend.slice(0, -1) // escludi mese corrente
+      const totalPrev = prevMonths.reduce((s, d) => s + d.amount, 0)
+      avgSpentByCategory[category] = prevMonths.length > 0 ? totalPrev / prevMonths.length : 0
+    })
     
     const topCategory = Object.entries(categoryStats).sort((a, b) => b[1].total - a[1].total)[0]
     
@@ -284,7 +302,9 @@ export default function ReportsPage() {
         ? currentMonthTransactions.reduce((sum, t) => sum + Math.abs(t.current_amount), 0) / currentMonthTransactions.length 
         : 0,
       budgetByCategory,
-      totalBudget
+      totalBudget,
+      prevMonthSpentByCategory,
+      avgSpentByCategory
     }
   }, [filteredTransactions, assets, categories])
 
@@ -1060,25 +1080,63 @@ export default function ReportsPage() {
 
             {/* Budget Categories Grid */}
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                <Target className="h-5 w-5 text-blue-600 mr-2" />
-                Budget per Categoria
-              </h3>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                  <Target className="h-5 w-5 text-blue-600 mr-2" />
+                  Budget per Categoria
+                </h3>
+                <div className="flex items-center space-x-2 text-sm">
+                  <label htmlFor="budgetMode" className="font-medium">Comparazione:</label>
+                  <select
+                    id="budgetMode"
+                    value={budgetMode}
+                    onChange={e => setBudgetMode(e.target.value as 'fixed' | 'previous' | 'average')}
+                    className="border rounded px-2 py-1 text-sm"
+                  >
+                    <option value="fixed">Budget fisso</option>
+                    <option value="previous">Mese precedente</option>
+                    <option value="average">Media ultimi mesi</option>
+                  </select>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {Object.entries(advancedStats.budgetByCategory)
                   .filter(([_, budget]) => budget.budget > 0) // Mostra solo categorie con budget
                   .sort((a, b) => b[1].percentUsed - a[1].percentUsed) // Ordina per percentUsed decrescente
-                  .map(([categoryName, budget]) => (
-                    <BudgetCategoryWidget
-                      key={categoryName}
-                      categoryName={categoryName}
-                      budget={budget.budget}
-                      spent={budget.spent}
-                      remaining={budget.remaining}
-                      percentUsed={budget.percentUsed}
-                      status={budget.status}
-                    />
-                  ))}
+                  .map(([categoryName, budget]) => {
+                    // compute comparison value
+                    let compValue = 0
+                    let compLabel = ''
+                    if (budgetMode === 'previous') {
+                      compValue = advancedStats.prevMonthSpentByCategory[categoryName] || 0
+                      compLabel = 'Spesa mese precedente'
+                    } else if (budgetMode === 'average') {
+                      compValue = advancedStats.avgSpentByCategory[categoryName] || 0
+                      compLabel = 'Spesa media'
+                    } else {
+                      compValue = budget.budget
+                      compLabel = 'Budget'
+                    }
+                    const percentDiff = compValue === 0 ? 0 : ((budget.spent - compValue) / (compValue || 1)) * 100
+
+                    return (
+                      <BudgetCategoryWidget
+                        key={categoryName}
+                        categoryName={categoryName}
+                        budget={budget.budget}
+                        spent={budget.spent}
+                        remaining={budget.remaining}
+                        percentUsed={budget.percentUsed}
+                        status={budget.status}
+                        comparison={{
+                          label: compLabel,
+                          value: compValue,
+                          percentDiff
+                        }}
+                      />
+                    )
+                  })}
               </div>
             </div>
           </div>
