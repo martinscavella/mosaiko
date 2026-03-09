@@ -35,6 +35,8 @@ import ModuleLayout from '@/components/ModuleLayout'
 import ModuleHeader from '@/components/ui/ModuleHeader'
 import CacheStatus from '@/components/ui/CacheStatus'
 import FinanceWidget from '@/components/ui/FinanceWidget'
+import BudgetCategoryWidget from '@/components/ui/BudgetCategoryWidget'
+import BudgetAlertBanner from '@/components/ui/BudgetAlertBanner'
 import { useAuth } from '@/lib/auth'
 import { formatCurrency, formatPercentage } from '@/lib/helpers/format'
 import { 
@@ -44,7 +46,8 @@ import {
   useAccounts, 
   useAssets,
   useFinancialGoals,
-  useAssetStats
+  useAssetStats,
+  useCategories
 } from '@/lib/financeCache'
 
 type ReportTab = 'overview' | 'accounts' | 'transactions' | 'assets' | 'goals'
@@ -63,6 +66,7 @@ export default function ReportsPage() {
   const { goals } = useFinancialGoals()
   const { refetch, isDataStale } = useFinanceCache()
   const assetStats = useAssetStats()
+  const { categories } = useCategories()
   
   const [activeTab, setActiveTab] = useState<ReportTab>('overview')
   
@@ -172,6 +176,38 @@ export default function ReportsPage() {
       }
       return acc
     }, {} as Record<string, { total: number, count: number }>)
+
+    // Budget tracking per categoria
+    const budgetByCategory = {} as Record<string, {
+      budget: number;
+      spent: number;
+      remaining: number;
+      percentUsed: number;
+      status: 'under' | 'warning' | 'over';
+    }>;
+    
+    let totalBudget = 0;
+    
+    categories.forEach(category => {
+      const budget = Number(category.monthly_budget) || 0;
+      const spent = categoryStats[category.name]?.total || 0;
+      const remaining = budget - spent;
+      const percentUsed = budget > 0 ? (spent / budget) * 100 : 0;
+      
+      let status: 'under' | 'warning' | 'over' = 'under';
+      if (percentUsed >= 100) status = 'over';
+      else if (percentUsed >= 80) status = 'warning';
+      
+      budgetByCategory[category.name] = {
+        budget,
+        spent,
+        remaining,
+        percentUsed: Math.round(percentUsed),
+        status
+      };
+      
+      totalBudget += budget;
+    })
     
     // Trend mensile per categorie (ultimi 6 mesi)
     const categoryTrend = {} as Record<string, Array<{ month: string, amount: number }>>
@@ -246,9 +282,11 @@ export default function ReportsPage() {
       netFlow: totalIncome - totalExpenses,
       avgTransactionAmount: currentMonthTransactions.length > 0 
         ? currentMonthTransactions.reduce((sum, t) => sum + Math.abs(t.current_amount), 0) / currentMonthTransactions.length 
-        : 0
+        : 0,
+      budgetByCategory,
+      totalBudget
     }
-  }, [filteredTransactions, assets])
+  }, [filteredTransactions, assets, categories])
 
   // Funzione di export
   const handleExport = (format: 'csv' | 'pdf' | 'json') => {
@@ -1001,6 +1039,50 @@ export default function ReportsPage() {
             loading={loading}
           />
         </div>
+
+        {/* Budget Tracking Section */}
+        {Object.keys(advancedStats.budgetByCategory).length > 0 && (
+          <div className="space-y-4">
+            {/* Budget Alert Banner */}
+            {Object.entries(advancedStats.budgetByCategory)
+              .filter(([_, budget]) => budget.status === 'over')
+              .length > 0 && (
+              <BudgetAlertBanner
+                overBudgetCategories={Object.entries(advancedStats.budgetByCategory)
+                  .filter(([_, budget]) => budget.status === 'over')
+                  .map(([name, budget]) => ({
+                    name,
+                    budget: budget.budget,
+                    spent: budget.spent
+                  }))}
+              />
+            )}
+
+            {/* Budget Categories Grid */}
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <Target className="h-5 w-5 text-blue-600 mr-2" />
+                Budget per Categoria
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {Object.entries(advancedStats.budgetByCategory)
+                  .filter(([_, budget]) => budget.budget > 0) // Mostra solo categorie con budget
+                  .sort((a, b) => b[1].percentUsed - a[1].percentUsed) // Ordina per percentUsed decrescente
+                  .map(([categoryName, budget]) => (
+                    <BudgetCategoryWidget
+                      key={categoryName}
+                      categoryName={categoryName}
+                      budget={budget.budget}
+                      spent={budget.spent}
+                      remaining={budget.remaining}
+                      percentUsed={budget.percentUsed}
+                      status={budget.status}
+                    />
+                  ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           {/* Grafico Spese per Categoria */}

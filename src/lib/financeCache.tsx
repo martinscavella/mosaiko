@@ -33,6 +33,7 @@ export interface Transaction {
   } | null;
   categories?: {
     name: string;
+    monthly_budget?: number | null;
   } | null;
   subcategories?: {
     name: string;
@@ -72,6 +73,18 @@ export interface FinancialGoal {
   currency: string;
   target_date: string | null;
   color: string | null;
+}
+
+export interface Category {
+  id: string;
+  user_id?: string;
+  name: string;
+  monthly_budget: number | null;
+  total_amount: number;
+  transaction_count: number;
+  icon?: string | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface Account {
@@ -196,7 +209,7 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
             account_name,
             asset_id,
             accounts(type),
-            categories(name),
+            categories(name, monthly_budget),
             subcategories(name)
           `)
           .eq('user_id', user.id)
@@ -550,7 +563,8 @@ export function useAssetTransactions(assetId: string | null) {
           *,
           categories (
             id,
-            name
+            name,
+            monthly_budget
           ),
           subcategories (
             id,
@@ -1145,7 +1159,8 @@ export function useUnlinkedAssetTransactions() {
           *,
           categories (
             id,
-            name
+            name,
+            monthly_budget
           ),
           subcategories (
             id,
@@ -1269,5 +1284,52 @@ export function useAllFinancialOperations() {
     loading,
     error,
     refetch
+  }
+}
+
+// Hook per accedere alle categorie con monthly_budget
+export function useCategories() {
+  const { user } = useAuth()
+  const [categories, setCategories] = useState<Category[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const supabase = createClientComponentClient()
+
+  const fetchCategories = useCallback(async () => {
+    if (!user) return
+
+    setLoading(true)
+    setError(null)
+
+    try {
+      const { data, error: queryError } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('name', { ascending: true })
+
+      if (queryError) {
+        throw queryError
+      }
+
+      setCategories((data || []) as Category[])
+    } catch (err) {
+      console.error('Error fetching categories:', err)
+      setError(err instanceof Error ? err.message : 'Errore nel caricamento delle categorie')
+      setCategories([])
+    } finally {
+      setLoading(false)
+    }
+  }, [user, supabase])
+
+  useEffect(() => {
+    fetchCategories()
+  }, [fetchCategories])
+
+  return {
+    categories,
+    loading,
+    error,
+    refetch: fetchCategories
   }
 }
