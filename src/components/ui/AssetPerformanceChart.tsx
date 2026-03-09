@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { TrendingUp, TrendingDown, BarChart3, RefreshCw } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceLine } from 'recharts'
+import { formatCurrency } from '@/lib/helpers/format'
 
 interface PerformanceDataPoint {
   date: string
@@ -382,15 +383,6 @@ export default function AssetPerformanceChart({
   }
   
   const performance = calculatePerformance()
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('it-IT', {
-      style: 'currency',
-      currency: 'EUR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount)
-  }
 
   return (
     <div className={`bg-white rounded-lg border border-gray-200 p-6 ${className}`}>      <div className="flex items-center justify-between mb-4">

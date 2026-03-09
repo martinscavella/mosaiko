@@ -36,6 +36,7 @@ import ModuleHeader from '@/components/ui/ModuleHeader'
 import CacheStatus from '@/components/ui/CacheStatus'
 import FinanceWidget from '@/components/ui/FinanceWidget'
 import { useAuth } from '@/lib/auth'
+import { formatCurrency, formatPercentage } from '@/lib/helpers/format'
 import { 
   useFinanceCache, 
   useFinanceData, 
@@ -241,19 +242,6 @@ export default function ReportsPage() {
         : 0
     }
   }, [filteredTransactions, assets])
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('it-IT', {
-      style: 'currency',
-      currency: 'EUR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount)
-  }
-
-  const formatPercentage = (value: number) => {
-    return `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`
-  }
 
   // Funzione di export
   const handleExport = (format: 'csv' | 'pdf' | 'json') => {
