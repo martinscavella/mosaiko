@@ -245,11 +245,14 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
         currentMonth = `${monthNames[latestDate.getMonth()]} ${latestDate.getFullYear()}`;
       }
 
-      const monthlyFilteredTransactions = monthYear ? allTransactions.filter((transaction: Transaction) => {
-        const transactionDate = new Date(transaction.transaction_date);
-        const transactionMonthYear = `${transactionDate.getFullYear()}-${String(transactionDate.getMonth() + 1).padStart(2, '0')}`;
-        return transactionMonthYear === monthYear;
-      }) : [];
+      // Calcola transazioni mensili solo se abbiamo un mese valido
+      const monthlyFilteredTransactions = monthYear 
+        ? allTransactions.filter((transaction: Transaction) => {
+            const transactionDate = new Date(transaction.transaction_date);
+            const transactionMonthYear = `${transactionDate.getFullYear()}-${String(transactionDate.getMonth() + 1).padStart(2, '0')}`;
+            return transactionMonthYear === monthYear;
+          }) 
+        : [];
 
       let monthlyIncome = 0;
       let monthlyExpenses = 0;
