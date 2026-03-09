@@ -212,10 +212,15 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
       if (error) throw error
 
       // Aggiorna cache e ricarica dati
-      await Promise.all([
-        refetch(),
-        refetchFinanceCache()
-      ])
+      try {
+        await Promise.all([
+          refetch(),
+          refetchFinanceCache()
+        ])
+      } catch (refetchError) {
+        console.error('Errore durante l\'aggiornamento della cache:', refetchError)
+        // Continua comunque - la transazione è stata salvata, anche se la cache non è aggiornata
+      }
 
       onSuccess?.()
       onClose()

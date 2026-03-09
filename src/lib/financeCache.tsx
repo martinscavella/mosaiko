@@ -207,7 +207,7 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
           throw transactionsBatch.error;
         }
 
-        const batchData = (transactionsBatch.data as unknown as Transaction[]) || [];
+        const batchData = (transactionsBatch.data as Transaction[]) || [];
         allTransactions = [...allTransactions, ...batchData];
 
         hasMore = batchData.length === batchSize;
@@ -223,9 +223,7 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
       // Filtraggio asset-related disponibile se necessario in futuro
       // const assetPurchaseTransactions = allTransactions.filter((transaction: Transaction) => transaction.asset_id != null);
 
-      const assets = rawAssets.map((asset: RawAssetData) => {
-        return asset as Asset;
-      });
+      const assets = rawAssets as Asset[];
 
       const totalAssetsValue = assets.reduce((sum, asset) => sum + Number(asset.value || 0), 0);
 
