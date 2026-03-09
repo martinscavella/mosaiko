@@ -350,7 +350,7 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [user, supabase, data, loading, isDataExpired])
+  }, [user, supabase, isDataExpired])
 
   // Effetto per il caricamento iniziale
   useEffect(() => {

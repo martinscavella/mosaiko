@@ -18,6 +18,7 @@ import {
   Package,
 } from "lucide-react";
 import { Transaction } from "@/lib/financeCache";
+import { isInDateRange } from "@/lib/helpers/dateRange";
 
 export interface FilterOption {
   id: string;
@@ -190,33 +191,6 @@ export default function TransactionsTable({
     }, obj);
   };  // Dati filtrati e ordinati
   const processedData = useMemo(() => {
-    // Funzione helper per filtrare in base alla data
-    const isInDateRange = (transactionDate: string, range: string): boolean => {
-      if (range === "all") return true;
-      
-      const date = new Date(transactionDate);
-      const now = new Date();
-      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      
-      switch (range) {
-        case "today":
-          return date >= startOfToday;
-        case "week":
-          const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-          return date >= weekAgo;
-        case "month":
-          const monthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
-          return date >= monthAgo;
-        case "quarter":
-          const quarterAgo = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
-          return date >= quarterAgo;
-        case "year":
-          const yearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
-          return date >= yearAgo;
-        default:
-          return true;
-      }
-    };
     // Funzione di ricerca ottimizzata (spostata qui per evitare problemi con dependencies)
     const searchInTransaction = (transaction: Transaction, term: string): boolean => {
       if (!term) return true;
