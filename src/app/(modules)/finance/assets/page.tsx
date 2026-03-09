@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import ModuleLayout from '@/components/ModuleLayout'
 import ModuleHeader from '@/components/ui/ModuleHeader'
 import CacheStatus from '@/components/ui/CacheStatus'
@@ -140,7 +140,7 @@ export default function AssetsPage() {
   }
 
   // Helper function to get purchase data from transactions
-  const getAssetPurchaseData = (assetId: string) => {
+  const getAssetPurchaseData = useCallback((assetId: string) => {
     const assetTransactions = financeData?.transactions?.filter(t => t.asset_id === assetId) || []
     
     if (assetTransactions.length === 0) {
@@ -196,7 +196,7 @@ export default function AssetsPage() {
       firstPurchaseDate: firstPurchaseDate,
       hasTransactions: formattedTransactions.length > 0
     }
-  }
+  }, [financeData])
 
   const calculatePerformance = (currentValue: number, totalCost: number) => {
     if (totalCost === 0) return 0

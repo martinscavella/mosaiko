@@ -207,7 +207,21 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
           throw transactionsBatch.error;
         }
 
-        const batchData = (transactionsBatch.data as unknown as Transaction[]) || [];
+        // Map Supabase data to Transaction type
+        const batchData: Transaction[] = (transactionsBatch.data || []).map((item: any) => ({
+          id: item.id,
+          transaction_date: item.transaction_date,
+          transaction_details: item.transaction_details,
+          current_amount: item.current_amount,
+          transaction_type: item.transaction_type,
+          is_refunded: item.is_refunded,
+          account_name: item.account_name,
+          asset_id: item.asset_id,
+          asset_quantity: item.asset_quantity,
+          accounts: item.accounts,
+          categories: item.categories,
+          subcategories: item.subcategories
+        }));
         allTransactions = [...allTransactions, ...batchData];
 
         hasMore = batchData.length === batchSize;
@@ -223,9 +237,7 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
       // Filtraggio asset-related disponibile se necessario in futuro
       // const assetPurchaseTransactions = allTransactions.filter((transaction: Transaction) => transaction.asset_id != null);
 
-      const assets = rawAssets.map((asset: RawAssetData) => {
-        return asset as Asset;
-      });
+      const assets = rawAssets as Asset[];
 
       const totalAssetsValue = assets.reduce((sum, asset) => sum + Number(asset.value || 0), 0);
 
@@ -247,11 +259,14 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
         currentMonth = `${monthNames[latestDate.getMonth()]} ${latestDate.getFullYear()}`;
       }
 
-      const monthlyFilteredTransactions = monthYear ? allTransactions.filter((transaction: Transaction) => {
-        const transactionDate = new Date(transaction.transaction_date);
-        const transactionMonthYear = `${transactionDate.getFullYear()}-${String(transactionDate.getMonth() + 1).padStart(2, '0')}`;
-        return transactionMonthYear === monthYear;
-      }) : [];
+      // Calcola transazioni mensili solo se abbiamo un mese valido
+      const monthlyFilteredTransactions = monthYear 
+        ? allTransactions.filter((transaction: Transaction) => {
+            const transactionDate = new Date(transaction.transaction_date);
+            const transactionMonthYear = `${transactionDate.getFullYear()}-${String(transactionDate.getMonth() + 1).padStart(2, '0')}`;
+            return transactionMonthYear === monthYear;
+          }) 
+        : [];
 
       let monthlyIncome = 0;
       let monthlyExpenses = 0;
@@ -350,7 +365,7 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [user, supabase, data, loading, isDataExpired])
+  }, [user, supabase, isDataExpired])
 
   // Effetto per il caricamento iniziale
   useEffect(() => {
@@ -513,25 +528,6 @@ export function useAssetStats() {
 //   ...
 // }
 
-// Hook per transazioni di acquisto asset
-export function useAssetPurchaseTransactions() {
-  const { data } = useFinanceCache();
-  
-  const allTransactions = data?.transactions || []
-  const assetPurchaseTransactions = allTransactions.filter(transaction => {
-    const accountType = transaction.accounts?.type
-    const categoryName = transaction.categories?.name
-    return accountType === 'saving_account' && categoryName === 'ASSET & INVESTIMENTI'
-  })
-  
-  return {
-    assetPurchaseTransactions,
-    count: assetPurchaseTransactions.length,
-    totalSpent: assetPurchaseTransactions.reduce((sum, transaction) => 
-      sum + Math.abs(transaction.current_amount), 0
-    )
-  }
-}
 
 // Hook per recuperare le transazioni correlate a un asset
 export function useAssetTransactions(assetId: string | null) {

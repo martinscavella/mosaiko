@@ -36,6 +36,7 @@ import ModuleHeader from '@/components/ui/ModuleHeader'
 import CacheStatus from '@/components/ui/CacheStatus'
 import FinanceWidget from '@/components/ui/FinanceWidget'
 import { useAuth } from '@/lib/auth'
+import { formatCurrency, formatPercentage } from '@/lib/helpers/format'
 import { 
   useFinanceCache, 
   useFinanceData, 
@@ -129,6 +130,13 @@ export default function ReportsPage() {
   }, [allOperations])
 
   // Calcoli per statistiche avanzate (usando transazioni filtrate)
+  // TODO: Spezzare questo useMemo in 5-6 useMemo più piccoli e focalizzati:
+  // 1. currentMonthTransactions + lastMonthTransactions
+  // 2. categoryStats
+  // 3. categoryTrend
+  // 4. accountActivity
+  // 5. refundedTransactions + totalAssetValue
+  // 6. Income/Expenses + netFlow (Questo ridurrà re-computation non necessaria)
   const advancedStats = useMemo(() => {
     const now = new Date()
     const currentMonth = now.getMonth()
@@ -241,19 +249,6 @@ export default function ReportsPage() {
         : 0
     }
   }, [filteredTransactions, assets])
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('it-IT', {
-      style: 'currency',
-      currency: 'EUR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount)
-  }
-
-  const formatPercentage = (value: number) => {
-    return `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`
-  }
 
   // Funzione di export
   const handleExport = (format: 'csv' | 'pdf' | 'json') => {

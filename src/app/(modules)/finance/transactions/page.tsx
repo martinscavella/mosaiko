@@ -8,6 +8,7 @@ import CacheStatus from '@/components/ui/CacheStatus'
 import NewTransactionModal from '@/components/ui/NewTransactionModal'
 import { useAllTransactions, useFinanceCache, type Transaction } from '@/lib/financeCache'
 import { useAuth } from '@/lib/auth'
+import { isInDateRange, type DateRangeType } from '@/lib/helpers/dateRange'
 import { 
   ArrowUpRight, 
   ArrowDownLeft, 
@@ -43,34 +44,6 @@ export default function TransactionsPage() {  const { transactions, loading, err
 
   // Logica di filtri duplicata dalla tabella per calcolare le statistiche
   const filteredData = useMemo(() => {
-    // Funzione helper per filtrare in base alla data
-    const isInDateRange = (transactionDate: string, range: string): boolean => {
-      if (range === "all") return true;
-      
-      const date = new Date(transactionDate);
-      const now = new Date();
-      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      
-      switch (range) {
-        case "today":
-          return date >= startOfToday;
-        case "week":
-          const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-          return date >= weekAgo;
-        case "month":
-          const monthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
-          return date >= monthAgo;
-        case "quarter":
-          const quarterAgo = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
-          return date >= quarterAgo;
-        case "year":
-          const yearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
-          return date >= yearAgo;
-        default:
-          return true;
-      }
-    };
-
     let filtered = [...transactions]
 
     // Applicazione filtri
@@ -121,7 +94,7 @@ export default function TransactionsPage() {  const { transactions, loading, err
     // Filtro per intervallo di date
     if (selectedDateRange !== 'all') {
       filtered = filtered.filter((t: Transaction) => 
-        isInDateRange(t.transaction_date, selectedDateRange)
+        isInDateRange(t.transaction_date, selectedDateRange as DateRangeType)
       )
     }
 
