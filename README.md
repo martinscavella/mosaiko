@@ -1,36 +1,70 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Mosaiko - Personal Management PWA
 
-## Getting Started
+Mosaiko è una Progressive Web App (PWA) italiana per la gestione personale integrata: finanze, salute, task e apprendimento.
 
-First, run the development server:
+**Stack**: Next.js 15 (App Router) | React 19 | Supabase | Tailwind CSS | TypeScript
+
+---
+
+## 📚 Documentazione
+
+Tutta la documentazione è organizzata nella cartella [`docs/`](docs/):
+
+- **[ANALYSIS_REPORT.md](docs/ANALYSIS_REPORT.md)** - Rapporto completo di analisi (38 issues identificati)
+- **[README.md](docs/README.md)** - Documentazione del progetto
+- **[CACHE_OPTIMIZATION.md](docs/CACHE_OPTIMIZATION.md)** - Strategie di cache e ottimizzazione
+- **[FONT_SETUP.md](docs/FONT_SETUP.md)** - Setup e gestione font
+- **[IMPORT_MAPPINGS.md](docs/IMPORT_MAPPINGS.md)** - Path mappings e import structure
+- **[IOS_PWA_GUIDE.md](docs/IOS_PWA_GUIDE.md)** - Guida PWA per iOS
+
+---
+
+## 🚀 Quick Start
 
 ```bash
+# Installare dipendenze
+npm install
+
+# Avviare dev server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+
+# Build produzione
+npm run build
+
+# Lint + TypeScript check
+npm run lint:fix && npm run type-check
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 📁 Struttura Progetto
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+mosaiko/
+├── src/
+│   ├── app/              # Next.js app router
+│   │   ├── (modules)/   # Route groups per moduli (finance, health, tasks, learning)
+│   │   └── api/         # API routes
+│   ├── components/       # React components
+│   ├── lib/             # Utilities, hooks, cache, auth
+│   └── hooks/           # Custom React hooks
+├── database/            # Schema Supabase (PostgreSQL)
+├── public/              # Static assets, PWA manifest, Service Worker
+├── docs/                # 📚 Documentazione
+└── ...
+```
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## 🔧 Moduli Attivi
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Attualmente il modulo **Finance** è il solo attivo. Gli altri moduli (Health, Learning, Tasks) sono in stato `coming_soon`.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Vedi [copilot-instructions.md](.github/copilot-instructions.md) per le convenzioni di progetto.
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 📞 Contatti / Info
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Repository: [github.com/martinscavella/mosaiko](https://github.com/martinscavella/mosaiko)
+- Branch attuale: `feature/general_optimization` → `fix/code-cleanup-analysis`
