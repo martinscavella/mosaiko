@@ -1103,19 +1103,6 @@ export function useAssetOperations() {
 }
 
 // Aggiungi queste interfacce dopo le interfacce esistenti
-interface RawAssetData {
-  id: string
-  name: string
-  type: string
-  quantity: number
-  value: number
-  currency: string
-  account_id: string | null
-  created_at: string
-  updated_at: string
-  user_id: string
-}
-
 interface CategoryAmounts {
   [key: string]: number
 }
@@ -1331,5 +1318,62 @@ export function useCategories() {
     loading,
     error,
     refetch: fetchCategories
+  }
+}
+
+// Hook per operazioni CRUD sulle categorie
+export function useCategoryOperations() {
+  const { user } = useAuth()
+  const supabase = createClientComponentClient()
+
+  const createCategory = useCallback(async (categoryData: Omit<Category, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'total_amount' | 'transaction_count'>) => {
+    if (!user) throw new Error('Utente non autenticato')
+
+    const { data, error } = await supabase
+      .from('categories')
+      .insert({
+        ...categoryData,
+        user_id: user.id,
+        total_amount: 0,
+        transaction_count: 0
+      })
+      .select()
+      .single()
+
+    if (error) throw error
+    return data as Category
+  }, [user, supabase])
+
+  const updateCategory = useCallback(async (id: string, updates: Partial<Omit<Category, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'total_amount' | 'transaction_count'>>) => {
+    if (!user) throw new Error('Utente non autenticato')
+
+    const { data, error } = await supabase
+      .from('categories')
+      .update(updates)
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data as Category
+  }, [user, supabase])
+
+  const deleteCategory = useCallback(async (id: string) => {
+    if (!user) throw new Error('Utente non autenticato')
+
+    const { error } = await supabase
+      .from('categories')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id)
+
+    if (error) throw error
+  }, [user, supabase])
+
+  return {
+    createCategory,
+    updateCategory,
+    deleteCategory
   }
 }

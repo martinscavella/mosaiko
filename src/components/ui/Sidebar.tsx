@@ -34,6 +34,7 @@ const navigation = [
       { name: "Account", href: "/finance/accounts" },
       { name: "Transazioni", href: "/finance/transactions" },
       { name: "Asset", href: "/finance/assets" },
+      { name: "Budget", href: "/finance/budgets" },
       { name: "Rimborsi", href: "/finance/refunds" },
       { name: "Import Dati", href: "/finance/import" },
       { name: "Report", href: "/finance/reports" },

@@ -23,7 +23,8 @@ export default function BudgetCategoryWidget({
   spent,
   remaining,
   percentUsed,
-  status
+  status,
+  comparison
 }: BudgetCategoryWidgetProps) {
   const getStatusColor = () => {
     switch (status) {

@@ -83,56 +83,7 @@ export default function AssetsPage() {
   // Stati per l'aggiornamento dei valori degli asset
   const [isUpdatingValues, setIsUpdatingValues] = useState(false)
 
-  // Listener per il FAB della navbar mobile
-  useEffect(() => {
-    const handleOpenModal = () => {
-      setShowAddModal(true);
-    };
-    
-    window.addEventListener('openNewItemModal', handleOpenModal);
-    return () => window.removeEventListener('openNewItemModal', handleOpenModal);
-  }, []);
-
-  // Debug: log dei dati per capire cosa sta succedendo
-  useEffect(() => {
-    if (financeData) {
-      console.log('📊 Finance data loaded:', {
-        assets: financeData.assets?.length || 0,
-        transactions: financeData.transactions?.length || 0,
-        transactionsWithAssetId: financeData.transactions?.filter(t => t.asset_id)?.length || 0
-      })
-      
-      // Mostra tutti gli asset_id presenti nelle transazioni
-      const assetIds = [...new Set(financeData.transactions?.filter(t => t.asset_id).map(t => t.asset_id) || [])]
-      console.log('🔗 Asset IDs found in transactions:', assetIds)
-      
-      // Mostra tutti gli asset disponibili
-      console.log('💎 Available assets:', assets.map(a => ({ id: a.id, name: a.name })))
-    }
-  }, [financeData, assets])
-
-  // Loading states
-  if (authLoading) {
-    return (
-      <ModuleLayout moduleId="finance">
-        <div className="max-w-7xl 3xl:max-w-[1600px] 4xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 3xl:px-10 py-8">
-          <div className="animate-pulse">
-            {/* ...existing loading skeleton... */}
-          </div>
-        </div>
-      </ModuleLayout>
-    )
-  }
-
-  if (!user) {
-    return (
-      <ModuleLayout moduleId="finance">
-        <div className="max-w-7xl 3xl:max-w-[1600px] 4xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 3xl:px-10 py-8">
-          {/* ...existing user check JSX... */}
-        </div>
-      </ModuleLayout>
-    )
-  }  const formatCurrency = (amount: number) => {
+  const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('it-IT', {
       style: 'currency',
       currency: 'EUR'
@@ -197,6 +148,57 @@ export default function AssetsPage() {
       hasTransactions: formattedTransactions.length > 0
     }
   }, [financeData])
+
+  // Listener per il FAB della navbar mobile
+  useEffect(() => {
+    const handleOpenModal = () => {
+      setShowAddModal(true);
+    };
+    
+    window.addEventListener('openNewItemModal', handleOpenModal);
+    return () => window.removeEventListener('openNewItemModal', handleOpenModal);
+  }, []);
+
+  // Debug: log dei dati per capire cosa sta succedendo
+  useEffect(() => {
+    if (financeData) {
+      console.log('📊 Finance data loaded:', {
+        assets: financeData.assets?.length || 0,
+        transactions: financeData.transactions?.length || 0,
+        transactionsWithAssetId: financeData.transactions?.filter(t => t.asset_id)?.length || 0
+      })
+      
+      // Mostra tutti gli asset_id presenti nelle transazioni
+      const assetIds = [...new Set(financeData.transactions?.filter(t => t.asset_id).map(t => t.asset_id) || [])]
+      console.log('🔗 Asset IDs found in transactions:', assetIds)
+      
+      // Mostra tutti gli asset disponibili
+      console.log('💎 Available assets:', assets.map(a => ({ id: a.id, name: a.name })))
+    }
+  }, [financeData, assets])
+
+  // Loading states
+  if (authLoading) {
+    return (
+      <ModuleLayout moduleId="finance">
+        <div className="max-w-7xl 3xl:max-w-[1600px] 4xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 3xl:px-10 py-8">
+          <div className="animate-pulse">
+            {/* ...existing loading skeleton... */}
+          </div>
+        </div>
+      </ModuleLayout>
+    )
+  }
+
+  if (!user) {
+    return (
+      <ModuleLayout moduleId="finance">
+        <div className="max-w-7xl 3xl:max-w-[1600px] 4xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 3xl:px-10 py-8">
+          {/* ...existing user check JSX... */}
+        </div>
+      </ModuleLayout>
+    )
+  }
 
   const calculatePerformance = (currentValue: number, totalCost: number) => {
     if (totalCost === 0) return 0
