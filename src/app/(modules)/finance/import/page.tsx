@@ -30,28 +30,23 @@ interface ImportRow {
   description: string;
   amount: string;
   type: string;
-  account?: string; // Ora questo sarà l'UUID dell'account
+  account?: string;
   category?: string;
   subcategory?: string;
   targetTable: "transactions" | "refunds" | "funds_transfer";
   status: "pending" | "success" | "error";
   errors?: string[];
   isEditing?: boolean;
-  // Campi aggiuntivi per tutti i tipi di tabella
   code?: string;
   currency?: string;
   initialAmount?: string;
   currentAmount?: string;
   note?: string;
-  // Campi specifici per transazioni
   transactionType?: string;
-  // Campi specifici per rimborsi
   refundDetails?: string;
   refundCode?: string;
-  // Campi specifici per trasferimenti
   transferDetails?: string;
   transferCode?: string;
-  // Nuovo campo per preview transazioni
   is_refunded?: boolean;
 }
 
@@ -64,8 +59,6 @@ interface BankParser {
   transformAmount?: (amount: string) => string;
   transformDate?: (date: string) => string;
 }
-
-// RIMOSSA la dichiarazione locale di BANK_PARSERS: ora si usa solo quella importata dal modulo
 
 export default function ImportPage() {
   const { user, loading: authLoading } = useAuth();
@@ -95,54 +88,29 @@ export default function ImportPage() {
     errors: 0,
   });
 
-  // Carica gli account dell'utente
   const loadUserAccounts = useCallback(async () => {
-    if (!user) {
-      console.log("DEBUG loadUserAccounts - Nessun utente disponibile");
-      return;
-    }
-
-    console.log(
-      "DEBUG loadUserAccounts - Inizio caricamento per utente:",
-      user.id
-    );
-
+    if (!user) return;
     try {
       const { data: accounts, error } = await supabase
         .from("accounts")
         .select("id, name, type")
         .eq("user_id", user.id)
         .order("name");
-
-      if (error) {
-        console.error("DEBUG loadUserAccounts - Errore Supabase:", error);
-        throw error;
-      }
-
-      // Debug: logga gli account caricati
-      console.log("DEBUG - Account caricati dal database:", accounts);
-
+      if (error) throw error;
       setUserAccounts(accounts || []);
-      console.log(
-        "DEBUG loadUserAccounts - Account impostati nello state:",
-        accounts?.length || 0
-      );
     } catch (error) {
       console.error("Error loading accounts:", error);
     }
   }, [user, supabase]);
 
-  // Carica le categorie dell'utente
   const loadUserCategories = useCallback(async () => {
     if (!user) return;
-
     try {
       const { data: categories, error } = await supabase
         .from("categories")
         .select("id, name")
         .eq("user_id", user.id)
         .order("name");
-
       if (error) throw error;
       setUserCategories(categories || []);
     } catch (error) {
@@ -150,17 +118,14 @@ export default function ImportPage() {
     }
   }, [user, supabase]);
 
-  // Carica le sottocategorie dell'utente
   const loadUserSubcategories = useCallback(async () => {
     if (!user) return;
-
     try {
       const { data: subcategories, error } = await supabase
         .from("subcategories")
         .select("id, name, category_id")
         .eq("user_id", user.id)
         .order("name");
-
       if (error) throw error;
       setUserSubcategories(subcategories || []);
     } catch (error) {
@@ -168,33 +133,20 @@ export default function ImportPage() {
     }
   }, [user, supabase]);
 
-  // Rileva automaticamente l'account basandosi sul nome del file
   const detectAccountFromFilename = useCallback(
     (filename: string): string | null => {
       if (!userAccounts.length) return null;
-
       const lowerFilename = filename.toLowerCase();
-
-      // Mappa delle banche/istituti con i loro possibili nomi nei file
       const bankMappings: { [key: string]: string[] } = {
         contanti: ["contanti", "cash", "contante"],
         revolut: ["revolut"],
         paypal: ["paypal"],
-        intesa: [
-          "intesa",
-          "sanpaolo",
-          "intesasanpaolo",
-          "contoxme",
-          "conto xme",
-        ],
+        intesa: ["intesa", "sanpaolo", "intesasanpaolo", "contoxme", "conto xme"],
         poste: ["poste", "postepay", "bancoposta", "libretto postale"],
         edenred: ["edenred", "buoni pasto", "ticket restaurant"],
       };
-
-      // Prima prova a matchare per nome della banca
       for (const [bankKey, variations] of Object.entries(bankMappings)) {
         if (variations.some((variation) => lowerFilename.includes(variation))) {
-          // Cerca un account dell'utente che contenga il nome della banca
           const matchedAccount = userAccounts.find(
             (account) =>
               account.name.toLowerCase().includes(bankKey) ||
@@ -203,25 +155,17 @@ export default function ImportPage() {
           if (matchedAccount) return matchedAccount.id;
         }
       }
-
-      // Se non trova una corrispondenza diretta, prova a matchare con i nomi degli account
       for (const account of userAccounts) {
         const accountWords = account.name.toLowerCase().split(" ");
-        if (
-          accountWords.some(
-            (word) => word.length > 3 && lowerFilename.includes(word)
-          )
-        ) {
+        if (accountWords.some((word) => word.length > 3 && lowerFilename.includes(word))) {
           return account.id;
         }
       }
-
       return null;
     },
     [userAccounts]
   );
 
-  // Effetto per caricare gli account quando l'utente è disponibile
   useEffect(() => {
     if (user) {
       loadUserAccounts();
@@ -230,7 +174,6 @@ export default function ImportPage() {
     }
   }, [loadUserAccounts, loadUserCategories, loadUserSubcategories, user]);
 
-  // Effetto per rilevare l'account quando viene caricato un file
   useEffect(() => {
     if (currentFile && userAccounts.length > 0) {
       const detected = detectAccountFromFilename(currentFile.name);
@@ -240,19 +183,14 @@ export default function ImportPage() {
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) {
-      processFile(file);
-    }
+    if (file) processFile(file);
   };
 
   const handleDrop = (event: React.DragEvent) => {
     event.preventDefault();
     setIsDragOver(false);
-
     const file = event.dataTransfer.files[0];
-    if (file) {
-      processFile(file);
-    }
+    if (file) processFile(file);
   };
 
   const handleDragOver = (event: React.DragEvent) => {
@@ -271,69 +209,39 @@ export default function ImportPage() {
       "application/vnd.ms-excel",
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     ];
-
     if (!allowedTypes.includes(file.type)) {
-      alert(
-        "Formato file non supportato. Utilizza file CSV o Excel (.xlsx, .xls)"
-      );
+      alert("Formato file non supportato. Utilizza file CSV o Excel (.xlsx, .xls)");
       return;
     }
-
     setCurrentFile(file);
     parseFile(file);
   };
 
   const parseFile = async (file: File) => {
     setIsUploading(true);
-
-    // Rileva l'account dal nome del file
     const detected = detectAccountFromFilename(file.name);
     setDetectedAccount(detected);
 
     try {
-      // Rilevamento file Edenred tramite nome file o header
       const isEdenred =
         file.name.toLowerCase().includes("edenred") ||
         file.name.toLowerCase().includes("ticket restaurant") ||
         file.name.toLowerCase().includes("buoni pasto");
+
       if (isEdenred) {
-        // Leggi il file come Excel e converti in string[][]
         const data = await file.arrayBuffer();
         const workbook = XLSX.read(data);
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
-        const jsonData: string[][] = XLSX.utils.sheet_to_json(worksheet, {
-          header: 1,
-        });
+        const jsonData: string[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
         const rows = parseEdenredExcel(jsonData, detected || undefined);
         setDetectedBank(null);
         setImportData(rows);
-        setImportStats({
-          total: rows.length,
-          processed: 0,
-          success: 0,
-          errors: 0,
-        });
+        setImportStats({ total: rows.length, processed: 0, success: 0, errors: 0 });
       } else if (file.type === "text/csv") {
-        console.log("DEBUG - Chiamata parseCSV con account:", userAccounts);
-        await parseCSV(
-          file,
-          detected || undefined,
-          setDetectedBank,
-          setImportData,
-          setImportStats,
-          userAccounts
-        );
+        await parseCSV(file, detected || undefined, setDetectedBank, setImportData, setImportStats, userAccounts);
       } else {
-        console.log("DEBUG - Chiamata parseExcel con account:", userAccounts);
-        await parseExcel(
-          file,
-          detected || undefined,
-          setDetectedBank,
-          setImportData,
-          setImportStats,
-          userAccounts
-        );
+        await parseExcel(file, detected || undefined, setDetectedBank, setImportData, setImportStats, userAccounts);
       }
     } catch (error) {
       console.error("Error parsing file:", error);
@@ -356,28 +264,27 @@ export default function ImportPage() {
     Stipendio: "income",
     Ordine: "expense",
     "Ordine cloud": "income",
-    // ...aggiungi altri mapping se necessario...
   };
 
   const validateRow = (row: ImportRow): string[] => {
     const errors: string[] = [];
 
-    // Valida data
     if (!row.date) {
       errors.push("Data mancante");
     } else {
       const date = new Date(row.date);
-      if (isNaN(date.getTime())) {
-        errors.push("Formato data non valido");
-      }
+      if (isNaN(date.getTime())) errors.push("Formato data non valido");
     }
 
-    // Valida descrizione
     if (!row.description || row.description.trim().length === 0) {
       errors.push("Descrizione mancante");
     }
 
-    // Valida categoria (se specificata, deve esistere nel database)
+    // FIX #12: account obbligatorio per le transazioni
+    if (row.targetTable === "transactions" && (!row.account || row.account.trim() === "")) {
+      errors.push("Account obbligatorio per le transazioni");
+    }
+
     if (
       row.targetTable !== "refunds" &&
       row.targetTable !== "funds_transfer" &&
@@ -387,12 +294,9 @@ export default function ImportPage() {
       const categoryExists = userCategories.some(
         (cat) => cat.name.toLowerCase() === row.category?.toLowerCase()
       );
-      if (!categoryExists) {
-        errors.push("Categoria non valida - Seleziona da quelle disponibili");
-      }
+      if (!categoryExists) errors.push("Categoria non valida - Seleziona da quelle disponibili");
     }
 
-    // Valida sottocategoria (se specificata, deve esistere e appartenere alla categoria)
     if (row.subcategory && row.subcategory.trim() !== "") {
       if (!row.category || row.category.trim() === "") {
         errors.push("Sottocategoria specificata senza categoria");
@@ -406,120 +310,65 @@ export default function ImportPage() {
               subcat.name.toLowerCase() === row.subcategory?.toLowerCase() &&
               subcat.category_id === category.id
           );
-          if (!subcategoryExists) {
-            errors.push("Sottocategoria non valida per questa categoria");
-          }
+          if (!subcategoryExists) errors.push("Sottocategoria non valida per questa categoria");
         }
       }
     }
 
-    // Validazioni specifiche per tipo di tabella
     switch (row.targetTable) {
       case "transactions": {
-        // Valida importo iniziale e corrente
         if (!row.initialAmount || row.initialAmount === "") {
           errors.push("Importo iniziale mancante");
         } else {
-          const initialAmount = parseFloat(
-            row.initialAmount.toString().replace(",", ".")
-          );
-          if (isNaN(initialAmount)) {
-            errors.push("Importo iniziale non valido");
-          }
+          const initialAmount = parseFloat(row.initialAmount.toString().replace(",", "."));
+          if (isNaN(initialAmount)) errors.push("Importo iniziale non valido");
         }
-
         if (!row.currentAmount || row.currentAmount === "") {
           errors.push("Importo corrente mancante");
         } else {
-          const currentAmount = parseFloat(
-            row.currentAmount.toString().replace(",", ".")
-          );
-          if (isNaN(currentAmount)) {
-            errors.push("Importo corrente non valido");
-          }
+          const currentAmount = parseFloat(row.currentAmount.toString().replace(",", "."));
+          if (isNaN(currentAmount)) errors.push("Importo corrente non valido");
         }
-
-        // Valida tipo transazione
         const tipoOptions = [
-          "Abbonamento",
-          "Acquisto",
-          "AZIONE",
-          "Bonifico",
-          "Buono fruttifero",
-          "Cancellazione rimborso",
-          "Commissione",
-          "Competenze",
-          "Delivery",
-          "Eccesso Rimborso",
-          "Entrata",
-          "ETF",
-          "Imposte",
-          "Iscrizione",
-          "Ordine",
-          "Ordine cloud",
-          "Prelievo",
-          "Quattordicesima",
-          "Rata",
-          "Refund",
-          "Ricarica",
-          "Spesa",
-          "Stipendio",
-          "TFR",
-          "Tredicesima",
+          "Abbonamento", "Acquisto", "AZIONE", "Bonifico", "Buono fruttifero",
+          "Cancellazione rimborso", "Commissione", "Competenze", "Delivery",
+          "Eccesso Rimborso", "Entrata", "ETF", "Imposte", "Iscrizione", "Ordine",
+          "Ordine cloud", "Prelievo", "Quattordicesima", "Rata", "Refund",
+          "Ricarica", "Spesa", "Stipendio", "TFR", "Tredicesima",
         ];
-        const selectedTypeLabel = row.transactionType;
-        if (selectedTypeLabel && !tipoOptions.includes(selectedTypeLabel)) {
+        if (row.transactionType && !tipoOptions.includes(row.transactionType)) {
           errors.push("Tipo transazione non valido");
         }
         break;
       }
-
       case "refunds":
-        // Valida importi per rimborsi
         if (!row.initialAmount || row.initialAmount === "") {
           errors.push("Importo iniziale mancante");
         } else {
-          const initialAmount = parseFloat(
-            row.initialAmount.toString().replace(",", ".")
-          );
-          if (isNaN(initialAmount)) {
-            errors.push("Importo iniziale non valido");
-          }
+          const initialAmount = parseFloat(row.initialAmount.toString().replace(",", "."));
+          if (isNaN(initialAmount)) errors.push("Importo iniziale non valido");
         }
-
         if (!row.currentAmount || row.currentAmount === "") {
           errors.push("Importo corrente mancante");
         } else {
-          const currentAmount = parseFloat(
-            row.currentAmount.toString().replace(",", ".")
-          );
-          if (isNaN(currentAmount)) {
-            errors.push("Importo corrente non valido");
-          }
+          const currentAmount = parseFloat(row.currentAmount.toString().replace(",", "."));
+          if (isNaN(currentAmount)) errors.push("Importo corrente non valido");
         }
         break;
-
       case "funds_transfer":
-        // Valida importo per trasferimenti
         if (!row.amount || row.amount === "") {
           errors.push("Importo mancante");
         } else {
           const amount = parseFloat(row.amount.toString().replace(",", "."));
-          if (isNaN(amount)) {
-            errors.push("Importo non valido");
-          }
+          if (isNaN(amount)) errors.push("Importo non valido");
         }
         break;
-
       default:
-        // Fallback per importo generico
         if (!row.amount) {
           errors.push("Importo mancante");
         } else {
           const amount = parseFloat(row.amount.toString().replace(",", "."));
-          if (isNaN(amount)) {
-            errors.push("Importo non valido");
-          }
+          if (isNaN(amount)) errors.push("Importo non valido");
         }
     }
 
@@ -533,29 +382,18 @@ export default function ImportPage() {
     let successCount = 0;
     let errorCount = 0;
 
-    // Suddividi per tabella
-    const transactions = importData.filter(
-      (r) => r.targetTable === "transactions"
-    );
+    const transactions = importData.filter((r) => r.targetTable === "transactions");
     const refunds = importData.filter((r) => r.targetTable === "refunds");
-    const fundTransfers = importData.filter(
-      (r) => r.targetTable === "funds_transfer"
-    );
+    const fundTransfers = importData.filter((r) => r.targetTable === "funds_transfer");
 
-    // Se tutte le liste sono vuote, mostra alert e termina
-    if (
-      transactions.length === 0 &&
-      refunds.length === 0 &&
-      fundTransfers.length === 0
-    ) {
+    if (transactions.length === 0 && refunds.length === 0 && fundTransfers.length === 0) {
       alert("Nessun dato da importare: tutte le liste sono vuote.");
       setIsUploading(false);
       return;
     }
 
-    // Funzione helper per processare una lista
     const processList = async (rows: ImportRow[]) => {
-      if (!rows || rows.length === 0) return; // Non processare se la lista è vuota
+      if (!rows || rows.length === 0) return;
       const updatedData = [...importData];
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
@@ -567,9 +405,7 @@ export default function ImportPage() {
           errorCount++;
         } else {
           try {
-            const transactionDate = new Date(row.date)
-              .toISOString()
-              .split("T")[0];
+            const transactionDate = new Date(row.date).toISOString().split("T")[0];
             let categoryId: string | null = null;
             let subcategoryId: string | null = null;
             if (row.category && row.category.trim() !== "") {
@@ -581,33 +417,21 @@ export default function ImportPage() {
                 if (row.subcategory && row.subcategory.trim() !== "") {
                   const subcategory = userSubcategories.find(
                     (sub) =>
-                      sub.name.toLowerCase() ===
-                        row.subcategory?.toLowerCase() &&
+                      sub.name.toLowerCase() === row.subcategory?.toLowerCase() &&
                       sub.category_id === category.id
                   );
-                  if (subcategory) {
-                    subcategoryId = subcategory.id;
-                  }
+                  if (subcategory) subcategoryId = subcategory.id;
                 }
               }
             }
-            let insertData: Record<string, unknown> = {
-              user_id: user.id,
-            };
+            let insertData: Record<string, unknown> = { user_id: user.id };
             if (row.targetTable === "transactions") {
-              const initialAmount = parseFloat(
-                (row.initialAmount || row.amount).toString().replace(",", ".")
-              );
-              const currentAmount = parseFloat(
-                (row.currentAmount || row.amount).toString().replace(",", ".")
-              );
+              const initialAmount = parseFloat((row.initialAmount || row.amount).toString().replace(",", "."));
+              const currentAmount = parseFloat((row.currentAmount || row.amount).toString().replace(",", "."));
               insertData = {
                 ...insertData,
                 transaction_date: transactionDate,
-                transaction_type:
-                  TRANSACTION_TYPE_MAP[row.transactionType || ""] ||
-                  row.transactionType ||
-                  "expense",
+                transaction_type: TRANSACTION_TYPE_MAP[row.transactionType || ""] || row.transactionType || "expense",
                 transaction_details: row.description.trim(),
                 transaction_code: row.code || null,
                 account_id: row.account || null,
@@ -617,16 +441,11 @@ export default function ImportPage() {
                 initial_amount: initialAmount,
                 current_amount: currentAmount,
                 transaction_note: row.note || null,
-                // Usa il flag importato se presente, altrimenti false
                 is_refunded: !!row.is_refunded,
               };
             } else if (row.targetTable === "refunds") {
-              const initialAmount = parseFloat(
-                (row.initialAmount || row.amount).toString().replace(",", ".")
-              );
-              const currentAmount = parseFloat(
-                (row.currentAmount || row.amount).toString().replace(",", ".")
-              );
+              const initialAmount = parseFloat((row.initialAmount || row.amount).toString().replace(",", "."));
+              const currentAmount = parseFloat((row.currentAmount || row.amount).toString().replace(",", "."));
               insertData = {
                 ...insertData,
                 refund_date: transactionDate,
@@ -638,9 +457,7 @@ export default function ImportPage() {
                 current_amount: Math.abs(currentAmount),
               };
             } else if (row.targetTable === "funds_transfer") {
-              const amount = parseFloat(
-                row.amount.toString().replace(",", ".")
-              );
+              const amount = parseFloat(row.amount.toString().replace(",", "."));
               insertData = {
                 ...insertData,
                 funds_transfer_date: transactionDate,
@@ -648,14 +465,10 @@ export default function ImportPage() {
                 funds_transfer_code: row.code || null,
                 account_id: row.account || null,
                 currency: row.currency || "EUR",
-                amount: amount, // NON usare Math.abs() - mantieni il segno originale!
+                amount: amount,
               };
             }
-            // LOG DETTAGLIATO PRIMA DELL'INSERT
-            console.log("INSERT", row.targetTable, insertData);
-            const { error } = await supabase
-              .from(row.targetTable)
-              .insert(insertData);
+            const { error } = await supabase.from(row.targetTable).insert(insertData);
             if (error) throw error;
             row.status = "success";
             successCount++;
@@ -666,10 +479,7 @@ export default function ImportPage() {
             errorCount++;
           }
         }
-        // Aggiorna stats e stato globale
-        if (globalIdx !== -1) {
-          updatedData[globalIdx] = { ...row };
-        }
+        if (globalIdx !== -1) updatedData[globalIdx] = { ...row };
         setImportStats((prev) => ({
           ...prev,
           processed: prev.processed + 1,
@@ -680,7 +490,6 @@ export default function ImportPage() {
       }
     };
 
-    // Processa solo le liste popolate
     if (transactions.length > 0) await processList(transactions);
     if (refunds.length > 0) await processList(refunds);
     if (fundTransfers.length > 0) await processList(fundTransfers);
@@ -693,9 +502,7 @@ export default function ImportPage() {
     setCurrentFile(null);
     setDetectedBank(null);
     setImportStats({ total: 0, processed: 0, success: 0, errors: 0 });
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const loadNewFile = () => {
@@ -708,15 +515,9 @@ export default function ImportPage() {
       prevData.map((row) => {
         if (row.id === rowId) {
           const updatedRow = { ...row, [field]: value };
-          // Se stiamo aggiornando l'amount, sincronizza initialAmount e currentAmount
-          if (field === "amount") {
-            if (
-              row.targetTable === "transactions" ||
-              row.targetTable === "refunds"
-            ) {
-              updatedRow.initialAmount = String(value);
-              updatedRow.currentAmount = String(value);
-            }
+          if (field === "amount" && (row.targetTable === "transactions" || row.targetTable === "refunds")) {
+            updatedRow.initialAmount = String(value);
+            updatedRow.currentAmount = String(value);
           }
           return updatedRow;
         }
@@ -728,20 +529,14 @@ export default function ImportPage() {
   const deleteRow = (rowId: string) => {
     setImportData((prevData) => {
       const newData = prevData.filter((row) => row.id !== rowId);
-      // Aggiorna anche le statistiche basandosi sul nuovo array
-      setImportStats((prev) => ({
-        ...prev,
-        total: newData.length,
-      }));
+      setImportStats((prev) => ({ ...prev, total: newData.length }));
       return newData;
     });
   };
 
-  // Funzione per renderizzare le celle in base al tipo di campo e tabella
   const renderCell = (row: ImportRow, columnKey: string): ReactNode => {
     const baseInputClasses =
       "w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500";
-    // DICHIARAZIONI VARIABILI DI SUPPORTO GLOBALI ALLO SCOPE DELLA FUNZIONE
     const rowCategoryStr = (row.category ?? "").toString().toLowerCase();
     const rowSubcategoryStr = (row.subcategory ?? "").toString().toLowerCase();
 
@@ -810,9 +605,7 @@ export default function ImportPage() {
         return (
           <TransactionTypeCombobox
             value={row.transactionType ?? null}
-            onChange={(value) =>
-              updateRow(row.id, "transactionType", value ?? "")
-            }
+            onChange={(value) => updateRow(row.id, "transactionType", value ?? "")}
           />
         );
 
@@ -827,9 +620,7 @@ export default function ImportPage() {
               placeholder="Dettagli transazione"
             />
             {row.errors && row.errors.length > 0 && (
-              <div className="text-xs text-red-600 mt-1">
-                {row.errors.join(", ")}
-              </div>
+              <div className="text-xs text-red-600 mt-1">{row.errors.join(", ")}</div>
             )}
           </div>
         );
@@ -845,12 +636,15 @@ export default function ImportPage() {
           />
         );
 
-      case "account":
+      case "account": {
+        const isMissingAccount = row.targetTable === "transactions" && (!row.account || row.account.trim() === "");
         return (
           <select
             value={row.account || ""}
             onChange={(e) => updateRow(row.id, "account", e.target.value)}
-            className="min-w-[150px] px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className={`min-w-[150px] px-2 py-1 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              isMissingAccount ? "border-red-300 bg-red-50" : "border-gray-300"
+            }`}
           >
             <option value="">Seleziona account</option>
             {userAccounts.length === 0 ? (
@@ -864,15 +658,13 @@ export default function ImportPage() {
             )}
           </select>
         );
+      }
 
-      case "category":
-        // Controlla se la categoria dal file esiste nel database
+      case "category": {
         const currentCategoryExists =
           row.category &&
           Array.isArray(userCategories) &&
-          userCategories.some(
-            (cat) => cat.name.toLowerCase() === rowCategoryStr
-          );
+          userCategories.some((cat) => cat.name.toLowerCase() === rowCategoryStr);
         const hasInvalidCategory = row.category && !currentCategoryExists;
         return (
           <div>
@@ -880,9 +672,7 @@ export default function ImportPage() {
               value={currentCategoryExists ? row.category : ""}
               onChange={(e) => updateRow(row.id, "category", e.target.value)}
               className={`min-w-[150px] px-2 py-1 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                hasInvalidCategory
-                  ? "border-red-300 bg-red-50"
-                  : "border-gray-300"
+                hasInvalidCategory ? "border-red-300 bg-red-50" : "border-gray-300"
               }`}
             >
               <option value="">Seleziona categoria</option>
@@ -903,40 +693,31 @@ export default function ImportPage() {
             )}
           </div>
         );
+      }
 
-      case "subcategory":
-        // Trova la categoria selezionata per filtrare le sottocategorie
+      case "subcategory": {
         const selectedCategory = userCategories.find(
           (cat) => cat.name.toLowerCase() === rowCategoryStr
         );
         const availableSubcategories = selectedCategory
-          ? userSubcategories.filter(
-              (sub) => sub.category_id === selectedCategory.id
-            )
+          ? userSubcategories.filter((sub) => sub.category_id === selectedCategory.id)
           : [];
         const currentSubcategoryExists =
           row.subcategory &&
-          availableSubcategories.some(
-            (sub) => sub.name.toLowerCase() === rowSubcategoryStr
-          );
-        const hasInvalidSubcategory =
-          row.subcategory && !currentSubcategoryExists && selectedCategory;
+          availableSubcategories.some((sub) => sub.name.toLowerCase() === rowSubcategoryStr);
+        const hasInvalidSubcategory = row.subcategory && !currentSubcategoryExists && selectedCategory;
         return (
           <div>
             <select
               value={currentSubcategoryExists ? row.subcategory : ""}
               onChange={(e) => updateRow(row.id, "subcategory", e.target.value)}
               className={`min-w-[150px] px-2 py-1 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                hasInvalidSubcategory
-                  ? "border-red-300 bg-red-50"
-                  : "border-gray-300"
+                hasInvalidSubcategory ? "border-red-300 bg-red-50" : "border-gray-300"
               }`}
               disabled={!selectedCategory}
             >
               <option value="">
-                {!selectedCategory
-                  ? "Prima seleziona una categoria"
-                  : "Seleziona sottocategoria"}
+                {!selectedCategory ? "Prima seleziona una categoria" : "Seleziona sottocategoria"}
               </option>
               {availableSubcategories.map((subcategory) => (
                 <option key={subcategory.id} value={subcategory.name}>
@@ -950,12 +731,11 @@ export default function ImportPage() {
               </div>
             )}
             {!selectedCategory && row.subcategory && (
-              <div className="text-xs text-orange-600 mt-1">
-                Seleziona prima una categoria
-              </div>
+              <div className="text-xs text-orange-600 mt-1">Seleziona prima una categoria</div>
             )}
           </div>
         );
+      }
 
       case "currency":
         return (
@@ -1005,7 +785,7 @@ export default function ImportPage() {
         );
 
       default:
-        return <span>-</span>; // Fallback per garantire un ReactNode valido
+        return <span>-</span>;
     }
   };
 
@@ -1017,7 +797,6 @@ export default function ImportPage() {
 2025-01-04,"Pranzo ristorante",-25.00,Spesa,Cibo & Bevande,Ristorante
 2025-01-05,"Partita padel",-10.00,Spesa,Sport,Padel
 2025-01-06,"Rimborso spese",-15.30,Spesa,Varie,Altro`;
-
     const blob = new Blob([template], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -1049,9 +828,7 @@ export default function ImportPage() {
       <ModuleLayout moduleId="finance">
         <div className="max-w-7xl 3xl:max-w-[1600px] 4xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 3xl:px-10 py-8">
           <div className="text-center">
-            <p className="text-gray-500">
-              Devi effettuare il login per utilizzare l'import dati
-            </p>
+            <p className="text-gray-500">Devi effettuare il login per utilizzare l'import dati</p>
           </div>
         </div>
       </ModuleLayout>
@@ -1072,32 +849,10 @@ export default function ImportPage() {
           stats={
             importData.length > 0
               ? [
-                  {
-                    label: "Righe Totali",
-                    value: importStats.total.toString(),
-                    color: "blue",
-                  },
-                  {
-                    label: "Transazioni",
-                    value: importData
-                      .filter((r) => r.targetTable === "transactions")
-                      .length.toString(),
-                    color: "purple",
-                  },
-                  {
-                    label: "Rimborsi",
-                    value: importData
-                      .filter((r) => r.targetTable === "refunds")
-                      .length.toString(),
-                    color: "green",
-                  },
-                  {
-                    label: "Trasferimenti",
-                    value: importData
-                      .filter((r) => r.targetTable === "funds_transfer")
-                      .length.toString(),
-                    color: "orange",
-                  },
+                  { label: "Righe Totali", value: importStats.total.toString(), color: "blue" },
+                  { label: "Transazioni", value: importData.filter((r) => r.targetTable === "transactions").length.toString(), color: "purple" },
+                  { label: "Rimborsi", value: importData.filter((r) => r.targetTable === "refunds").length.toString(), color: "green" },
+                  { label: "Trasferimenti", value: importData.filter((r) => r.targetTable === "funds_transfer").length.toString(), color: "orange" },
                 ]
               : []
           }
@@ -1115,11 +870,7 @@ export default function ImportPage() {
                   {
                     label: isUploading ? "Importando..." : "Avvia Import",
                     onClick: processImport,
-                    icon: isUploading ? (
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Upload className="w-4 h-4" />
-                    ),
+                    icon: isUploading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />,
                     color: "blue" as const,
                     disabled: isUploading || importData.length === 0,
                     loading: isUploading,
@@ -1128,47 +879,26 @@ export default function ImportPage() {
               : []),
           ]}
           statusIndicators={[
+            { type: "success", label: `Banca rilevata: ${detectedBank?.name || "Nessuna"}`, show: !!detectedBank },
             {
               type: "success",
-              label: `Banca rilevata: ${detectedBank?.name || "Nessuna"}`,
-              show: !!detectedBank,
-            },
-            {
-              type: "success",
-              label: `Account rilevato: ${
-                detectedAccount
-                  ? userAccounts.find((acc) => acc.id === detectedAccount)?.name
-                  : "Nessuno"
-              }`,
+              label: `Account rilevato: ${detectedAccount ? userAccounts.find((acc) => acc.id === detectedAccount)?.name : "Nessuno"}`,
               show: !!detectedAccount,
             },
             {
               type: "warning",
-              label: `Account non rilevato - Seleziona manualmente dalla picklist`,
-              show: !!(
-                currentFile &&
-                userAccounts.length > 0 &&
-                !detectedAccount
-              ),
+              label: "Account non rilevato - Seleziona manualmente dalla picklist",
+              show: !!(currentFile && userAccounts.length > 0 && !detectedAccount),
             },
-            {
-              type: "warning",
-              label: "Import in corso...",
-              show: isUploading,
-            },
+            { type: "warning", label: "Import in corso...", show: isUploading },
             {
               type: "success",
               label: "Import completato",
-              show:
-                !isUploading &&
-                importStats.processed > 0 &&
-                importStats.processed === importStats.total,
+              show: !isUploading && importStats.processed > 0 && importStats.processed === importStats.total,
             },
           ]}
         />
 
-        {/* Resto del contenuto... */}
-        {/* Sezione Upload - Solo se non c'è un file caricato */}
         {!currentFile && (
           <div className="bg-white/95 backdrop-blur-xl border border-white/50 shadow-2xl rounded-2xl p-8 relative">
             <div className="flex itemscenter justify-between mb-6">
@@ -1177,16 +907,10 @@ export default function ImportPage() {
                   <Upload className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-gray-900">
-                    Carica File
-                  </h2>
-                  <p className="text-gray-600">
-                    Supporta file CSV e Excel (.xlsx, .xls)
-                  </p>
+                  <h2 className="text-xl font-bold text-gray-900">Carica File</h2>
+                  <p className="text-gray-600">Supporta file CSV e Excel (.xlsx, .xls)</p>
                 </div>
               </div>
-
-              {/* Pulsante Info */}
               <button
                 onClick={() => setShowInfoPopup(true)}
                 className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
@@ -1198,28 +922,17 @@ export default function ImportPage() {
 
             <div
               className={`border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200 ${
-                isDragOver
-                  ? "border-blue-400 bg-blue-50"
-                  : "border-gray-300 hover:border-blue-400"
+                isDragOver ? "border-blue-400 bg-blue-50" : "border-gray-300 hover:border-blue-400"
               }`}
               onDrop={handleDrop}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
             >
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".csv,.xlsx,.xls"
-                onChange={handleFileSelect}
-                className="hidden"
-              />
-
+              <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls" onChange={handleFileSelect} className="hidden" />
               <div className="space-y-4">
                 <FileText className="w-12 h-12 text-gray-400 mx-auto" />
                 <div>
-                  <p className="text-lg font-medium text-gray-900">
-                    Trascina il file qui
-                  </p>
+                  <p className="text-lg font-medium text-gray-900">Trascina il file qui</p>
                   <p className="text-gray-500">oppure clicca per selezionare</p>
                 </div>
                 <button
@@ -1231,7 +944,6 @@ export default function ImportPage() {
               </div>
             </div>
 
-            {/* Popup Info */}
             {showInfoPopup && (
               <div
                 className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
@@ -1246,59 +958,34 @@ export default function ImportPage() {
                       <div className="p-2 bg-blue-100 rounded-lg">
                         <Info className="w-5 h-5 text-blue-600" />
                       </div>
-                      <h3 className="text-lg font-semibold text-gray-900">
-                        Formato File Supportato
-                      </h3>
+                      <h3 className="text-lg font-semibold text-gray-900">Formato File Supportato</h3>
                     </div>
-                    <button
-                      onClick={() => setShowInfoPopup(false)}
-                      className="text-gray-400 hover:text-gray-600 transition-colors"
-                    >
+                    <button onClick={() => setShowInfoPopup(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
                       <X className="w-5 h-5" />
                     </button>
                   </div>
-
                   <div className="space-y-4 text-sm text-gray-700">
                     <div>
-                      <h4 className="font-medium text-gray-900 mb-2">
-                        Colonne Richieste:
-                      </h4>
+                      <h4 className="font-medium text-gray-900 mb-2">Colonne Richieste:</h4>
                       <p>• Data, Descrizione, Importo</p>
                     </div>
-
                     <div>
-                      <h4 className="font-medium text-gray-900 mb-2">
-                        Colonne Opzionali:
-                      </h4>
+                      <h4 className="font-medium text-gray-900 mb-2">Colonne Opzionali:</h4>
                       <p>• Tipo, Categoria, Sottocategoria, Conto</p>
                     </div>
-
                     <div>
-                      <h4 className="font-medium text-gray-900 mb-2">
-                        Formati:
-                      </h4>
-                      <p>
-                        • <strong>Data:</strong> YYYY-MM-DD (es: 2025-01-01)
-                      </p>
-                      <p>
-                        • <strong>Importo:</strong> numeri con punto o virgola
-                        (es: -50.00 o 25,50)
-                      </p>
-                      <p>
-                        • <strong>Tipi:</strong> Spesa, Entrata, Trasferimento
-                      </p>
+                      <h4 className="font-medium text-gray-900 mb-2">Formati:</h4>
+                      <p>• <strong>Data:</strong> YYYY-MM-DD (es: 2025-01-01)</p>
+                      <p>• <strong>Importo:</strong> numeri con punto o virgola (es: -50.00 o 25,50)</p>
+                      <p>• <strong>Tipi:</strong> Spesa, Entrata, Trasferimento</p>
                     </div>
-
                     <div>
-                      <h4 className="font-medium text-gray-900 mb-2">
-                        Banche Supportate:
-                      </h4>
+                      <h4 className="font-medium text-gray-900 mb-2">Banche Supportate:</h4>
                       <p>• Contanti, Revolut, PayPal, Postepay, Edenred</p>
                       <p>• Intesa Sanpaolo, UniCredit, Banco BPM, Fineco</p>
                       <p>• Formato generico per altre banche</p>
                     </div>
                   </div>
-
                   <div className="mt-6 flex justify-between">
                     <button
                       onClick={downloadTemplate}
@@ -1320,7 +1007,6 @@ export default function ImportPage() {
           </div>
         )}
 
-        {/* Informazioni File Caricato */}
         {currentFile && (
           <div className="bg-white/95 backdrop-blur-xl border border-white/50 shadow-lg rounded-xl p-6">
             <div className="flex items-center justify-between">
@@ -1329,9 +1015,7 @@ export default function ImportPage() {
                   <FileSpreadsheet className="w-6 h-6 text-green-600" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-gray-900">
-                    {currentFile.name}
-                  </h3>
+                  <h3 className="font-semibold text-gray-900">{currentFile.name}</h3>
                   <div className="flex items-center space-x-4 text-sm text-gray-600">
                     <span>{(currentFile.size / 1024).toFixed(1)} KB</span>
                     {detectedBank && (
@@ -1347,180 +1031,136 @@ export default function ImportPage() {
           </div>
         )}
 
-        {/* Progress Bar durante l'import */}
         {isUploading && importStats.total > 0 && (
           <div className="bg-white/95 backdrop-blur-xl border border-white/50 shadow-lg rounded-xl p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">
-                Import in corso...
-              </h3>
-              <span className="text-sm text-gray-600">
-                {importStats.processed} / {importStats.total}
-              </span>
+              <h3 className="text-lg font-semibold text-gray-900">Import in corso...</h3>
+              <span className="text-sm text-gray-600">{importStats.processed} / {importStats.total}</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
               <div
                 className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                style={{
-                  width: `${
-                    (importStats.processed / importStats.total) * 100
-                  }%`,
-                }}
+                style={{ width: `${(importStats.processed / importStats.total) * 100}%` }}
               ></div>
             </div>
           </div>
         )}
 
-        {/* Preview Dati */}
         {importData.length > 0 && (
           <div className="bg-white/95 backdrop-blur-xl border border-white/50 shadow-lg rounded-xl overflow-hidden">
             <div className="p-6 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    Preview Dati
-                  </h3>
-                  <p className="text-gray-600">
-                    Tutti i record raggruppati per tabella di destinazione
-                  </p>
+                  <h3 className="text-lg font-semibold text-gray-900">Preview Dati</h3>
+                  <p className="text-gray-600">Tutti i record raggruppati per tabella di destinazione</p>
                 </div>
-                <div className="text-sm text-gray-500">
-                  Totale: {importData.length} record
-                </div>
+                <div className="text-sm text-gray-500">Totale: {importData.length} record</div>
               </div>
             </div>
 
-            {/* Raggruppamento per tabella */}
             {(() => {
-              const groupedData = importData.reduce<
-                Record<string, ImportRow[]>
-              >((acc, row) => {
+              const groupedData = importData.reduce<Record<string, ImportRow[]>>((acc, row) => {
                 const table = row.targetTable;
                 if (!acc[table]) acc[table] = [];
                 acc[table].push(row);
                 return acc;
               }, {});
 
-              return Object.entries(groupedData).map(
-                ([targetTable, rows]: [string, ImportRow[]]) => {
-                  const tableLabel =
-                    targetTable === "transactions"
-                      ? "Transazioni"
-                      : targetTable === "refunds"
-                      ? "Rimborsi"
-                      : "Trasferimenti";
+              return Object.entries(groupedData).map(([targetTable, rows]: [string, ImportRow[]]) => {
+                const tableLabel =
+                  targetTable === "transactions" ? "Transazioni" :
+                  targetTable === "refunds" ? "Rimborsi" : "Trasferimenti";
 
-                  // Colonne dinamiche basate sul tipo di tabella
-                  const getColumns = () => {
-                    switch (targetTable) {
-                      case "transactions":
-                        return [
-                          { key: "actions", label: "Azioni" },
-                          { key: "status", label: "Status" },
-                          { key: "targetTable", label: "Tabella" },
-                          { key: "date", label: "Data" },
-                          { key: "transactionType", label: "Tipo" },
-                          { key: "description", label: "Dettagli" },
-                          { key: "code", label: "Codice" },
-                          { key: "account", label: "Conto" },
-                          { key: "category", label: "Categoria" },
-                          { key: "subcategory", label: "Sottocategoria" },
-                          { key: "currency", label: "Valuta" },
-                          { key: "amount", label: "Importo" },
-                          { key: "is_refunded", label: "Rimborsato?" },
-                          { key: "note", label: "Note" },
-                        ];
-                      case "refunds":
-                        return [
-                          { key: "actions", label: "Azioni" },
-                          { key: "status", label: "Status" },
-                          { key: "targetTable", label: "Tabella" },
-                          { key: "date", label: "Data Rimborso" },
-                          { key: "description", label: "Dettagli" },
-                          { key: "code", label: "Codice" },
-                          { key: "account", label: "Conto" },
-                          { key: "currency", label: "Valuta" },
-                          { key: "amount", label: "Importo" },
-                        ];
-                      case "funds_transfer":
-                        return [
-                          { key: "actions", label: "Azioni" },
-                          { key: "status", label: "Status" },
-                          { key: "targetTable", label: "Tabella" },
-                          { key: "date", label: "Data Trasferimento" },
-                          { key: "description", label: "Dettagli" },
-                          { key: "code", label: "Codice" },
-                          { key: "account", label: "Conto" },
-                          { key: "currency", label: "Valuta" },
-                          { key: "amount", label: "Importo" },
-                        ];
-                      default:
-                        return [];
-                    }
-                  };
+                const getColumns = () => {
+                  switch (targetTable) {
+                    case "transactions":
+                      return [
+                        { key: "actions", label: "Azioni" },
+                        { key: "status", label: "Status" },
+                        { key: "targetTable", label: "Tabella" },
+                        { key: "date", label: "Data" },
+                        { key: "transactionType", label: "Tipo" },
+                        { key: "description", label: "Dettagli" },
+                        { key: "code", label: "Codice" },
+                        { key: "account", label: "Conto" },
+                        { key: "category", label: "Categoria" },
+                        { key: "subcategory", label: "Sottocategoria" },
+                        { key: "currency", label: "Valuta" },
+                        { key: "amount", label: "Importo" },
+                        { key: "is_refunded", label: "Rimborsato?" },
+                        { key: "note", label: "Note" },
+                      ];
+                    case "refunds":
+                      return [
+                        { key: "actions", label: "Azioni" },
+                        { key: "status", label: "Status" },
+                        { key: "targetTable", label: "Tabella" },
+                        { key: "date", label: "Data Rimborso" },
+                        { key: "description", label: "Dettagli" },
+                        { key: "code", label: "Codice" },
+                        { key: "account", label: "Conto" },
+                        { key: "currency", label: "Valuta" },
+                        { key: "amount", label: "Importo" },
+                      ];
+                    case "funds_transfer":
+                      return [
+                        { key: "actions", label: "Azioni" },
+                        { key: "status", label: "Status" },
+                        { key: "targetTable", label: "Tabella" },
+                        { key: "date", label: "Data Trasferimento" },
+                        { key: "description", label: "Dettagli" },
+                        { key: "code", label: "Codice" },
+                        { key: "account", label: "Conto" },
+                        { key: "currency", label: "Valuta" },
+                        { key: "amount", label: "Importo" },
+                      ];
+                    default:
+                      return [];
+                  }
+                };
 
-                  const columns = getColumns();
+                const columns = getColumns();
 
-                  return (
-                    <div
-                      key={targetTable}
-                      className="border-b border-gray-200 last:border-b-0"
-                    >
-                      <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
-                        <h4 className="text-md font-medium text-gray-900 flex items-center">
-                          <span
-                            className={`inline-block w-3 h-3 rounded-full mr-3 ${
-                              targetTable === "transactions"
-                                ? "bg-blue-500"
-                                : targetTable === "refunds"
-                                ? "bg-green-500"
-                                : "bg-purple-500"
-                            }`}
-                          ></span>
-                          {tableLabel} ({rows.length} record
-                          {rows.length !== 1 ? "s" : ""})
-                        </h4>
-                      </div>
-
-                      <div className="overflow-x-auto">
-                        <table className="w-full">
-                          <thead className="bg-gray-50">
-                            <tr>
+                return (
+                  <div key={targetTable} className="border-b border-gray-200 last:border-b-0">
+                    <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                      <h4 className="text-md font-medium text-gray-900 flex items-center">
+                        <span
+                          className={`inline-block w-3 h-3 rounded-full mr-3 ${
+                            targetTable === "transactions" ? "bg-blue-500" :
+                            targetTable === "refunds" ? "bg-green-500" : "bg-purple-500"
+                          }`}
+                        ></span>
+                        {tableLabel} ({rows.length} record{rows.length !== 1 ? "s" : ""})
+                      </h4>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            {columns.map((column) => (
+                              <th key={column.key} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                {column.label}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {rows.map((row: ImportRow) => (
+                            <tr key={row.id} className={`hover:bg-gray-50 ${row.status === "error" ? "bg-red-50" : ""}`}>
                               {columns.map((column) => (
-                                <th
-                                  key={column.key}
-                                  className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                                >
-                                  {column.label}
-                                </th>
+                                <td key={column.key} className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                                  {renderCell(row, column.key)}
+                                </td>
                               ))}
                             </tr>
-                          </thead>
-                          <tbody className="bg-white divide-y divide-gray-200">
-                            {rows.map((row: ImportRow) => (
-                              <tr
-                                key={row.id}
-                                className={`hover:bg-gray-50 ${
-                                  row.status === "error" ? "bg-red-50" : ""
-                                }`}
-                              >
-                                {columns.map((column) => (
-                                  <td
-                                    key={column.key}
-                                    className="px-4 py-3 whitespace-nowrap text-sm text-gray-900"
-                                  >
-                                    {renderCell(row, column.key)}
-                                  </td>
-                                ))}
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
-                  );
-                }
-              );
+                  </div>
+                );
+              });
             })()}
           </div>
         )}
