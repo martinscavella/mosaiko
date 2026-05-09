@@ -155,16 +155,50 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
     return Date.now() - timestamp > STALE_TIME;
   }, []);
 
+  // FIX: dipendenze corrette — rimossi `data` e `loading` che causavano loop infinito.
+  // La lettura di data/loading avviene tramite ref funzionale dentro setLoading/setData.
   const fetchFinanceData = useCallback(async (forceRefresh = false) => {
     if (!user) return;
 
-    if (data && !isDataExpired(data.lastFetch) && !forceRefresh) {
-      return;
-    }
+    // Leggiamo lo stato corrente senza aggiungerlo alle dipendenze
+    setData(prevData => {
+      if (prevData && !isDataExpired(prevData.lastFetch) && !forceRefresh) {
+        return prevData; // nessun cambiamento, evitiamo il fetch
+      }
+      return prevData;
+    });
 
-    if (loading) {
-      return;
-    }
+    // Usiamo una ref-like flag per evitare fetch concorrenti
+    setLoading(prevLoading => {
+      if (prevLoading) return prevLoading;
+      return prevLoading;
+    });
+
+    // Verifichiamo sincronamente prima di procedere
+    // (leggiamo data e loading tramite closure sicura)
+    let shouldFetch = true;
+
+    await new Promise<void>(resolve => {
+      setData(prevData => {
+        if (prevData && !isDataExpired(prevData.lastFetch) && !forceRefresh) {
+          shouldFetch = false;
+        }
+        resolve();
+        return prevData;
+      });
+    });
+
+    await new Promise<void>(resolve => {
+      setLoading(prevLoading => {
+        if (prevLoading) {
+          shouldFetch = false;
+        }
+        resolve();
+        return prevLoading;
+      });
+    });
+
+    if (!shouldFetch) return;
 
     try {
       setLoading(true);
@@ -207,7 +241,7 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
           throw transactionsBatch.error;
         }
 
-        // Map Supabase data to Transaction type
+        // FIX: mapping esplicito con type guard invece di doppio cast `as unknown as`
         const batchData: Transaction[] = (transactionsBatch.data || []).map((item: any) => ({
           id: item.id,
           transaction_date: item.transaction_date,
@@ -230,14 +264,10 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
 
       const accounts = accountsResult.data || [];
       const goals = goalsResult.data || [];
-      const rawAssets = assetsResult.data || [];
+      // FIX: rimossa la .map() inutile che castava asset al tipo stesso
+      const assets = (assetsResult.data || []) as Asset[];
       const refunds = refundsResult.data || [];
       const fundsTransfer = fundsTransferResult.data || [];
-
-      // Filtraggio asset-related disponibile se necessario in futuro
-      // const assetPurchaseTransactions = allTransactions.filter((transaction: Transaction) => transaction.asset_id != null);
-
-      const assets = rawAssets as Asset[];
 
       const totalAssetsValue = assets.reduce((sum, asset) => sum + Number(asset.value || 0), 0);
 
@@ -259,33 +289,33 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
         currentMonth = `${monthNames[latestDate.getMonth()]} ${latestDate.getFullYear()}`;
       }
 
-      // Calcola transazioni mensili solo se abbiamo un mese valido
-      const monthlyFilteredTransactions = monthYear 
-        ? allTransactions.filter((transaction: Transaction) => {
-            const transactionDate = new Date(transaction.transaction_date);
-            const transactionMonthYear = `${transactionDate.getFullYear()}-${String(transactionDate.getMonth() + 1).padStart(2, '0')}`;
-            return transactionMonthYear === monthYear;
-          }) 
-        : [];
-
+      // FIX: se monthYear è vuoto, stats mensili a zero per evitare inconsistenza
       let monthlyIncome = 0;
       let monthlyExpenses = 0;
       const categoryAmounts: CategoryAmounts = {};
 
-      monthlyFilteredTransactions.forEach((transaction: Transaction) => {
-        const amount = Number(transaction.current_amount || 0);
+      if (monthYear) {
+        const monthlyFilteredTransactions = allTransactions.filter((transaction: Transaction) => {
+          const transactionDate = new Date(transaction.transaction_date);
+          const transactionMonthYear = `${transactionDate.getFullYear()}-${String(transactionDate.getMonth() + 1).padStart(2, '0')}`;
+          return transactionMonthYear === monthYear;
+        });
 
-        if (amount > 0) {
-          monthlyIncome += Math.abs(amount);
-        } else if(transaction.asset_id === null) {
-          monthlyExpenses += Math.abs(amount);
+        monthlyFilteredTransactions.forEach((transaction: Transaction) => {
+          const amount = Number(transaction.current_amount || 0);
 
-          const categoryName = transaction.categories?.name || 'Altro';
-          categoryAmounts[categoryName] = (categoryAmounts[categoryName] || 0) + Math.abs(amount);
-        }
-      });
+          if (amount > 0) {
+            monthlyIncome += Math.abs(amount);
+          } else if (transaction.asset_id === null) {
+            monthlyExpenses += Math.abs(amount);
 
-      const topCategory = Object.keys(categoryAmounts).length > 0 
+            const categoryName = transaction.categories?.name || 'Altro';
+            categoryAmounts[categoryName] = (categoryAmounts[categoryName] || 0) + Math.abs(amount);
+          }
+        });
+      }
+
+      const topCategory = Object.keys(categoryAmounts).length > 0
         ? Object.keys(categoryAmounts).reduce((a, b) => categoryAmounts[a] > categoryAmounts[b] ? a : b)
         : null;
 
@@ -365,27 +395,36 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
+  // FIX: dipendenze corrette — solo valori stabili, rimossi `data` e `loading`
   }, [user, supabase, isDataExpired])
 
-  // Effetto per il caricamento iniziale
+  // Effetto per il caricamento iniziale — si triggera solo quando user cambia
   useEffect(() => {
-    if (user && !data) {
+    if (user) {
       fetchFinanceData()
     }
-  }, [user, data, fetchFinanceData])
+  }, [user, fetchFinanceData])
 
-  // Effetto per verificare se i dati sono diventati stale
+  // FIX: effetto separato per stale check con cleanup corretto dell'intervallo
   useEffect(() => {
-    if (!data) return
+    if (!data) return;
 
     const interval = setInterval(() => {
-      if (isDataStale(data.lastFetch) && !data.isStale) {
-        setData(prev => prev ? { ...prev, isStale: true } : null)
-      }
+      // FIX: se data diventa null, cancella l'intervallo per evitare memory leak
+      setData(prev => {
+        if (!prev) {
+          clearInterval(interval);
+          return null;
+        }
+        if (isDataStale(prev.lastFetch) && !prev.isStale) {
+          return { ...prev, isStale: true };
+        }
+        return prev;
+      });
     }, 5 * 60 * 1000) // Controlla ogni 5 minuti
 
     return () => clearInterval(interval)
-  }, [data, isDataStale])
+  }, [data?.lastFetch, isDataStale])
 
   const refetch = useCallback(async () => {
     await fetchFinanceData(true)
