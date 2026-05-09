@@ -53,6 +53,7 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
   const { refetch } = useAllTransactions()
   const { refetch: refetchFinanceCache } = useFinanceCache()
   const [loading, setLoading] = useState(false)
+  const [refetchError, setRefetchError] = useState<string | null>(null)
   const [accounts, setAccounts] = useState<Account[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [subcategories, setSubcategories] = useState<Subcategory[]>([])
@@ -116,8 +117,6 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
       
       setCategories(sortedCategories)
       setSubcategories(subcategoriesData || [])
-
-      // Nota: l'account di default verrà impostato dal useEffect che dipende da filteredAccounts
     } catch (error) {
       console.error('Error loading initial data:', error)
     }
@@ -129,7 +128,7 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
     }
   }, [isOpen, user, loadInitialData])
 
-  // Account filtrati per saldo disponibile (solo quelli con saldo > 0, ordinati per saldo decrescente)
+  // Account filtrati per saldo disponibile
   const filteredAccounts = useMemo(() => {
     return accounts
   }, [accounts])
@@ -137,6 +136,7 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
   // Reset form quando si apre/chiude
   useEffect(() => {
     if (isOpen) {
+      setRefetchError(null)
       setFormData({
         transaction_details: prefilledData?.transaction_details || '',
         amount: prefilledData?.amount || '',
@@ -173,7 +173,6 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
 
     const amount = parseFloat(formData.amount)
     
-    // Controlla se l'account selezionato ha saldo sufficiente per transazioni negative
     const positiveTypes = ['Entrata', 'Stipendio', 'Quattordicesima', 'Tredicesima', 'TFR', 'Ricarica', 'Refund', 'Eccesso Rimborso', 'Cancellazione rimborso']
     const isNegativeTransaction = !positiveTypes.includes(formData.transaction_type)
     const selectedAccount = accounts.find(acc => acc.id === formData.account_id)
@@ -184,10 +183,11 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
     }
 
     setLoading(true)
+    setRefetchError(null)
+
     try {
       const supabase = createClientComponentClient()
       
-      // Determina se l'importo è positivo o negativo in base al tipo di transazione
       const finalAmount = positiveTypes.includes(formData.transaction_type) 
         ? Math.abs(amount) 
         : -Math.abs(amount)
@@ -211,19 +211,24 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
 
       if (error) throw error
 
-      // Aggiorna cache e ricarica dati
+      // FIX: se il refetch fallisce, il modal NON si chiude e mostra un messaggio di errore.
+      // La transazione è già stata salvata, ma l'utente viene informato che la cache
+      // non si è aggiornata e può ricaricare manualmente.
       try {
         await Promise.all([
           refetch(),
           refetchFinanceCache()
         ])
-      } catch (refetchError) {
-        console.error('Errore durante l\'aggiornamento della cache:', refetchError)
-        // Continua comunque - la transazione è stata salvata, anche se la cache non è aggiornata
+        // Refetch riuscito: chiudi il modal
+        onSuccess?.()
+        onClose()
+      } catch (refetchErr) {
+        const message = refetchErr instanceof Error ? refetchErr.message : 'Errore sconosciuto'
+        setRefetchError(
+          `Transazione salvata con successo, ma l'aggiornamento della cache ha avuto un problema: ${message}. Ricarica la pagina per vedere i dati aggiornati.`
+        )
+        // Non chiudiamo il modal: l'utente vede il messaggio e può decidere cosa fare
       }
-
-      onSuccess?.()
-      onClose()
     } catch (error) {
       console.error('Error creating transaction:', error)
       alert('Errore durante la creazione della transazione')
@@ -247,8 +252,6 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
       return <TrendingDown className="w-5 h-5 text-red-600" />
     }
   }
-
-
 
   return (
     <Modal
@@ -293,6 +296,15 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
       }
     >
       <form id="new-transaction-form" onSubmit={handleSubmit} className="space-y-6">
+
+        {/* Banner di errore refetch - visibile solo se il refetch fallisce dopo il salvataggio */}
+        {refetchError && (
+          <div className="bg-amber-50 border border-amber-300 rounded-lg p-4 text-sm text-amber-800">
+            <p className="font-semibold mb-1">⚠️ Attenzione</p>
+            <p>{refetchError}</p>
+          </div>
+        )}
+
             {/* Prima riga - 2 colonne su desktop */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Tipo di transazione */}
@@ -364,7 +376,7 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
               </div>
             </div>
 
-            {/* Descrizione - sempre full width */}
+            {/* Descrizione */}
             <div className="space-y-3">
               <label className="flex items-center text-sm font-medium text-gray-700">
                 <div className="p-2 rounded-lg bg-green-100 mr-3">
@@ -382,7 +394,7 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
               />
             </div>
 
-            {/* Seconda riga - 2 colonne su desktop */}
+            {/* Seconda riga */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Account */}
               <div className="space-y-3">
@@ -428,7 +440,7 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
               </div>
             </div>
 
-            {/* Terza riga - 2 colonne su desktop */}
+            {/* Terza riga */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Categoria */}
               <div className="space-y-3">
@@ -455,7 +467,7 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
                 </div>
               </div>
 
-              {/* Sottocategoria - sempre visibile se ci sono sottocategorie */}
+              {/* Sottocategoria */}
               {formData.category_id && filteredSubcategories.length > 0 ? (
                 <div className="space-y-3 animate-in slide-in-from-top-2 duration-300">
                   <label className="flex items-center text-sm font-medium text-gray-700">
@@ -481,7 +493,7 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
                   </div>
                 </div>
               ) : (
-                <div></div> // Spazio vuoto per mantenere l'allineamento
+                <div />
               )}
             </div>
 
@@ -500,8 +512,8 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
                     type="checkbox"
                     id="is-refunded"
                     checked={formData.is_refunded}
-                    onChange={() => {}} // Gestito dal div onClick
-                    className="sr-only" // Nascosto ma accessibile
+                    onChange={() => {}}
+                    className="sr-only"
                   />
                   <div className={`absolute inset-0 flex items-center justify-center transition-all duration-300 ${
                     formData.is_refunded ? 'opacity-100 scale-100' : 'opacity-0 scale-50'
