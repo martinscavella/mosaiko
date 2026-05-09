@@ -25,10 +25,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const getSession = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       setUser(session?.user ?? null)
-      if (session?.user) {
-        console.log('User logged in:', session.user)
-        console.log('User metadata:', session.user.user_metadata)
-      }
       setLoading(false)
     }
 
@@ -36,10 +32,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
       setUser(session?.user ?? null)
-      if (session?.user) {
-        console.log('Auth state changed - User:', session.user)
-        console.log('User metadata:', session.user.user_metadata)
-      }
       setLoading(false)
     })
 
@@ -50,19 +42,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     try {
-      console.log('Tentativo di login con:', email)
-      
-      const { data, error } = await supabase.auth.signInWithPassword({ 
-        email, 
-        password 
-      })
-      
-      console.log('Risultato login:', { data, error })
-      
-      if (error) {
-        console.error('Errore di login:', error)
-      }
-      
+      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      if (error) console.error('Errore di login:', error)
       return { error }
     } catch (error) {
       console.error('Errore catch login:', error)
@@ -72,31 +53,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signUp = async (email: string, password: string, metadata?: Partial<ProfileData>) => {
     try {
-      console.log('Tentativo di registrazione con:', { email, metadata })
-      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: {
-          data: metadata
-        }
+        options: { data: metadata }
       })
-
-      console.log('Risultato registrazione:', { data, error })
 
       if (error) {
         console.error('Errore di autenticazione:', error)
         return { error }
       }
 
-      // Se la registrazione ha successo e abbiamo i metadati, creiamo anche il profilo
       if (!error && data.user && metadata) {
-        // Assicuriamoci che first_name e last_name non siano vuoti (sono NOT NULL nel database)
-        // metadata may use snake_case keys matching ProfileData or camelCase from forms
         const md = metadata as Partial<Record<string, unknown>>
         const firstName = typeof md['first_name'] === 'string' ? (md['first_name'] as string).trim() : typeof md['firstName'] === 'string' ? (md['firstName'] as string).trim() : 'Nome'
         const lastName = typeof md['last_name'] === 'string' ? (md['last_name'] as string).trim() : typeof md['lastName'] === 'string' ? (md['lastName'] as string).trim() : 'Utente'
-        
+
         const profileData: ProfileData = {
           first_name: firstName,
           last_name: lastName,
@@ -107,16 +79,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           notifications_enabled: typeof md['notifications_enabled'] === 'boolean' ? (md['notifications_enabled'] as boolean) : typeof md['notificationsEnabled'] === 'boolean' ? (md['notificationsEnabled'] as boolean) : true,
         }
 
-        console.log('Creazione profilo con dati:', profileData)
-
-        // Creiamo il profilo nella tabella profiles
         const { error: profileError } = await createUserProfile(data.user.id, profileData)
-        
         if (profileError) {
           console.error('Errore nella creazione del profilo:', profileError)
-          // Non blocchiamo la registrazione per errori del profilo
-        } else {
-          console.log('Profilo creato con successo!')
         }
       }
 
@@ -133,9 +98,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const updateProfile = async (data: Record<string, unknown>) => {
     try {
-      const { error } = await supabase.auth.updateUser({
-        data: data
-      })
+      const { error } = await supabase.auth.updateUser({ data })
       return { error }
     } catch (error) {
       return { error: error as Error }
@@ -143,14 +106,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{
-      user,
-      loading,
-      signIn,
-      signUp,
-      signOut,
-      updateProfile
-    }}>
+    <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut, updateProfile }}>
       {children}
     </AuthContext.Provider>
   )
