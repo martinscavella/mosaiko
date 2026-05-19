@@ -955,7 +955,7 @@ export const BANK_PARSERS: BankParser[] = [
           } else if (assetClass === 'STOCK') {
             // MODIFICATO: categoria 'ASSET & INVESTIMENTI' per TRADING/BUY/STOCK
             type = 'AZIONE';
-            subcategoryItalian = 'Azioni';
+            subcategoryItalian = 'Investimenti';
             return {
               date: dateISO,
               description: description || `Trade Republic: Acquisto ${assetName}`,
