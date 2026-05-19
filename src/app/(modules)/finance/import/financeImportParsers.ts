@@ -841,12 +841,13 @@ export const BANK_PARSERS: BankParser[] = [
             currency,
           };
         } else if (typeRaw === 'INTEREST_PAYMENT') {
+          // MODIFICATO: subcategory = 'Interessi maturati', description fissa
           type = 'Entrata';
           categoryItalian = 'INCOME & SALARY';
-          subcategoryItalian = 'Interessi';
+          subcategoryItalian = 'Interessi maturati';
           return {
             date: dateISO,
-            description: description || 'Trade Republic: Pagamento degli interessi',
+            description: 'Trade Republic: Pagamento degli interessi',
             amount: amountNum.toString(),
             type,
             category: categoryItalian,
@@ -903,12 +904,14 @@ export const BANK_PARSERS: BankParser[] = [
       }
       // TRADING transactions (BUY/SELL di fondi/azioni)
       else if (categoryTR === 'TRADING') {
-        categoryItalian = 'Asset & Investimenti';
+        // MODIFICATO: categoria sempre 'ASSET & INVESTIMENTI'
+        categoryItalian = 'ASSET & INVESTIMENTI';
         
         if (typeRaw === 'BUY') {
           const totalAmount = amountNum + feeNum;
           
           if (assetClass === 'FUND') {
+            // MODIFICATO: categoria 'ASSET & INVESTIMENTI' per TRADING/BUY/FUND
             type = 'ETF';
             subcategoryItalian = 'Investimenti';
             return {
@@ -924,6 +927,7 @@ export const BANK_PARSERS: BankParser[] = [
               currency,
             };
           } else if (assetClass === 'STOCK') {
+            // MODIFICATO: categoria 'ASSET & INVESTIMENTI' per TRADING/BUY/STOCK
             type = 'AZIONE';
             subcategoryItalian = 'Azioni';
             return {
