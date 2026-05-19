@@ -77,6 +77,18 @@ export const findValue = (headers: string[], values: string[], possibleNames: st
   return undefined;
 }
 
+// Helper: somma tax all'amount se la colonna tax è popolata
+const applyTax = (amountNum: number, headers: string[], values: string[]): number => {
+  const taxStr = findValue(headers, values, ['tax', 'tassa', 'imposta', 'iva']);
+  if (taxStr) {
+    const taxNum = parseFloat(taxStr.replace(',', '.'));
+    if (!isNaN(taxNum) && taxNum !== 0) {
+      return amountNum + taxNum;
+    }
+  }
+  return amountNum;
+};
+
 // Funzione per determinare automaticamente la tabella di destinazione
 export const determineTargetTable = (description: string, type: string, amount: number, category?: string): 'transactions' | 'refunds' | 'funds_transfer' => {
   const desc = description.toLowerCase();
@@ -98,6 +110,31 @@ export const determineTargetTable = (description: string, type: string, amount: 
   // Default: sempre transazione
   return 'transactions';
 }
+
+// --- Mappa keyword nome file → identifier parser (unica fonte di verità) ---
+// La selezione del parser avviene SOLO in base al nome del file.
+// Se nessuna keyword matcha, viene usato il parser di default (fallback generico).
+const BANK_FILE_KEYWORDS: { [identifier: string]: string[] } = {
+  'edenred':       ['edenred'],
+  'intesa':        ['intesa', 'sanpaolo', 'intesasanpaolo', 'contoxme', 'conto xme'],
+  'revolut':       ['revolut'],
+  'paypal':        ['paypal'],
+  'postepay':      ['postepay', 'poste'],
+  'contanti':      ['contanti', 'cash'],
+  'traderepublic': ['traderepublic', 'trade republic'],
+};
+
+// Restituisce il parser corrispondente al nome file, o null se nessuno matcha (→ usa il default).
+const detectParserByFilename = (fileName: string): BankParser | null => {
+  const lowerName = fileName.toLowerCase();
+  for (const parser of BANK_PARSERS) {
+    const keywords = BANK_FILE_KEYWORDS[parser.identifier] || [];
+    if (keywords.some(keyword => lowerName.includes(keyword))) {
+      return parser;
+    }
+  }
+  return null;
+};
 
 // --- BANK_PARSERS ---
 export const BANK_PARSERS: BankParser[] = [
@@ -135,7 +172,9 @@ export const BANK_PARSERS: BankParser[] = [
       amount = findValue(headers, values, ['importo', 'importo valuta', 'valore']) || ''
       let category: string | undefined = findValue(headers, values, ['categoria', 'categoria operazione', 'tipo', 'tipologia'])
       let subcategory: string | undefined = undefined;
-      const amountNum = parseFloat(amount.replace(',', '.'))
+      let amountNum = parseFloat(amount.replace(',', '.'))
+      // Somma tax se presente
+      amountNum = applyTax(amountNum, headers, values);
       // Determina il segno corretto
       let signedAmount = amountNum
       if (
@@ -259,7 +298,9 @@ export const BANK_PARSERS: BankParser[] = [
       const category = findValue(headers, values, ['categoria', 'category']);
       const subcategory = findValue(headers, values, ['sottocategoria', 'subcategory']);
       // Postepay: importo negativo = spesa, positivo = entrata
-      const amountNum = parseFloat(amountRaw.replace(',', '.'));
+      let amountNum = parseFloat(amountRaw.replace(',', '.'));
+      // Somma tax se presente
+      amountNum = applyTax(amountNum, headers, values);
       let signedAmount = amountNum;
       if (amountNum > 0 && (description.toLowerCase().includes('spesa') || description.toLowerCase().includes('prelievo'))) {
         signedAmount = -Math.abs(amountNum);
@@ -332,6 +373,8 @@ export const BANK_PARSERS: BankParser[] = [
       const amountStr = findValue(headers, values, ['netto', 'net', 'netto ', ' netto']) || '';
       let amountNum = parseFloat(amountStr.replace(',', '.'));
       if (isNaN(amountNum)) amountNum = 0;
+      // Somma tax se presente
+      amountNum = applyTax(amountNum, headers, values);
       // Tipo: entrata se >0, spesa se <0
       const type = amountNum >= 0 ? 'Entrata' : 'Spesa';
       return {
@@ -436,6 +479,9 @@ export const BANK_PARSERS: BankParser[] = [
         amountNum = parseFloat(cleanAmount);
         if (isNaN(amountNum)) amountNum = 0;
       }
+
+      // Somma tax se presente
+      amountNum = applyTax(amountNum, headers, values);
 
       // Normalizza data: YYYY-MM-DD
       let dateISO = date;
@@ -636,6 +682,8 @@ export const BANK_PARSERS: BankParser[] = [
         amountNum = parseFloat(cleanAmount);
         if (isNaN(amountNum)) amountNum = 0;
       }
+      // Somma tax se presente
+      amountNum = applyTax(amountNum, headers, values);
 
       // Mapping categoria -> categoria/sottocategoria Mosaiko
       let category = '';
@@ -721,6 +769,276 @@ export const BANK_PARSERS: BankParser[] = [
     transformAmount: (amount: string) => {
       return amount.replace(',', '.');
     }
+  },
+  // Trade Republic
+  {
+    name: 'Trade Republic',
+    identifier: 'traderepublic',
+    detectFormat: (headers: string[]) => {
+      const lowerHeaders = headers.map(h => h.toLowerCase().trim());
+      // Trade Republic ha header UNICI che Revolut non ha
+      // Controllo per header specifici di Trade Republic
+      return (
+        lowerHeaders.includes('datetime') &&
+        lowerHeaders.includes('date') &&
+        lowerHeaders.includes('account_type') && // Solo Trade Republic ha questo
+        lowerHeaders.includes('asset_class') &&  // Solo Trade Republic ha questo
+        lowerHeaders.includes('category') &&
+        lowerHeaders.includes('type') &&
+        lowerHeaders.includes('amount') &&
+        lowerHeaders.includes('currency')
+      );
+    },
+    parseRow: (headers: string[], values: string[], _accountMappings?: { [key: string]: string }) => {
+      void _accountMappings;
+      
+      // Estrai i campi - Trade Republic ha SEMPRE questi header
+      const dateISO = findValue(headers, values, ['date']) || '';
+      const datetimeISO = findValue(headers, values, ['datetime']) || '';
+      const categoryTR = (findValue(headers, values, ['category']) || '').toUpperCase().trim();
+      const typeRaw = (findValue(headers, values, ['type']) || '').toUpperCase().trim();
+      const amountStr = (findValue(headers, values, ['amount']) || '0').trim();
+      const feeStr = (findValue(headers, values, ['fee']) || '0').trim();
+      const currency = findValue(headers, values, ['currency']) || 'EUR';
+      const descriptionRaw = (findValue(headers, values, ['description']) || '').trim();
+      const assetClass = (findValue(headers, values, ['asset_class']) || '').toUpperCase().trim();
+      const assetName = (findValue(headers, values, ['name']) || '').trim();
+
+      // Tutte le descrizioni Trade Republic hanno il prefisso "Trade Republic: "
+      const description = descriptionRaw ? `Trade Republic: ${descriptionRaw}` : '';
+      
+      // Debug
+      if (typeof window !== 'undefined' && window.console) {
+        console.log('DEBUG Trade Republic parseRow:', { dateISO, categoryTR, typeRaw, amountStr, description: description.substring(0, 50) });
+      }
+      
+      // Parsing importo
+      let amountNum = parseFloat(amountStr.replace(',', '.'));
+      if (isNaN(amountNum)) amountNum = 0;
+      
+      // Parsing fee
+      let feeNum = parseFloat(feeStr.replace(',', '.'));
+      if (isNaN(feeNum)) feeNum = 0;
+
+      // Somma tax se presente
+      amountNum = applyTax(amountNum, headers, values);
+      
+      // Determina il tipo italiano e la categoria/subcategoria basandosi su category e type di TR
+      let type = '';
+      let categoryItalian = '';
+      let subcategoryItalian = '';
+      let targetTable: 'transactions' | 'refunds' | 'funds_transfer' = 'transactions';
+      
+      // CASH transactions
+      if (categoryTR === 'CASH') {
+        if (typeRaw === 'CUSTOMER_INPAYMENT') {
+          type = 'Entrata';
+          categoryItalian = 'INCOME & SALARY';
+          subcategoryItalian = 'Deposito';
+          const finalAmount = amountNum + feeNum;
+          const result = {
+            date: dateISO,
+            description: description || 'Trade Republic: Deposito in conto',
+            amount: finalAmount.toString(),
+            type,
+            category: categoryItalian,
+            subcategory: subcategoryItalian,
+            targetTable: 'transactions' as const,
+            currency,
+          };
+          if (typeof window !== 'undefined' && window.console) {
+            console.log('DEBUG TR CUSTOMER_INPAYMENT:', result);
+          }
+          return result;
+        } else if (typeRaw === 'CUSTOMER_INBOUND' || typeRaw === 'TRANSFER_INSTANT_INBOUND') {
+          type = 'Bonifico';
+          categoryItalian = 'TRANSFER';
+          subcategoryItalian = 'Bonifico';
+          targetTable = 'funds_transfer';
+          return {
+            date: dateISO,
+            description: description || 'Trade Republic: Trasferimento ricevuto',
+            amount: amountNum.toString(),
+            type,
+            category: categoryItalian,
+            subcategory: subcategoryItalian,
+            targetTable,
+            transferCode: findValue(headers, values, ['transaction_id']) || '',
+            currency,
+          };
+        } else if (typeRaw === 'INTEREST_PAYMENT') {
+          // MODIFICATO: subcategory = 'Interessi maturati', description fissa
+          type = 'Entrata';
+          categoryItalian = 'INCOME & SALARY';
+          subcategoryItalian = 'Interessi maturati';
+          return {
+            date: dateISO,
+            description: 'Trade Republic: Pagamento degli interessi',
+            amount: amountNum.toString(),
+            type,
+            category: categoryItalian,
+            subcategory: subcategoryItalian,
+            targetTable: 'transactions',
+            currency,
+          };
+        } else if (typeRaw === 'CARD_REFUND') {
+          type = 'Rimborso';
+          categoryItalian = 'REFUND';
+          subcategoryItalian = 'Rimborso Carta';
+          targetTable = 'refunds';
+          return {
+            date: dateISO,
+            description: description || 'Trade Republic: Rimborso carta',
+            amount: Math.abs(amountNum).toString(),
+            type,
+            category: categoryItalian,
+            subcategory: subcategoryItalian,
+            targetTable,
+            refundCode: findValue(headers, values, ['transaction_id']) || '',
+            currency,
+          };
+        } else if (typeRaw === 'TAX_OPTIMIZATION') {
+          type = 'Imposte';
+          categoryItalian = 'FEES & COMMISSIONS';
+          subcategoryItalian = 'Commissioni Bancarie';
+          return {
+            date: dateISO,
+            description: description || 'Trade Republic: Ottimizzazione Fiscale',
+            amount: Math.abs(amountNum).toString(),
+            type,
+            category: categoryItalian,
+            subcategory: subcategoryItalian,
+            targetTable: 'transactions',
+            currency,
+          };
+        } else {
+          // CASH generico
+          type = amountNum >= 0 ? 'Entrata' : 'Spesa';
+          categoryItalian = amountNum >= 0 ? 'INCOME & SALARY' : 'Varie';
+          subcategoryItalian = 'Altro';
+          return {
+            date: dateISO,
+            description: description || 'Trade Republic: Transazione in contanti',
+            amount: amountNum.toString(),
+            type,
+            category: categoryItalian,
+            subcategory: subcategoryItalian,
+            targetTable: 'transactions',
+            currency,
+          };
+        }
+      }
+      // TRADING transactions (BUY/SELL di fondi/azioni)
+      else if (categoryTR === 'TRADING') {
+        // MODIFICATO: categoria sempre 'ASSET & INVESTIMENTI'
+        categoryItalian = 'ASSET & INVESTIMENTI';
+        
+        if (typeRaw === 'BUY') {
+          const totalAmount = amountNum + feeNum;
+          
+          if (assetClass === 'FUND') {
+            // MODIFICATO: categoria 'ASSET & INVESTIMENTI' per TRADING/BUY/FUND
+            type = 'ETF';
+            subcategoryItalian = 'Investimenti';
+            return {
+              date: dateISO,
+              description: description || `Trade Republic: Acquisto ${assetName}`,
+              amount: totalAmount.toString(),
+              type,
+              category: categoryItalian,
+              subcategory: subcategoryItalian,
+              targetTable: 'transactions',
+              transactionType: 'ETF',
+              note: feeNum !== 0 ? `Commissioni: €${Math.abs(feeNum).toFixed(2)}` : undefined,
+              currency,
+            };
+          } else if (assetClass === 'STOCK') {
+            // MODIFICATO: categoria 'ASSET & INVESTIMENTI' per TRADING/BUY/STOCK
+            type = 'AZIONE';
+            subcategoryItalian = 'Investimenti';
+            return {
+              date: dateISO,
+              description: description || `Trade Republic: Acquisto ${assetName}`,
+              amount: totalAmount.toString(),
+              type,
+              category: categoryItalian,
+              subcategory: subcategoryItalian,
+              targetTable: 'transactions',
+              note: feeNum !== 0 ? `Commissioni: €${Math.abs(feeNum).toFixed(2)}` : undefined,
+              currency,
+            };
+          } else {
+            type = 'Acquisto';
+            subcategoryItalian = 'Investimento';
+            return {
+              date: dateISO,
+              description: description || `Trade Republic: Acquisto ${assetName}`,
+              amount: totalAmount.toString(),
+              type,
+              category: categoryItalian,
+              subcategory: subcategoryItalian,
+              targetTable: 'transactions',
+              currency,
+            };
+          }
+        } else if (typeRaw === 'SELL') {
+          const totalAmount = amountNum + feeNum;
+          type = 'Vendita';
+          subcategoryItalian = 'Vendita';
+          
+          return {
+            date: dateISO,
+            description: description || `Trade Republic: Vendita ${assetName}`,
+            amount: totalAmount.toString(),
+            type,
+            category: categoryItalian,
+            subcategory: subcategoryItalian,
+            targetTable: 'transactions',
+            note: feeNum !== 0 ? `Commissioni: €${Math.abs(feeNum).toFixed(2)}` : undefined,
+            currency,
+          };
+        }
+      }
+      // DELIVERY transactions (normalmente MIGRATION - da ignorare)
+      else if (categoryTR === 'DELIVERY') {
+        if (typeRaw === 'MIGRATION') {
+          return {
+            date: dateISO,
+            description: `Trade Republic: [MIGRATION] ${descriptionRaw}`,
+            amount: '0',
+            type: 'Migraggio',
+            category: 'Varie',
+            subcategory: 'Migraggio',
+            targetTable: 'transactions',
+            note: 'Transazione di migrazione - non importata',
+          };
+        }
+      }
+      
+      // Fallback generico
+      return {
+        date: dateISO,
+        description: description || typeRaw,
+        amount: amountNum.toString(),
+        type: amountNum >= 0 ? 'Entrata' : 'Spesa',
+        category: amountNum >= 0 ? 'INCOME & SALARY' : 'Varie',
+        subcategory: 'Altro',
+        targetTable: 'transactions',
+        currency,
+      };
+    },
+    transformDate: (date: string) => {
+      // Estrae data da datetime ISO se necessario, altrimenti ritorna come è
+      if (!date) return date;
+      // Se è già YYYY-MM-DD, ritorna come è
+      if (date.match(/^\d{4}-\d{2}-\d{2}$/)) return date;
+      // Se è ISO datetime con T, estrai la parte data
+      if (date.includes('T')) return date.split('T')[0];
+      return date;
+    },
+    transformAmount: (amount: string) => {
+      return amount.replace(',', '.');
+    }
   }
 ];
 
@@ -761,36 +1079,10 @@ export async function parseCSV(file: File, accountId?: string, setDetectedBank?:
   }
   const headers = parseCSVLine(lines[headerRowIndex]).map(h => h.toLowerCase().replace(/"/g, ''));
   const rows: ImportRow[] = [];
-  const fileName = file.name.toLowerCase();
-  const bankFileKeywords: { [key: string]: string[] } = {
-    'edenred': ['edenred'],
-    'intesa': ['intesa', 'sanpaolo', 'intesasanpaolo', 'contoxme', 'conto xme'],
-    'revolut': ['revolut'],
-    'paypal': ['paypal'],
-    'postepay': ['postepay', 'poste'],
-    'contanti': ['contanti', 'cash']
-  };
-  let detectedParser: BankParser | null = null;
-  let foundByFilename = false;
-  for (const parser of BANK_PARSERS) {
-    const keywords = bankFileKeywords[parser.identifier] || [];
-    if (keywords.some(keyword => fileName.includes(keyword))) {
-      detectedParser = parser;
-      if (setDetectedBank) setDetectedBank(parser);
-      foundByFilename = true;
-      break;
-    }
-  }
-  // Se trovato dal nome file, non tentare il rilevamento tramite header
-  if (!detectedParser && !foundByFilename) {
-    for (const parser of BANK_PARSERS) {
-      if (parser.detectFormat(headers.map(h => h.toLowerCase()))) {
-        detectedParser = parser;
-        if (setDetectedBank) setDetectedBank(parser);
-        break;
-      }
-    }
-  }
+
+  // Selezione parser: SOLO per nome file. Se nessuna keyword matcha → null → fallback generico.
+  const detectedParser = detectParserByFilename(file.name);
+  if (setDetectedBank) setDetectedBank(detectedParser);
 
   // Crea mappings degli account se disponibili
   const accountMappings = accounts ? createAccountMappings(accounts) : undefined;
@@ -841,9 +1133,12 @@ export async function parseCSV(file: File, accountId?: string, setDetectedBank?:
 
         rows.push(row);
       } else {
+        // Nessun parser trovato dal nome file → fallback generico
         const description = findValue(headers, values, ['descrizione', 'description', 'causale', 'note']) || '';
-        const amount = findValue(headers, values, ['importo', 'amount', 'valore']) || '';
-        const amountNum = parseFloat(amount.replace(',', '.'));
+        const amountRaw = findValue(headers, values, ['importo', 'amount', 'valore']) || '';
+        let amountNum = parseFloat(amountRaw.replace(',', '.'));
+        // Somma tax se presente
+        amountNum = applyTax(amountNum, headers, values);
         const category = findValue(headers, values, ['categoria', 'category']);
         // Determina il tipo coerente per la tabella (Entrata/Spesa)
         const type = amountNum >= 0 ? 'Entrata' : 'Spesa';
@@ -851,7 +1146,7 @@ export async function parseCSV(file: File, accountId?: string, setDetectedBank?:
           id: `row-${i}`,
           date: findValue(headers, values, ['data', 'date', 'transaction date']) || '',
           description: description,
-          amount: amount,
+          amount: amountNum.toString(),
           type: type,
           account: accountId || undefined,
           category: category,
@@ -860,8 +1155,8 @@ export async function parseCSV(file: File, accountId?: string, setDetectedBank?:
           status: 'pending',
           code: findValue(headers, values, ['codice', 'code']) || '',
           currency: 'EUR',
-          initialAmount: amount,
-          currentAmount: amount,
+          initialAmount: amountNum.toString(),
+          currentAmount: amountNum.toString(),
           note: '',
           transactionType: type === 'Entrata' ? 'income' : 'expense'
         };
@@ -911,33 +1206,10 @@ export async function parseExcel(file: File, accountId?: string, setDetectedBank
   // Normalizza header: trim, lowercase, rimuovi spazi
   headers = headers.map(h => h.trim());
   const rows: ImportRow[] = [];
-  const fileName = file.name.toLowerCase();
-  const bankFileKeywords: { [key: string]: string[] } = {
-    'intesa': ['intesa', 'sanpaolo', 'intesasanpaolo', 'contoxme', 'conto xme'],
-    'revolut': ['revolut'],
-    'paypal': ['paypal'],
-    'postepay': ['postepay', 'poste'],
-    'contanti': ['contanti', 'cash'],
-    'edenred': ['edenred', 'buoni pasto', 'ticket restaurant']
-  };
-  let detectedParser: BankParser | null = null;
-  for (const parser of BANK_PARSERS) {
-    const keywords = bankFileKeywords[parser.identifier] || [];
-    if (keywords.some(keyword => fileName.includes(keyword))) {
-      detectedParser = parser;
-      if (setDetectedBank) setDetectedBank(parser);
-      break;
-    }
-  }
-  if (!detectedParser) {
-    for (const parser of BANK_PARSERS) {
-      if (parser.detectFormat(headers.map(h => h.toLowerCase()))) {
-        detectedParser = parser;
-        if (setDetectedBank) setDetectedBank(parser);
-        break;
-      }
-    }
-  }
+
+  // Selezione parser: SOLO per nome file. Se nessuna keyword matcha → null → fallback generico.
+  const detectedParser = detectParserByFilename(file.name);
+  if (setDetectedBank) setDetectedBank(detectedParser);
 
   // Crea mappings degli account se disponibili
   const accountMappings = accounts ? createAccountMappings(accounts) : undefined;
@@ -992,17 +1264,19 @@ export async function parseExcel(file: File, accountId?: string, setDetectedBank
         };
         rows.push(row);
       } else {
-        // Fallback generico: calcola sempre targetTable
+        // Nessun parser trovato dal nome file → fallback generico
         const description = findValue(headers, values, ['descrizione', 'description', 'causale']) || '';
-        const amount = findValue(headers, values, ['importo', 'amount', 'valore']) || '';
-        const amountNum = parseFloat(amount.replace(',', '.'));
+        const amountRaw = findValue(headers, values, ['importo', 'amount', 'valore']) || '';
+        let amountNum = parseFloat(amountRaw.replace(',', '.'));
+        // Somma tax se presente
+        amountNum = applyTax(amountNum, headers, values);
         const category = findValue(headers, values, ['categoria', 'category']);
         const tipo = findValue(headers, values, ['tipo', 'type']) || 'Spesa';
         const row: ImportRow = {
           id: `row-${i}`,
           date: findValue(headers, values, ['data', 'date']) || '',
           description: description,
-          amount: amount,
+          amount: amountNum.toString(),
           type: tipo,
           account: accountId || undefined,
           category: category,
@@ -1011,8 +1285,8 @@ export async function parseExcel(file: File, accountId?: string, setDetectedBank
           status: 'pending',
           code: findValue(headers, values, ['codice', 'code']) || '',
           currency: 'EUR',
-          initialAmount: amount,
-          currentAmount: amount,
+          initialAmount: amountNum.toString(),
+          currentAmount: amountNum.toString(),
           note: '',
           transactionType: tipo
         };
@@ -1164,4 +1438,5 @@ export function parseEdenredExcel(jsonData: string[][], accountId?: string): Imp
 // Esempio:
 // export function parseNomeBancaExcel(...) { ... }
 //
-// Ricorda: per il rilevamento automatico, aggiungi il parser anche a BANK_PARSERS se serve
+// Ricorda: per aggiungere il supporto al rilevamento per nome file,
+// aggiungi le keyword del nuovo parser in BANK_FILE_KEYWORDS sopra.
