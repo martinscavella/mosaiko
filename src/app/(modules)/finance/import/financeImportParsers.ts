@@ -77,6 +77,18 @@ export const findValue = (headers: string[], values: string[], possibleNames: st
   return undefined;
 }
 
+// Helper: somma tax all'amount se la colonna tax è popolata
+const applyTax = (amountNum: number, headers: string[], values: string[]): number => {
+  const taxStr = findValue(headers, values, ['tax', 'tassa', 'imposta', 'iva']);
+  if (taxStr) {
+    const taxNum = parseFloat(taxStr.replace(',', '.'));
+    if (!isNaN(taxNum) && taxNum !== 0) {
+      return amountNum + taxNum;
+    }
+  }
+  return amountNum;
+};
+
 // Funzione per determinare automaticamente la tabella di destinazione
 export const determineTargetTable = (description: string, type: string, amount: number, category?: string): 'transactions' | 'refunds' | 'funds_transfer' => {
   const desc = description.toLowerCase();
@@ -160,7 +172,9 @@ export const BANK_PARSERS: BankParser[] = [
       amount = findValue(headers, values, ['importo', 'importo valuta', 'valore']) || ''
       let category: string | undefined = findValue(headers, values, ['categoria', 'categoria operazione', 'tipo', 'tipologia'])
       let subcategory: string | undefined = undefined;
-      const amountNum = parseFloat(amount.replace(',', '.'))
+      let amountNum = parseFloat(amount.replace(',', '.'))
+      // Somma tax se presente
+      amountNum = applyTax(amountNum, headers, values);
       // Determina il segno corretto
       let signedAmount = amountNum
       if (
@@ -284,7 +298,9 @@ export const BANK_PARSERS: BankParser[] = [
       const category = findValue(headers, values, ['categoria', 'category']);
       const subcategory = findValue(headers, values, ['sottocategoria', 'subcategory']);
       // Postepay: importo negativo = spesa, positivo = entrata
-      const amountNum = parseFloat(amountRaw.replace(',', '.'));
+      let amountNum = parseFloat(amountRaw.replace(',', '.'));
+      // Somma tax se presente
+      amountNum = applyTax(amountNum, headers, values);
       let signedAmount = amountNum;
       if (amountNum > 0 && (description.toLowerCase().includes('spesa') || description.toLowerCase().includes('prelievo'))) {
         signedAmount = -Math.abs(amountNum);
@@ -357,6 +373,8 @@ export const BANK_PARSERS: BankParser[] = [
       const amountStr = findValue(headers, values, ['netto', 'net', 'netto ', ' netto']) || '';
       let amountNum = parseFloat(amountStr.replace(',', '.'));
       if (isNaN(amountNum)) amountNum = 0;
+      // Somma tax se presente
+      amountNum = applyTax(amountNum, headers, values);
       // Tipo: entrata se >0, spesa se <0
       const type = amountNum >= 0 ? 'Entrata' : 'Spesa';
       return {
@@ -461,6 +479,9 @@ export const BANK_PARSERS: BankParser[] = [
         amountNum = parseFloat(cleanAmount);
         if (isNaN(amountNum)) amountNum = 0;
       }
+
+      // Somma tax se presente
+      amountNum = applyTax(amountNum, headers, values);
 
       // Normalizza data: YYYY-MM-DD
       let dateISO = date;
@@ -661,6 +682,8 @@ export const BANK_PARSERS: BankParser[] = [
         amountNum = parseFloat(cleanAmount);
         if (isNaN(amountNum)) amountNum = 0;
       }
+      // Somma tax se presente
+      amountNum = applyTax(amountNum, headers, values);
 
       // Mapping categoria -> categoria/sottocategoria Mosaiko
       let category = '';
@@ -796,6 +819,9 @@ export const BANK_PARSERS: BankParser[] = [
       // Parsing fee
       let feeNum = parseFloat(feeStr.replace(',', '.'));
       if (isNaN(feeNum)) feeNum = 0;
+
+      // Somma tax se presente
+      amountNum = applyTax(amountNum, headers, values);
       
       // Determina il tipo italiano e la categoria/subcategoria basandosi su category e type di TR
       let type = '';
@@ -1109,8 +1135,10 @@ export async function parseCSV(file: File, accountId?: string, setDetectedBank?:
       } else {
         // Nessun parser trovato dal nome file → fallback generico
         const description = findValue(headers, values, ['descrizione', 'description', 'causale', 'note']) || '';
-        const amount = findValue(headers, values, ['importo', 'amount', 'valore']) || '';
-        const amountNum = parseFloat(amount.replace(',', '.'));
+        const amountRaw = findValue(headers, values, ['importo', 'amount', 'valore']) || '';
+        let amountNum = parseFloat(amountRaw.replace(',', '.'));
+        // Somma tax se presente
+        amountNum = applyTax(amountNum, headers, values);
         const category = findValue(headers, values, ['categoria', 'category']);
         // Determina il tipo coerente per la tabella (Entrata/Spesa)
         const type = amountNum >= 0 ? 'Entrata' : 'Spesa';
@@ -1118,7 +1146,7 @@ export async function parseCSV(file: File, accountId?: string, setDetectedBank?:
           id: `row-${i}`,
           date: findValue(headers, values, ['data', 'date', 'transaction date']) || '',
           description: description,
-          amount: amount,
+          amount: amountNum.toString(),
           type: type,
           account: accountId || undefined,
           category: category,
@@ -1127,8 +1155,8 @@ export async function parseCSV(file: File, accountId?: string, setDetectedBank?:
           status: 'pending',
           code: findValue(headers, values, ['codice', 'code']) || '',
           currency: 'EUR',
-          initialAmount: amount,
-          currentAmount: amount,
+          initialAmount: amountNum.toString(),
+          currentAmount: amountNum.toString(),
           note: '',
           transactionType: type === 'Entrata' ? 'income' : 'expense'
         };
@@ -1238,15 +1266,17 @@ export async function parseExcel(file: File, accountId?: string, setDetectedBank
       } else {
         // Nessun parser trovato dal nome file → fallback generico
         const description = findValue(headers, values, ['descrizione', 'description', 'causale']) || '';
-        const amount = findValue(headers, values, ['importo', 'amount', 'valore']) || '';
-        const amountNum = parseFloat(amount.replace(',', '.'));
+        const amountRaw = findValue(headers, values, ['importo', 'amount', 'valore']) || '';
+        let amountNum = parseFloat(amountRaw.replace(',', '.'));
+        // Somma tax se presente
+        amountNum = applyTax(amountNum, headers, values);
         const category = findValue(headers, values, ['categoria', 'category']);
         const tipo = findValue(headers, values, ['tipo', 'type']) || 'Spesa';
         const row: ImportRow = {
           id: `row-${i}`,
           date: findValue(headers, values, ['data', 'date']) || '',
           description: description,
-          amount: amount,
+          amount: amountNum.toString(),
           type: tipo,
           account: accountId || undefined,
           category: category,
@@ -1255,8 +1285,8 @@ export async function parseExcel(file: File, accountId?: string, setDetectedBank
           status: 'pending',
           code: findValue(headers, values, ['codice', 'code']) || '',
           currency: 'EUR',
-          initialAmount: amount,
-          currentAmount: amount,
+          initialAmount: amountNum.toString(),
+          currentAmount: amountNum.toString(),
           note: '',
           transactionType: tipo
         };
