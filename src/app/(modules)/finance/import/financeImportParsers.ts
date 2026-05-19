@@ -777,9 +777,12 @@ export const BANK_PARSERS: BankParser[] = [
       const amountStr = (findValue(headers, values, ['amount']) || '0').trim();
       const feeStr = (findValue(headers, values, ['fee']) || '0').trim();
       const currency = findValue(headers, values, ['currency']) || 'EUR';
-      const description = (findValue(headers, values, ['description']) || '').trim();
+      const descriptionRaw = (findValue(headers, values, ['description']) || '').trim();
       const assetClass = (findValue(headers, values, ['asset_class']) || '').toUpperCase().trim();
       const assetName = (findValue(headers, values, ['name']) || '').trim();
+
+      // Tutte le descrizioni Trade Republic hanno il prefisso "Trade Republic: "
+      const description = descriptionRaw ? `Trade Republic: ${descriptionRaw}` : '';
       
       // Debug
       if (typeof window !== 'undefined' && window.console) {
@@ -809,7 +812,7 @@ export const BANK_PARSERS: BankParser[] = [
           const finalAmount = amountNum + feeNum;
           const result = {
             date: dateISO,
-            description: description || 'Deposito in conto',
+            description: description || 'Trade Republic: Deposito in conto',
             amount: finalAmount.toString(),
             type,
             category: categoryItalian,
@@ -828,7 +831,7 @@ export const BANK_PARSERS: BankParser[] = [
           targetTable = 'funds_transfer';
           return {
             date: dateISO,
-            description: description || 'Trasferimento ricevuto',
+            description: description || 'Trade Republic: Trasferimento ricevuto',
             amount: amountNum.toString(),
             type,
             category: categoryItalian,
@@ -843,7 +846,7 @@ export const BANK_PARSERS: BankParser[] = [
           subcategoryItalian = 'Interessi';
           return {
             date: dateISO,
-            description: description || 'Pagamento degli interessi',
+            description: description || 'Trade Republic: Pagamento degli interessi',
             amount: amountNum.toString(),
             type,
             category: categoryItalian,
@@ -858,7 +861,7 @@ export const BANK_PARSERS: BankParser[] = [
           targetTable = 'refunds';
           return {
             date: dateISO,
-            description: description || 'Rimborso carta',
+            description: description || 'Trade Republic: Rimborso carta',
             amount: Math.abs(amountNum).toString(),
             type,
             category: categoryItalian,
@@ -868,12 +871,12 @@ export const BANK_PARSERS: BankParser[] = [
             currency,
           };
         } else if (typeRaw === 'TAX_OPTIMIZATION') {
-          type = 'Tassa';
-          categoryItalian = 'Varie';
-          subcategoryItalian = 'Tasse';
+          type = 'Imposte';
+          categoryItalian = 'FEES & COMMISSIONS';
+          subcategoryItalian = 'Commissioni Bancarie';
           return {
             date: dateISO,
-            description: description || 'Ottimizzazione Fiscale',
+            description: description || 'Trade Republic: Ottimizzazione Fiscale',
             amount: Math.abs(amountNum).toString(),
             type,
             category: categoryItalian,
@@ -888,7 +891,7 @@ export const BANK_PARSERS: BankParser[] = [
           subcategoryItalian = 'Altro';
           return {
             date: dateISO,
-            description: description || 'Transazione in contanti',
+            description: description || 'Trade Republic: Transazione in contanti',
             amount: amountNum.toString(),
             type,
             category: categoryItalian,
@@ -910,7 +913,7 @@ export const BANK_PARSERS: BankParser[] = [
             subcategoryItalian = 'Investimenti';
             return {
               date: dateISO,
-              description: description || `Acquisto ${assetName}`,
+              description: description || `Trade Republic: Acquisto ${assetName}`,
               amount: totalAmount.toString(),
               type,
               category: categoryItalian,
@@ -925,7 +928,7 @@ export const BANK_PARSERS: BankParser[] = [
             subcategoryItalian = 'Azioni';
             return {
               date: dateISO,
-              description: description || `Acquisto ${assetName}`,
+              description: description || `Trade Republic: Acquisto ${assetName}`,
               amount: totalAmount.toString(),
               type,
               category: categoryItalian,
@@ -939,7 +942,7 @@ export const BANK_PARSERS: BankParser[] = [
             subcategoryItalian = 'Investimento';
             return {
               date: dateISO,
-              description: description || `Acquisto ${assetName}`,
+              description: description || `Trade Republic: Acquisto ${assetName}`,
               amount: totalAmount.toString(),
               type,
               category: categoryItalian,
@@ -955,7 +958,7 @@ export const BANK_PARSERS: BankParser[] = [
           
           return {
             date: dateISO,
-            description: description || `Vendita ${assetName}`,
+            description: description || `Trade Republic: Vendita ${assetName}`,
             amount: totalAmount.toString(),
             type,
             category: categoryItalian,
@@ -971,7 +974,7 @@ export const BANK_PARSERS: BankParser[] = [
         if (typeRaw === 'MIGRATION') {
           return {
             date: dateISO,
-            description: `[MIGRATION] ${description}`,
+            description: `Trade Republic: [MIGRATION] ${descriptionRaw}`,
             amount: '0',
             type: 'Migraggio',
             category: 'Varie',
