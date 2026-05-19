@@ -99,6 +99,31 @@ export const determineTargetTable = (description: string, type: string, amount: 
   return 'transactions';
 }
 
+// --- Mappa keyword nome file → identifier parser (unica fonte di verità) ---
+// La selezione del parser avviene SOLO in base al nome del file.
+// Se nessuna keyword matcha, viene usato il parser di default (fallback generico).
+const BANK_FILE_KEYWORDS: { [identifier: string]: string[] } = {
+  'edenred':       ['edenred'],
+  'intesa':        ['intesa', 'sanpaolo', 'intesasanpaolo', 'contoxme', 'conto xme'],
+  'revolut':       ['revolut'],
+  'paypal':        ['paypal'],
+  'postepay':      ['postepay', 'poste'],
+  'contanti':      ['contanti', 'cash'],
+  'traderepublic': ['traderepublic', 'trade republic'],
+};
+
+// Restituisce il parser corrispondente al nome file, o null se nessuno matcha (→ usa il default).
+const detectParserByFilename = (fileName: string): BankParser | null => {
+  const lowerName = fileName.toLowerCase();
+  for (const parser of BANK_PARSERS) {
+    const keywords = BANK_FILE_KEYWORDS[parser.identifier] || [];
+    if (keywords.some(keyword => lowerName.includes(keyword))) {
+      return parser;
+    }
+  }
+  return null;
+};
+
 // --- BANK_PARSERS ---
 export const BANK_PARSERS: BankParser[] = [
   // Intesa Sanpaolo
@@ -1021,37 +1046,10 @@ export async function parseCSV(file: File, accountId?: string, setDetectedBank?:
   }
   const headers = parseCSVLine(lines[headerRowIndex]).map(h => h.toLowerCase().replace(/"/g, ''));
   const rows: ImportRow[] = [];
-  const fileName = file.name.toLowerCase();
-    const bankFileKeywords: { [key: string]: string[] } = {
-      'edenred': ['edenred'],
-      'intesa': ['intesa', 'sanpaolo', 'intesasanpaolo', 'contoxme', 'conto xme'],
-      'revolut': ['revolut'],
-      'paypal': ['paypal'],
-      'postepay': ['postepay', 'poste'],
-      'contanti': ['contanti', 'cash'],
-      'traderepublic': ['traderepublic', 'trade republic']
-    };
-  let detectedParser: BankParser | null = null;
-  let foundByFilename = false;
-    for (const parser of BANK_PARSERS) {
-      const keywords = bankFileKeywords[parser.identifier] || [];
-      if (keywords.some(keyword => fileName.includes(keyword))) {
-        detectedParser = parser;
-        if (setDetectedBank) setDetectedBank(parser);
-      foundByFilename = true;
-        break;
-      }
-    }
-  // Se trovato dal nome file, non tentare il rilevamento tramite header
-  if (!detectedParser && !foundByFilename) {
-    for (const parser of BANK_PARSERS) {
-      if (parser.detectFormat(headers.map(h => h.toLowerCase()))) {
-        detectedParser = parser;
-        if (setDetectedBank) setDetectedBank(parser);
-        break;
-      }
-    }
-  }
+
+  // Selezione parser: SOLO per nome file. Se nessuna keyword matcha → null → fallback generico.
+  const detectedParser = detectParserByFilename(file.name);
+  if (setDetectedBank) setDetectedBank(detectedParser);
 
   // Crea mappings degli account se disponibili
   const accountMappings = accounts ? createAccountMappings(accounts) : undefined;
@@ -1102,6 +1100,7 @@ export async function parseCSV(file: File, accountId?: string, setDetectedBank?:
 
         rows.push(row);
       } else {
+        // Nessun parser trovato dal nome file → fallback generico
         const description = findValue(headers, values, ['descrizione', 'description', 'causale', 'note']) || '';
         const amount = findValue(headers, values, ['importo', 'amount', 'valore']) || '';
         const amountNum = parseFloat(amount.replace(',', '.'));
@@ -1172,34 +1171,10 @@ export async function parseExcel(file: File, accountId?: string, setDetectedBank
   // Normalizza header: trim, lowercase, rimuovi spazi
   headers = headers.map(h => h.trim());
   const rows: ImportRow[] = [];
-  const fileName = file.name.toLowerCase();
-    const bankFileKeywords: { [key: string]: string[] } = {
-      'intesa': ['intesa', 'sanpaolo', 'intesasanpaolo', 'contoxme', 'conto xme'],
-      'revolut': ['revolut'],
-      'paypal': ['paypal'],
-      'postepay': ['postepay', 'poste'],
-      'contanti': ['contanti', 'cash'],
-      'edenred': ['edenred', 'buoni pasto', 'ticket restaurant'],
-      'traderepublic': ['traderepublic', 'trade republic']
-    };
-  let detectedParser: BankParser | null = null;
-    for (const parser of BANK_PARSERS) {
-      const keywords = bankFileKeywords[parser.identifier] || [];
-      if (keywords.some(keyword => fileName.includes(keyword))) {
-        detectedParser = parser;
-        if (setDetectedBank) setDetectedBank(parser);
-        break;
-      }
-    }
-  if (!detectedParser) {
-    for (const parser of BANK_PARSERS) {
-      if (parser.detectFormat(headers.map(h => h.toLowerCase()))) {
-        detectedParser = parser;
-        if (setDetectedBank) setDetectedBank(parser);
-        break;
-      }
-    }
-  }
+
+  // Selezione parser: SOLO per nome file. Se nessuna keyword matcha → null → fallback generico.
+  const detectedParser = detectParserByFilename(file.name);
+  if (setDetectedBank) setDetectedBank(detectedParser);
 
   // Crea mappings degli account se disponibili
   const accountMappings = accounts ? createAccountMappings(accounts) : undefined;
@@ -1254,7 +1229,7 @@ export async function parseExcel(file: File, accountId?: string, setDetectedBank
         };
         rows.push(row);
       } else {
-        // Fallback generico: calcola sempre targetTable
+        // Nessun parser trovato dal nome file → fallback generico
         const description = findValue(headers, values, ['descrizione', 'description', 'causale']) || '';
         const amount = findValue(headers, values, ['importo', 'amount', 'valore']) || '';
         const amountNum = parseFloat(amount.replace(',', '.'));
@@ -1426,4 +1401,5 @@ export function parseEdenredExcel(jsonData: string[][], accountId?: string): Imp
 // Esempio:
 // export function parseNomeBancaExcel(...) { ... }
 //
-// Ricorda: per il rilevamento automatico, aggiungi il parser anche a BANK_PARSERS se serve
+// Ricorda: per aggiungere il supporto al rilevamento per nome file,
+// aggiungi le keyword del nuovo parser in BANK_FILE_KEYWORDS sopra.
