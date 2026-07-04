@@ -33,14 +33,17 @@ Fatto finora:
 - **npm audit corretto**: la lettura troncata di Fase 1 nascondeva CVE alte/critiche
   reali (`jspdf` critica, `next` alta — quest'ultima già risolta con bump patch
   a 15.5.20, in-range, build verificata). `xlsx` alta senza fix disponibile su npm.
-- **C5 (nuovo)**: CVE critica in `jspdf`, fix richiede major bump — **in attesa
-  di conferma utente** prima di applicarlo (vedi TRIAGE.md).
-- **C2 (console.log sensibili)**: non ancora affrontato — prossimo step,
-  richiede conferma prima di applicare.
+- **C2 risolto**: rimossi i console.log con token/PII/importi in auth.tsx,
+  profiles.ts, financeCache.tsx, api/transactions/route.ts (commit `d5e432b`).
+- **C5 risolto**: bump `jspdf` 3.0.1 → 4.2.1 (confermato dall'utente), API di
+  export PDF invariata, test di regressione aggiunto, build verificata
+  (commit `44d8a55`).
+
+**Tutti e 5 i Critici (C1-C5) sono risolti.** Passo ora al batch veloce su
+Importanti/Minori come concordato.
 
 ## Prossimi passi
-- Confermare con l'utente: bump `jspdf` a 4.2.1 (C5) e procedere con C2.
-- Poi batch veloce sugli Importanti (I1-I13) e Minori, un commit atomico per
+- Batch veloce sugli Importanti (I1-I13) e Minori, un commit atomico per
   gruppo omogeneo di fix.
 - Fase 3bis: ottimizzazioni performance sui file segnalati, con misurazione
   prima/dopo dove possibile.

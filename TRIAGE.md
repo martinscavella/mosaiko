@@ -11,20 +11,13 @@ misurata con profiling reale (verrà misurata in Fase 3bis dove possibile).
 
 ## CRITICI
 
-### ✅ C1, C3 risolti; C2 in attesa; nuovi C4/C5 emersi durante la Fase 3
-Aggiornamento post-fix (2026-07-04): **C1 e C3 sono stati risolti e committati**
-(vedi commit `2eec71b`, `7c1e7e9`). Durante il lavoro su C3 sono emersi due
-problemi non previsti in Fase 1/2, entrambi già risolti:
-- **C4 (nuovo, risolto)** — bug reale Rules-of-Hooks in
-  [finance/assets/page.tsx](<src/app/(modules)/finance/assets/page.tsx>): un
-  `useCallback` dichiarato dopo due `return` condizionati da `authLoading`/`user`
-  causava il crash "Rendered more hooks than during the previous render" a ogni
-  transizione normale di login. Scoperto rimuovendo `eslint.ignoreDuringBuilds`
-  (era silenziato). Fix + test di regressione in commit `38784ad`.
-- **C5 (nuovo, corretto in parte)** — l'`npm audit` di Fase 1 era stato letto
-  troncato: **`jspdf` ha una CVE critica (CVSS 9.6, HTML injection)** risolta solo
-  in 4.2.1 (major bump). Vedi sezione dedicata sotto — **non ancora applicato,
-  in attesa di tua conferma** (major version, può rompere l'export PDF).
+### ✅ Tutti e 5 i Critici risolti (2026-07-04)
+C1, C2, C3 (previsti in Fase 2) e due scoperti durante il lavoro di Fase 3 —
+**C4** (crash React reale da Rules-of-Hooks in `finance/assets/page.tsx`, trovato
+rimuovendo `ignoreDuringBuilds`) e **C5** (CVE critica in `jspdf`, emersa da una
+lettura completa di `npm audit` dopo che quella di Fase 1 era stata troncata) —
+sono stati tutti risolti, testati e committati. Dettagli e commit in ciascuna
+sezione sotto.
 
 ### C1 — Zero test automatici, nessuna rete di sicurezza per i fix ✅ RISOLTO
 - **File**: intero repo (nessun `jest`/`vitest`, nessuno script `test`)
@@ -37,7 +30,7 @@ problemi non previsti in Fase 1/2, entrambi già risolti:
   (confermato da te), config in `vitest.config.mts`, smoke test su
   `lib/helpers/format.ts` e `dateRange.ts`. `npm test` verde.
 
-### C2 — Dati sensibili (token di sessione, PII, importi) in `console.log` di produzione
+### C2 — Dati sensibili (token di sessione, PII, importi) in `console.log` di produzione ✅ RISOLTO
 - **File**: [src/lib/auth.tsx:29-30,40-41,53,60,75,85](src/lib/auth.tsx#L29),
   [src/lib/profiles.ts:20-21,40,53](src/lib/profiles.ts#L20),
   [src/app/api/transactions/route.ts:39,42-47,63](src/app/api/transactions/route.ts#L39),
@@ -50,8 +43,9 @@ problemi non previsti in Fase 1/2, entrambi già risolti:
 - **Impatto**: esposizione reale di token di sessione e dati finanziari/PII nella
   console del browser e nei log server — rilevante per un'app che gestisce dati
   finanziari personali.
-- **Azione proposta**: rimuovere i log con dati sensibili; per quelli diagnostici
-  utili, wrappare dietro un helper che logga solo in sviluppo.
+- **Azione applicata**: rimossi tutti i log che esponevano token/PII/importi in
+  `auth.tsx`, `profiles.ts`, `financeCache.tsx` e `api/transactions/route.ts`;
+  mantenuti i `console.error` con solo codice/messaggio d'errore per il debug.
 
 ### C3 — Build di produzione ignora errori TypeScript e lint ✅ RISOLTO
 - **File**: [next.config.ts:6-11](next.config.ts#L6)
@@ -73,7 +67,7 @@ problemi non previsti in Fase 1/2, entrambi già risolti:
   Fase 3bis). Flag rimossi da `next.config.ts`, build di produzione verificata
   con successo.
 
-### C5 — CVE critica in `jspdf` (dipendenza diretta) — in attesa di conferma
+### C5 — CVE critica in `jspdf` (dipendenza diretta) ✅ RISOLTO
 - **File**: [package.json](package.json) (`jspdf: ^3.0.1`), uso in
   [src/components/ui/TransactionDetailsModal.tsx:1](<src/components/ui/TransactionDetailsModal.tsx#L1>)
 - **Sintomo**: `npm audit` (letto per intero questa volta) segnala **CVE critica
@@ -85,12 +79,11 @@ problemi non previsti in Fase 1/2, entrambi già risolti:
   sfruttare l'injection all'apertura del PDF. Rischio pratico limitato (RLS isola
   gli account, un utente può danneggiare solo se stesso), ma è una CVE reale con
   fix disponibile.
-- **Azione proposta**: bump a `jspdf@4.2.1` — **major version, possibili
-  breaking change nell'API di generazione PDF** usata in
-  `TransactionDetailsModal.tsx`. Non applicato: **attendo tua conferma** prima di
-  procedere (richiederebbe verificare manualmente l'export PDF dopo il bump,
-  senza server Supabase reale in questa sessione non posso testare il flusso
-  end-to-end).
+- **Azione applicata**: bump a `jspdf@4.2.1` (confermato da te). L'API usata da
+  `TransactionDetailsModal.tsx` (`new jsPDF()`, `setFontSize`, `text`, `save`) è
+  invariata tra le major; aggiunto test che esercita la stessa sequenza e
+  verifica la generazione di un PDF valido (`doc.output('datauristring')`).
+  Build di produzione verificata.
 
 ---
 
