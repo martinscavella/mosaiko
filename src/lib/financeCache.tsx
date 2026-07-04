@@ -234,9 +234,6 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
       const refunds = refundsResult.data || [];
       const fundsTransfer = fundsTransferResult.data || [];
 
-      // Filtraggio asset-related disponibile se necessario in futuro
-      // const assetPurchaseTransactions = allTransactions.filter((transaction: Transaction) => transaction.asset_id != null);
-
       const assets = rawAssets as Asset[];
 
       const totalAssetsValue = assets.reduce((sum, asset) => sum + Number(asset.value || 0), 0);
@@ -522,12 +519,6 @@ export function useAssetStats() {
     topPerformingAsset: assets.length > 0 ? assets[0] : null // Temporaneo - senza purchase_price non possiamo calcolare performance
   }
 }
-
-// Hook per asset con valutazione automatica - RIMOSSO: campo non presente nel database
-// export function useAutoValuationAssets() {
-//   ...
-// }
-
 
 // Hook per recuperare le transazioni correlate a un asset
 export function useAssetTransactions(assetId: string | null) {
