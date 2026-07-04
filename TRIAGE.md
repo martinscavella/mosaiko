@@ -11,13 +11,46 @@ misurata con profiling reale (verrà misurata in Fase 3bis dove possibile).
 
 ## CRITICI
 
-### ✅ Tutti e 5 i Critici risolti (2026-07-04)
-C1, C2, C3 (previsti in Fase 2) e due scoperti durante il lavoro di Fase 3 —
+### ✅ Tutti e 6 i Critici risolti (2026-07-04)
+C1, C2, C3 (previsti in Fase 2) e tre scoperti durante il lavoro di Fase 3 —
 **C4** (crash React reale da Rules-of-Hooks in `finance/assets/page.tsx`, trovato
-rimuovendo `ignoreDuringBuilds`) e **C5** (CVE critica in `jspdf`, emersa da una
-lettura completa di `npm audit` dopo che quella di Fase 1 era stata troncata) —
-sono stati tutti risolti, testati e committati. Dettagli e commit in ciascuna
-sezione sotto.
+rimuovendo `ignoreDuringBuilds`), **C5** (CVE critica in `jspdf`, emersa da una
+lettura completa di `npm audit` dopo che quella di Fase 1 era stata troncata) e
+**C6** (registrazione utenti rotta a livello di database Supabase live, vedi
+sotto) — sono stati tutti risolti, testati e committati. Dettagli e commit in
+ciascuna sezione sotto.
+
+### C6 — Registrazione utenti rotta: due trigger duplicati su `auth.users` ✅ RISOLTO (DB live)
+- **File**: non nel repo — DB Supabase live, trigger `on_auth_user_created` e
+  `trigger_create_profile` su `auth.users`, funzioni `handle_new_user()` e
+  `create_profile_on_user_registration()`.
+- **Sintomo**: entrambi i trigger AFTER INSERT su `auth.users` inserivano una
+  riga in `public.profiles` con lo stesso `id`. Postgres esegue i trigger in
+  ordine alfabetico per nome: `on_auth_user_created` (h`andle_new_user`) crea
+  la riga con successo, poi `trigger_create_profile`
+  (`create_profile_on_user_registration`) tenta un secondo INSERT sullo stesso
+  `id` e viola `profiles_pkey`. L'errore, dentro la stessa transazione
+  dell'INSERT su `auth.users`, fa fallire l'intera registrazione.
+- **Evidenza indipendente**: la tabella `profiles` ha 0 righe nel progetto live
+  nonostante esista da 19 mesi (creato 2024-11-26) — coerente con "nessuna
+  registrazione è mai andata a buon fine".
+- **Ipotesi causa**: due iterazioni successive della stessa feature (creazione
+  automatica del profilo alla registrazione) lasciate entrambe attive invece di
+  sostituire la vecchia.
+- **Azione applicata** (confermata da te, migrazione `neutralize_duplicate_profile_creation_function`):
+  non avendo permessi `ALTER` su `auth.users` (schema gestito da Supabase, "must
+  be owner of table users"), non è stato possibile disabilitare direttamente il
+  trigger. È stata invece neutralizzata la funzione `create_profile_on_user_registration()`
+  (ora un no-op che fa solo `RETURN NEW`), lasciando `handle_new_user()` come
+  unica a creare davvero la riga in `profiles`, popolata dai metadata di
+  registrazione. Come effetto collaterale, la nuova versione della funzione ha
+  anche `search_path` fissato, risolvendo per questa funzione anche il warning
+  di sicurezza I10.
+- **Nota**: non ho potuto testare una registrazione reale end-to-end in questa
+  sessione (nessuna credenziale Supabase/browser); il fix è verificato per
+  lettura del codice e dei cataloghi di sistema (`pg_trigger`, `pg_get_functiondef`),
+  non con una registrazione effettiva. Consiglio di provare una registrazione
+  reale appena possibile per conferma definitiva.
 
 ### C1 — Zero test automatici, nessuna rete di sicurezza per i fix ✅ RISOLTO
 - **File**: intero repo (nessun `jest`/`vitest`, nessuno script `test`)
@@ -158,10 +191,26 @@ sezione sotto.
   reale basso (Postgres blocca la chiamata diretta di funzioni `RETURNS trigger`)
   ma superficie d'attacco/rumore da ridurre.
 
-### I11 — `database/schema.sql` disallineato dal DB live
+### I11 — `database/schema.sql` disallineato dal DB live ✅ RISOLTO
 - **File**: [database/schema.sql](database/schema.sql)
 - **Impatto**: chi legge lo schema committato si fa un'idea sbagliata di come
   funzionano saldi/totali (gestiti da trigger DB non documentati nel repo).
+- **Azione applicata**: rigenerato l'intero file leggendo tabelle, indici,
+  policy RLS, funzioni e trigger direttamente dal progetto Supabase live
+  (tabelle/colonne/vincoli, `pg_indexes`, `pg_policies`, `pg_get_functiondef`,
+  `information_schema.triggers`/`pg_trigger`). Non è un dump 1:1 di
+  `supabase db dump` ma riflette la struttura reale, incluse le annotazioni sui
+  problemi trovati (indici FK mancanti, trigger duplicato neutralizzato per
+  C6, trigger `trigger_calculate_monthly_summary` disabilitato).
+- **Scoperta collaterale (Minore)**: `calculate_monthly_summary()` e
+  `refresh_monthly_summary()` scrivono su una tabella `monthly_summary` che
+  **non esiste** nel DB live (verificato via `information_schema.tables`). Il
+  trigger che le invoca (`trigger_calculate_monthly_summary` su `transactions`)
+  è però già **disabilitato** (`tgenabled='D'`) sul DB live — qualcuno se n'era
+  accorto in passato, per questo gli insert su `transactions` non falliscono
+  oggi. Codice morto ma innocuo finché resta disabilitato: da non riabilitare
+  senza prima creare la tabella `monthly_summary` (o rimuovere trigger e
+  funzioni se la feature "riepilogo mensile" non serve più).
 
 ### I12 — Auth hardening disabilitato lato Supabase
 - **File**: configurazione progetto Supabase (Dashboard, non file repo)
