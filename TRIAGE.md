@@ -11,15 +11,31 @@ misurata con profiling reale (verrà misurata in Fase 3bis dove possibile).
 
 ## CRITICI
 
-### C1 — Zero test automatici, nessuna rete di sicurezza per i fix
+### ✅ C1, C3 risolti; C2 in attesa; nuovi C4/C5 emersi durante la Fase 3
+Aggiornamento post-fix (2026-07-04): **C1 e C3 sono stati risolti e committati**
+(vedi commit `2eec71b`, `7c1e7e9`). Durante il lavoro su C3 sono emersi due
+problemi non previsti in Fase 1/2, entrambi già risolti:
+- **C4 (nuovo, risolto)** — bug reale Rules-of-Hooks in
+  [finance/assets/page.tsx](<src/app/(modules)/finance/assets/page.tsx>): un
+  `useCallback` dichiarato dopo due `return` condizionati da `authLoading`/`user`
+  causava il crash "Rendered more hooks than during the previous render" a ogni
+  transizione normale di login. Scoperto rimuovendo `eslint.ignoreDuringBuilds`
+  (era silenziato). Fix + test di regressione in commit `38784ad`.
+- **C5 (nuovo, corretto in parte)** — l'`npm audit` di Fase 1 era stato letto
+  troncato: **`jspdf` ha una CVE critica (CVSS 9.6, HTML injection)** risolta solo
+  in 4.2.1 (major bump). Vedi sezione dedicata sotto — **non ancora applicato,
+  in attesa di tua conferma** (major version, può rompere l'export PDF).
+
+### C1 — Zero test automatici, nessuna rete di sicurezza per i fix ✅ RISOLTO
 - **File**: intero repo (nessun `jest`/`vitest`, nessuno script `test`)
 - **Sintomo**: nessuna verifica automatica di regressione esiste.
 - **Ipotesi causa**: progetto partito senza infrastruttura di test, mai aggiunta.
 - **Impatto**: blocca il protocollo stesso di Fase 3 (che richiede "scrivi un test
   che riproduce il bug e fallisce" prima di ogni fix). Senza harness minimo, ogni
   fix successivo è verificato solo manualmente/a occhio.
-- **Azione proposta**: introdurre `vitest` + `@testing-library/react` (nuova
-  dipendenza — richiede tua conferma esplicita per aggiungerla, come da vincoli).
+- **Azione applicata**: `vitest` + `@testing-library/react` + `jsdom` installati
+  (confermato da te), config in `vitest.config.mts`, smoke test su
+  `lib/helpers/format.ts` e `dateRange.ts`. `npm test` verde.
 
 ### C2 — Dati sensibili (token di sessione, PII, importi) in `console.log` di produzione
 - **File**: [src/lib/auth.tsx:29-30,40-41,53,60,75,85](src/lib/auth.tsx#L29),
@@ -37,7 +53,7 @@ misurata con profiling reale (verrà misurata in Fase 3bis dove possibile).
 - **Azione proposta**: rimuovere i log con dati sensibili; per quelli diagnostici
   utili, wrappare dietro un helper che logga solo in sviluppo.
 
-### C3 — Build di produzione ignora errori TypeScript e lint
+### C3 — Build di produzione ignora errori TypeScript e lint ✅ RISOLTO
 - **File**: [next.config.ts:6-11](next.config.ts#L6)
   (`eslint.ignoreDuringBuilds: true`, `typescript.ignoreBuildErrors: true`)
 - **Sintomo**: `tsconfig.json` ha `strict: true`, ma la build Next.js non fallisce
@@ -48,9 +64,33 @@ misurata con profiling reale (verrà misurata in Fase 3bis dove possibile).
   che nessuno se ne accorga; vanifica il valore di `strict: true`. È la causa
   radice sistemica che permette a molti degli altri bug di non essere mai stati
   intercettati.
-- **Azione proposta**: eseguire `tsc --noEmit` e `next lint` a parte per
-  quantificare quanti errori reali esistono oggi, poi decidere se rimuovere i due
-  flag subito o dopo aver pulito gli errori esistenti.
+- **Azione applicata**: `tsc --noEmit` → 0 errori. `next lint` → 2 errori reali
+  (uno era il bug Rules-of-Hooks C4, l'altro codice morto, entrambi corretti) +
+  2 warning non bloccanti residui in `financeCache.tsx` (un `any` a riga 211,
+  un `useCallback` con dipendenze incomplete a riga 368 — quest'ultimo è lo
+  stesso sospetto "infinite loop dependency" già annotato in
+  `docs/ANALYSIS_REPORT.md`, lasciato come warning per ora, da approfondire in
+  Fase 3bis). Flag rimossi da `next.config.ts`, build di produzione verificata
+  con successo.
+
+### C5 — CVE critica in `jspdf` (dipendenza diretta) — in attesa di conferma
+- **File**: [package.json](package.json) (`jspdf: ^3.0.1`), uso in
+  [src/components/ui/TransactionDetailsModal.tsx:1](<src/components/ui/TransactionDetailsModal.tsx#L1>)
+- **Sintomo**: `npm audit` (letto per intero questa volta) segnala **CVE critica
+  CVSS 9.6** ("HTML Injection in New Window paths") e diverse CVE alte (PDF/AcroForm
+  injection → esecuzione JS arbitraria) su tutte le versioni `<=4.2.0`.
+- **Ipotesi causa**: dipendenza mai aggiornata da quando introdotta.
+- **Impatto**: i campi liberi `transaction_details`/`transaction_note` finiscono
+  nel PDF esportato — un contenuto malevolo in una nota potrebbe teoricamente
+  sfruttare l'injection all'apertura del PDF. Rischio pratico limitato (RLS isola
+  gli account, un utente può danneggiare solo se stesso), ma è una CVE reale con
+  fix disponibile.
+- **Azione proposta**: bump a `jspdf@4.2.1` — **major version, possibili
+  breaking change nell'API di generazione PDF** usata in
+  `TransactionDetailsModal.tsx`. Non applicato: **attendo tua conferma** prima di
+  procedere (richiederebbe verificare manualmente l'export PDF dopo il bump,
+  senza server Supabase reale in questa sessione non posso testare il flusso
+  end-to-end).
 
 ---
 

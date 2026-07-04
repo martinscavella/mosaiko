@@ -59,10 +59,32 @@ PK/FK (`idx_assets_account_id`, `idx_transactions_asset_id`).
 ## 2. Dipendenze
 
 ### Vulnerabilità note (`npm audit`)
-Vulnerabilità moderate in dipendenze transitive: `ajv` (ReDoS, <6.14.0), `brace-expansion`
-(hang/memory exhaustion), `dompurify` (XSS, via dipendenza indiretta — verificare quale
-package la richiede, probabilmente jspdf). Tutte hanno fix disponibile via `npm audit fix`
-o bump della dipendenza diretta che le include.
+**Correzione rispetto alla stesura iniziale di questo documento**: il primo
+`npm audit` era stato letto troncato e riportava solo vulnerabilità moderate.
+Il quadro reale, verificato in Fase 3, è più serio:
+- **`jspdf` (dipendenza diretta, 3.0.4) — CRITICA**: multiple CVE tra cui
+  "HTML Injection in New Window paths" (CVSS 9.6) e "PDF Injection... Arbitrary
+  JavaScript Execution", tutte con range `<=4.2.0` — **il fix richiede il salto a
+  4.2.1, versione major** (`isSemVerMajor: true`). Usato in
+  `TransactionDetailsModal.tsx` per l'export PDF: i campi liberi
+  `transaction_details`/`transaction_note` finiscono nel PDF generato, quindi un
+  contenuto malevolo in una nota potrebbe teoricamente sfruttare l'injection
+  all'apertura del PDF. Rischio pratico limitato (l'utente vede solo i propri
+  dati, RLS isola gli account), ma è una CVE reale e attivamente sfruttabile in
+  altri contesti — va patchata. Spostato come **Critico** in TRIAGE.md.
+- **`next` (dipendenza diretta) — ALTA**: diverse CVE (SSRF via middleware,
+  cache poisoning, DoS) risolte nelle patch 15.3.x/15.5.x successive; **fix
+  applicato in Fase 3** con `npm install next@15.5.20` (resta nel range
+  `^15.3.8` del `package.json`, nessuna modifica al codice richiesta, build
+  verificata con successo).
+- **`xlsx` (dipendenza diretta, 0.18.5) — ALTA**: prototype pollution + ReDoS,
+  **nessun fix disponibile su npm** (SheetJS ha spostato le patch sul proprio
+  CDN, mai ripubblicate su npm). Girano lato client sul file caricato
+  dall'utente stesso. Da valutare migrazione a `exceljs` o al tarball CDN
+  SheetJS in un secondo momento (richiede refactor di `financeImportParsers.ts`,
+  fuori scope per un fix rapido).
+- Restano inoltre moderate: `ajv`, `brace-expansion`, `dompurify`, `postcss`
+  (transitive, fix minori disponibili via `npm audit fix`).
 
 ### Obsolescenza
 Diverse dipendenze dirette sono indietro di una o più major:
