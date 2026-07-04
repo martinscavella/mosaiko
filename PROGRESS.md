@@ -68,54 +68,83 @@ Batch veloce su Importanti/Minori completato per questa sessione:
   già disabilitato perché punta a una tabella (`monthly_summary`) inesistente
   (innocuo così com'è, commit `0220be9`).
 
-## Fase 4 — Verifica finale ✅ (2026-07-04, per il lavoro di questa sessione)
-- Rivisto l'intero diff del branch (`git diff master..HEAD --stat`, 26 file,
-  nessuna modifica business-logic non intenzionale trovata).
-- Build di produzione, `tsc --noEmit`, `next lint` e `vitest run` tutti verdi
-  (2 soli warning non bloccanti residui in `financeCache.tsx`, vedi sotto).
-- Changelog riassuntivo: vedi elenco commit sopra (14 commit atomici, ognuno
-  con messaggio descrittivo del cosa e del perché).
+## Fase 3 (continuazione, 2026-07-04) — altri fix su richiesta esplicita dell'utente
+Dopo il primo giro, l'utente ha chiesto di proseguire con le voci rimaste.
+Deciso insieme: I2 rimandato (serve un redesign, non un fix), I3 con batch
+insert (trade-off tutto-o-niente per batch accettato), DB live batch I9+I10+I12
+tutti e tre.
 
-## Voci NON affrontate in questa sessione (debito residuo)
-Rimaste in TRIAGE.md per una sessione futura, con relative note:
-- **I2** — fetch illimitato di tutte le transazioni in `financeCache.tsx`:
-  richiederebbe introdurre paginazione/limite, cambio di comportamento
-  visibile → serve conferma esplicita e test più ampi.
-- **I3** — import bancario con insert riga-per-riga invece di batch: stesso
-  discorso, tocca un flusso critico (import dati finanziari) da testare con
-  attenzione.
+- **I8 risolto**: `/api/transactions` ora verifica esplicitamente
+  `auth.getUser()` prima di interrogare il DB invece di affidarsi solo alle
+  RLS, con test che copre sia il rifiuto (401) sia il funzionamento normale
+  (commit `b7baf54`).
+- **Bug reale scoperto e risolto**: `fetchFinanceData` non selezionava
+  `asset_quantity` pur mappandola subito dopo — la sezione costo/performance
+  della pagina Assets mostrava sempre "—" invece dei valori reali. Fix
+  additivo di una colonna (commit `6c83439`).
+- **I3 risolto**: import bancario ora inserisce in batch da 500 righe per
+  tabella invece che riga per riga (commit `dd8d40e`).
+- **I2 rimandato** (decisione utente): richiede un redesign del caricamento
+  dati (da "tutto in cache al mount" a "on-demand per intervallo"), non un fix
+  a riga singola — servirebbe rompere il comportamento di Report/Transazioni
+  con filtro "tutto lo storico". Proposta di design documentata in TRIAGE.md.
+- **I9 risolto (DB live)**: ricreati i 2 indici FK mancanti
+  (`idx_assets_account_id`, `idx_transactions_asset_id`), confermato che gli
+  advisor di performance non li segnalano più come mancanti.
+- **I10 risolto (DB live)**: `SET search_path = public` su tutte le 23
+  funzioni trigger; `EXECUTE` revocato da `anon`/`authenticated`/`PUBLIC` sulle
+  10 funzioni `SECURITY DEFINER` esposte come RPC pubbliche (verificato che
+  l'app non usa mai `supabase.rpc()`). Ci sono volute due migrazioni: la prima
+  revoca da `anon`/`authenticated` non bastava per via del grant implicito a
+  `PUBLIC` che Postgres crea di default — scoperto rilanciando l'advisor dopo
+  il primo giro. Advisor di sicurezza ora senza warning sulle funzioni.
+- **I12 non applicabile dagli strumenti disponibili**: leaked password
+  protection e MFA sono impostazioni Auth configurabili solo da Dashboard
+  Supabase o Management API, nessun tool MCP disponibile le espone. Azione
+  richiesta all'utente: Dashboard → Authentication → Providers/Policies.
+- `database/schema.sql` riaggiornato per riflettere I9/I10 (indici ricreati,
+  `search_path` su tutte le funzioni).
+
+## Fase 4 — Verifica finale ✅ (2026-07-04)
+- Rivisto l'intero diff del branch a ogni giro (`git diff master..HEAD --stat`),
+  nessuna modifica business-logic non intenzionale trovata.
+- Build di produzione, `tsc --noEmit`, `next lint` e `vitest run` tutti verdi
+  dopo ogni fix (2 soli warning non bloccanti residui in `financeCache.tsx`).
+- Advisor di sicurezza/performance Supabase rilanciati dopo ogni migrazione
+  per verificare l'effetto reale, non solo il "success" della query.
+
+## Voci NON affrontate (debito residuo)
+- **I2** — fetch illimitato di tutte le transazioni: rimandato per decisione
+  esplicita dell'utente, serve un redesign (proposta in TRIAGE.md).
 - **I7 (parziale)** — rimossa la falsa sicurezza di `ProtectedRoute` morto, ma
   il pattern "protezione per pagina copiata a mano" resta; introdurre un
-  middleware o un layout condiviso è un refactor più ampio.
-- **I8** — `api/transactions` continua a fidarsi solo delle RLS senza un
-  controllo esplicito `auth.getUser()`.
-- **I9** — indici FK mancanti su DB live (`assets.account_id`,
-  `transactions.asset_id`): modifica al DB live, da confermare a parte.
-- **I10** — hardening `search_path`/RPC sulle ~21 funzioni trigger rimanenti
-  (oltre a quella già sistemata per C6): modifica al DB live, da confermare.
-- **I12** — leaked password protection e MFA disabilitati lato Supabase Auth:
-  toggle da dashboard, non SQL; da confermare.
+  middleware o un layout condiviso è un refactor più ampio, non tentato per
+  rischio di rompere l'auth senza possibilità di test end-to-end in sessione.
+- **I12** — leaked password protection/MFA: da abilitare manualmente da
+  Dashboard Supabase, nessuno strumento disponibile per farlo da qui.
 - **I13** — migrazione da `@supabase/auth-helpers-nextjs` (deprecato) a
-  `@supabase/ssr`: refactor non banale del pattern di sessione/cookie.
-- **Minori residui**: duplicazione formattazione data/valuta (~8 componenti),
-  `select('*')` senza colonne esplicite, placeholder `your-jwt-secret` in
-  `schema.sql` originale (ora sostituito dalla rigenerazione), dipendenze major
-  indietro (`next` 15→16, `recharts` 2→3, ecc.), ridondanza modello
-  categories/subcategories, upgrade versione Postgres (richiede downtime).
+  `@supabase/ssr`: refactor non banale del pattern di sessione/cookie, stesso
+  motivo di rischio di I7.
+- **Minori residui**: duplicazione formattazione data/valuta (~8 componenti,
+  valutato e scartato per rischio/beneficio sfavorevole), `select('*')` senza
+  colonne esplicite (idem), dipendenze major indietro (`next` 15→16,
+  `recharts` 2→3, ecc.), ridondanza modello categories/subcategories, upgrade
+  versione Postgres (richiede downtime pianificato).
 
 ## Prossime priorità consigliate per rilanciare il progetto
 1. **Verificare C6 con una registrazione reale** appena possibile — è il fix
    più importante di questa sessione ma non è stato testato end-to-end.
-2. Decidere su I2/I3 (paginazione transazioni, import batch) con una sessione
-   dedicata a misurare i dati reali dell'utente (quante transazioni/righe di
-   import tipiche) prima di scegliere la soglia/strategia.
-3. Confermare le modifiche al DB live rimanenti (I9 indici, I10 hardening
-   funzioni, I12 auth) — sono a basso rischio e alto valore.
+2. Abilitare manualmente leaked password protection e MFA da Dashboard
+   Supabase (I12) — 5 minuti, alto valore.
+3. Decidere il design di I2 (paginazione/caricamento incrementale
+   transazioni) con una sessione dedicata a misurare i volumi reali.
 4. Pianificare la migrazione da `@supabase/auth-helpers-nextjs` a
-   `@supabase/ssr` (I13) prima che il pacchetto deprecato smetta di ricevere
-   patch di sicurezza.
+   `@supabase/ssr` (I13) e/o un middleware di autenticazione (I7) — entrambi
+   toccano l'intero flusso di auth, da fare con possibilità di test reale.
 5. Alzare la coverage di test oltre agli smoke test introdotti qui (C1): i
    flussi di scrittura finanziaria (transazioni, asset, rimborsi) sono i più
    critici da coprire.
 6. Autorizzare il connettore Vercel se si vuole che l'analisi includa anche
    deploy/build remoti in una prossima sessione.
+7. Pianificare l'upgrade della versione Postgres (patch di sicurezza
+   disponibili) in una finestra di manutenzione dedicata.

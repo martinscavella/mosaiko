@@ -202,18 +202,34 @@ ciascuna sezione sotto.
 - **Impatto**: nessuna difesa in profondità oltre le RLS; se le RLS venissero
   disabilitate per errore, diventerebbe un IDOR.
 
-### I9 — Indici FK mancanti nel DB Supabase live (drift da `schema.sql`)
+### I9 — Indici FK mancanti nel DB Supabase live (drift da `schema.sql`) ✅ RISOLTO
 - **File**: DB live (`assets.account_id`, `transactions.asset_id`) — non un file
   del repo
 - **Ipotesi causa**: rimossi per errore dalla migrazione `drop_unused_indexes`
   quando le tabelle erano vuote.
 - **Impatto**: sequential scan sui join man mano che i dati crescono.
+- **Azione applicata**: ricreati entrambi gli indici (migrazione
+  `recreate_missing_fk_indexes`, confermato dall'utente). Verificato che gli
+  advisor di performance non segnalano più "unindexed foreign keys" per
+  `assets`/`transactions`.
 
-### I10 — 22 funzioni trigger Postgres con `search_path` mutabile, 9 esposte come RPC pubbliche
+### I10 — 23 funzioni trigger Postgres con `search_path` mutabile, 10 esposte come RPC pubbliche ✅ RISOLTO
 - **File**: DB live, schema `public` (funzioni trigger, vedi AUDIT.md §4bis)
 - **Impatto**: hardening richiesto dal linter Supabase stesso (WARN); rischio
   reale basso (Postgres blocca la chiamata diretta di funzioni `RETURNS trigger`)
   ma superficie d'attacco/rumore da ridurre.
+- **Azione applicata**: aggiunto `SET search_path = public` a tutte le 23
+  funzioni (migrazione `harden_trigger_functions_search_path_and_execute`) e
+  revocato `EXECUTE` dalle 10 funzioni `SECURITY DEFINER` segnalate come
+  chiamabili via `/rest/v1/rpc/<nome>` — prima da `anon`/`authenticated`
+  (migrazione stessa), poi anche da `PUBLIC` quando l'advisor ha mostrato che
+  il grant implicito a `PUBLIC` (creato di default da Postgres) bypassava la
+  prima revoca (migrazione `revoke_public_execute_on_trigger_functions`).
+  Verificato che l'app non chiama mai `supabase.rpc(...)`, quindi nessuna
+  funzionalità dipende da questi endpoint pubblici. I trigger continuano a
+  funzionare (Postgres non richiede `EXECUTE` per l'invocazione automatica di
+  un trigger). Advisor di sicurezza rilanciato: zero warning residui sulle
+  funzioni.
 
 ### I11 — `database/schema.sql` disallineato dal DB live ✅ RISOLTO
 - **File**: [database/schema.sql](database/schema.sql)
@@ -236,11 +252,17 @@ ciascuna sezione sotto.
   senza prima creare la tabella `monthly_summary` (o rimuovere trigger e
   funzioni se la feature "riepilogo mensile" non serve più).
 
-### I12 — Auth hardening disabilitato lato Supabase
+### I12 — Auth hardening disabilitato lato Supabase — NON APPLICABILE dagli strumenti disponibili
 - **File**: configurazione progetto Supabase (Dashboard, non file repo)
 - **Dettaglio**: controllo password compromesse (HaveIBeenPwned) disabilitato,
   poche opzioni MFA abilitate.
 - **Impatto**: basso sforzo di attivazione, alzerebbe la sicurezza degli account.
+- **Perché non risolto in questa sessione**: sono impostazioni di
+  configurazione Auth (non SQL/DDL), esposte solo dalla Dashboard Supabase o
+  dalla Management API — nessuno strumento MCP disponibile in questa sessione
+  permette di modificarle. **Azione richiesta**: da Dashboard → Authentication
+  → Providers/Policies, abilitare "Leaked password protection" e aggiungere
+  almeno un metodo MFA (vedi link di remediation nell'advisor Supabase).
 
 ### I13 — Dipendenza Supabase deprecata
 - **File**: [package.json](package.json) (`@supabase/auth-helpers-nextjs`), uso in

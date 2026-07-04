@@ -176,11 +176,12 @@ CREATE TABLE public.refund_transaction (
 
 CREATE INDEX idx_accounts_user_id ON public.accounts(user_id);
 CREATE INDEX idx_assets_user_id ON public.assets(user_id);
--- ATTENZIONE: idx_assets_account_id e idx_transactions_asset_id sono assenti
--- dal DB live (rimossi per errore dalla migration drop_unused_indexes quando
--- le tabelle erano vuote): mancano indici a copertura per due foreign key
--- reali. Vedi TRIAGE.md I9 — da ricreare, richiede conferma esplicita perché
--- tocca il DB live.
+-- Ricreati il 2026-07-04 (migration recreate_missing_fk_indexes, I9): erano
+-- presenti nella primissima versione di questo file ma assenti dal DB live,
+-- quasi certamente rimossi per errore dalla migration drop_unused_indexes
+-- quando le tabelle erano vuote (0 righe) e sembravano "non usati".
+CREATE INDEX idx_assets_account_id ON public.assets(account_id);
+CREATE INDEX idx_transactions_asset_id ON public.transactions(asset_id);
 CREATE INDEX idx_categories_user_id ON public.categories(user_id);
 CREATE INDEX idx_subcategories_user_id ON public.subcategories(user_id);
 CREATE INDEX idx_subcategories_category_id ON public.subcategories(category_id);
@@ -263,21 +264,28 @@ CREATE POLICY "Enable ALL for users based on user_id" ON public.refund_transacti
 -- ============================================================
 -- FUNZIONI TRIGGER
 -- ============================================================
--- ATTENZIONE (vedi TRIAGE.md I10): ~22 funzioni sotto hanno search_path
--- mutabile secondo il linter di sicurezza Supabase (WARN) e alcune sono
--- SECURITY DEFINER esposte come RPC pubbliche via PostgREST pur essendo
--- pensate per essere chiamate solo dai trigger — non sfruttabili
--- direttamente (Postgres impedisce di chiamare a mano una funzione RETURNS
--- trigger), ma da irrobustire con `SET search_path = public` e
--- `REVOKE EXECUTE ... FROM anon, authenticated`. Non ancora applicato:
--- richiede conferma esplicita (modifica al DB live).
+-- Irrobustite il 2026-07-04 (migration harden_trigger_functions_search_path_and_execute
+-- + revoke_public_execute_on_trigger_functions, I10): tutte le funzioni sotto
+-- hanno ora `SET search_path = public` esplicito (risolto il WARN
+-- "Function Search Path Mutable" del linter Supabase). Le 10 funzioni
+-- SECURITY DEFINER che il linter segnalava come chiamabili via
+-- `/rest/v1/rpc/<nome>` da anon/authenticated (check_refund_transaction_amount,
+-- handle_new_user, handle_user_update, trigger_calculate_monthly_summary,
+-- update_account_balance_on_refund_transaction, update_account_name,
+-- update_category_subcategory_totals, update_current_balance,
+-- update_refund_current_amount, update_transaction_current_amount) hanno
+-- anche EXECUTE revocato da anon/authenticated/PUBLIC (verificato: nessuna
+-- di queste è mai chiamata via supabase.rpc() dall'app). I trigger continuano
+-- a funzionare normalmente: Postgres non richiede il privilegio EXECUTE per
+-- l'invocazione automatica di una funzione trigger, solo per la chiamata
+-- diretta via RPC.
 
 -- Crea automaticamente il profilo utente alla registrazione, popolando i
 -- campi dai metadata passati a supabase.auth.signUp() (firstName, lastName,
 -- language, app_theme, notifications_enabled). Unica funzione che deve
 -- effettivamente inserire la riga in profiles per ogni nuovo utente.
 CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER AS $function$
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $function$
 BEGIN
     INSERT INTO public.profiles (
         id, first_name, last_name, language, app_theme, notifications_enabled,
@@ -309,7 +317,7 @@ END;
 $function$;
 
 CREATE OR REPLACE FUNCTION public.handle_user_update()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER AS $function$
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $function$
 BEGIN
     UPDATE public.profiles
     SET first_name = COALESCE(new.raw_user_meta_data->>'firstName', first_name),
@@ -325,7 +333,7 @@ $function$;
 
 -- Propaga il nome account a tabelle collegate quando accounts.name cambia
 CREATE OR REPLACE FUNCTION public.set_account_name_generic()
-RETURNS trigger LANGUAGE plpgsql AS $function$
+RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $function$
 BEGIN
     IF NEW.account_id IS NOT NULL THEN
         SELECT name INTO NEW.account_name FROM public.accounts WHERE id = NEW.account_id;
@@ -337,7 +345,7 @@ END;
 $function$;
 
 CREATE OR REPLACE FUNCTION public.set_funds_transfer_account_name()
-RETURNS trigger LANGUAGE plpgsql AS $function$
+RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $function$
 BEGIN
     IF NEW.account_id IS NOT NULL THEN
         SELECT name INTO NEW.account_name FROM public.accounts WHERE id = NEW.account_id;
@@ -349,7 +357,7 @@ END;
 $function$;
 
 CREATE OR REPLACE FUNCTION public.update_account_name()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER AS $function$
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $function$
 BEGIN
     NEW.account_name := (SELECT name FROM public.accounts WHERE id = NEW.account_id);
     RETURN NEW;
@@ -357,7 +365,7 @@ END;
 $function$;
 
 CREATE OR REPLACE FUNCTION public.propagate_account_name_change_to_funds_transfer()
-RETURNS trigger LANGUAGE plpgsql AS $function$
+RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $function$
 BEGIN
     IF NEW.name IS DISTINCT FROM OLD.name THEN
         UPDATE public.funds_transfer SET account_name = NEW.name WHERE account_id = NEW.id;
@@ -367,7 +375,7 @@ END;
 $function$;
 
 CREATE OR REPLACE FUNCTION public.propagate_account_name_change_to_related_tables()
-RETURNS trigger LANGUAGE plpgsql AS $function$
+RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $function$
 BEGIN
     IF NEW.name IS DISTINCT FROM OLD.name THEN
         UPDATE public.funds_transfer SET account_name = NEW.name WHERE account_id = NEW.id;
@@ -383,7 +391,7 @@ $function$;
 -- quando update_account_balance_on_transaction_update ha gia' aggiornato il
 -- saldo nello stesso giro.
 CREATE OR REPLACE FUNCTION public.set_trigger_context()
-RETURNS trigger LANGUAGE plpgsql AS $function$
+RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $function$
 BEGIN
     PERFORM set_config('myapp.trigger_context', 'true', false);
     RETURN NEW;
@@ -391,7 +399,7 @@ END;
 $function$;
 
 CREATE OR REPLACE FUNCTION public.update_current_balance()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER AS $function$
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $function$
 DECLARE
     is_trigger_call boolean;
 BEGIN
@@ -421,7 +429,7 @@ END;
 $function$;
 
 CREATE OR REPLACE FUNCTION public.update_account_balance_on_transaction_update()
-RETURNS trigger LANGUAGE plpgsql AS $function$
+RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $function$
 BEGIN
     UPDATE accounts SET current_balance = current_balance - OLD.current_amount + NEW.current_amount WHERE id = NEW.account_id;
     RETURN NEW;
@@ -429,7 +437,7 @@ END;
 $function$;
 
 CREATE OR REPLACE FUNCTION public.recalculate_current_balance()
-RETURNS void LANGUAGE plpgsql AS $function$
+RETURNS void LANGUAGE plpgsql SET search_path = public AS $function$
 BEGIN
     UPDATE accounts SET current_balance = initial_balance
         + (SELECT COALESCE(SUM(initial_amount), 0) FROM transactions WHERE account_id = accounts.id)
@@ -439,7 +447,7 @@ END;
 $function$;
 
 CREATE OR REPLACE FUNCTION public.recalculate_current_balance_by_id(account_id_param uuid)
-RETURNS numeric LANGUAGE plpgsql AS $function$
+RETURNS numeric LANGUAGE plpgsql SET search_path = public AS $function$
 DECLARE
     new_balance numeric;
 BEGIN
@@ -459,7 +467,7 @@ $function$;
 -- Mantiene categories/subcategories.total_amount e transaction_count
 -- sincronizzati a ogni scrittura su transactions/refunds/funds_transfer.
 CREATE OR REPLACE FUNCTION public.update_category_subcategory_totals()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER AS $function$
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $function$
 BEGIN
     IF TG_TABLE_NAME = 'transactions' THEN
         IF TG_OP = 'INSERT' THEN
@@ -494,7 +502,7 @@ END;
 $function$;
 
 CREATE OR REPLACE FUNCTION public.update_category_totals()
-RETURNS void LANGUAGE plpgsql AS $function$
+RETURNS void LANGUAGE plpgsql SET search_path = public AS $function$
 BEGIN
     UPDATE public.categories c
     SET total_amount = COALESCE((SELECT SUM(t.current_amount) FROM public.transactions t WHERE t.category_id = c.id), 0),
@@ -504,7 +512,7 @@ END;
 $function$;
 
 CREATE OR REPLACE FUNCTION public.recalculate_category_subcategory_totals()
-RETURNS void LANGUAGE plpgsql AS $function$
+RETURNS void LANGUAGE plpgsql SET search_path = public AS $function$
 BEGIN
     UPDATE categories SET
         total_amount = COALESCE((SELECT SUM(current_amount) FROM transactions WHERE category_id = categories.id AND current_amount <> 0), 0),
@@ -519,7 +527,7 @@ $function$;
 -- rimborso e lo scala di conseguenza; propaga l'importo alla transazione
 -- collegata e il saldo dell'account.
 CREATE OR REPLACE FUNCTION public.check_refund_transaction_amount()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER AS $function$
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $function$
 BEGIN
     IF NEW.amount > (SELECT current_amount FROM refunds WHERE id = NEW.refund_id) THEN
         RAISE EXCEPTION 'L''importo non può superare l''importo corrente nella tabella refunds.';
@@ -529,7 +537,7 @@ END;
 $function$;
 
 CREATE OR REPLACE FUNCTION public.update_refund_current_amount()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER AS $function$
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $function$
 BEGIN
     IF NEW.amount > (SELECT current_amount FROM refunds WHERE id = NEW.refund_id) THEN
         RAISE EXCEPTION 'L''importo non può superare l''importo corrente nella tabella refunds.';
@@ -540,7 +548,7 @@ END;
 $function$;
 
 CREATE OR REPLACE FUNCTION public.update_transaction_current_amount()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER AS $function$
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $function$
 BEGIN
     IF TG_TABLE_NAME = 'refund_transaction' THEN
         UPDATE transactions SET current_amount = current_amount + NEW.amount WHERE id = NEW.transaction_id;
@@ -550,7 +558,7 @@ END;
 $function$;
 
 CREATE OR REPLACE FUNCTION public.update_account_balance_on_refund_transaction()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER AS $function$
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $function$
 DECLARE
     refund_account_id uuid;
 BEGIN
@@ -575,7 +583,7 @@ $function$;
 -- falliscono oggi. Codice morto sicuro finché resta disabilitato; da NON
 -- riabilitare senza prima creare la tabella monthly_summary.
 CREATE OR REPLACE FUNCTION public.calculate_monthly_summary()
-RETURNS void LANGUAGE plpgsql AS $function$
+RETURNS void LANGUAGE plpgsql SET search_path = public AS $function$
 BEGIN
     INSERT INTO public.monthly_summary (month, year, total_income, total_expense, savings_rate, currency, user_id, total_balance, created_at, updated_at)
     SELECT TO_CHAR(transaction_date, 'Month'), EXTRACT(YEAR FROM transaction_date),
@@ -598,7 +606,7 @@ END;
 $function$;
 
 CREATE OR REPLACE FUNCTION public.trigger_calculate_monthly_summary()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER AS $function$
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $function$
 BEGIN
     PERFORM public.calculate_monthly_summary();
     RETURN NULL;
@@ -606,7 +614,7 @@ END;
 $function$;
 
 CREATE OR REPLACE FUNCTION public.refresh_monthly_summary()
-RETURNS void LANGUAGE plpgsql AS $function$
+RETURNS void LANGUAGE plpgsql SET search_path = public AS $function$
 BEGIN
     INSERT INTO public.monthly_summary (month, year, total_income, total_expense, savings_rate, currency, user_id, total_balance, created_at, updated_at)
     SELECT TO_CHAR(transaction_date, 'Month'), EXTRACT(YEAR FROM transaction_date),
