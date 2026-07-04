@@ -5,7 +5,6 @@ import { useAuth } from "@/lib/auth";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import ModuleLayout from "@/components/ModuleLayout";
 import ModuleHeader from "@/components/ui/ModuleHeader";
-import * as XLSX from "xlsx";
 import {
   Upload,
   FileSpreadsheet,
@@ -297,6 +296,8 @@ export default function ImportPage() {
         file.name.toLowerCase().includes("ticket restaurant") ||
         file.name.toLowerCase().includes("buoni pasto");
       if (isEdenred) {
+        // Import dinamico: xlsx e' pesante e serve solo per questo formato
+        const XLSX = await import("xlsx");
         // Leggi il file come Excel e converti in string[][]
         const data = await file.arrayBuffer();
         const workbook = XLSX.read(data);

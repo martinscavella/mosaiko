@@ -2,7 +2,6 @@
 // Contiene funzioni: parseCSV, parseExcel, parseEdenredExcel, costanti e tipi correlati
 
 import type { ImportRow, BankParser } from './types.js';
-import * as XLSX from 'xlsx';
 
 // Tipo per le statistiche di import
 export type ImportStats = {
@@ -1174,6 +1173,8 @@ export async function parseCSV(file: File, accountId?: string, setDetectedBank?:
 
 // --- parseExcel ---
 export async function parseExcel(file: File, accountId?: string, setDetectedBank?: (parser: BankParser | null) => void, setImportData?: (rows: ImportRow[]) => void, setImportStats?: (stats: ImportStats) => void, accounts?: Account[]) {
+  // Import dinamico: xlsx e' pesante e serve solo quando l'utente importa un file Excel
+  const XLSX = await import('xlsx');
   const arrayBuffer = await file.arrayBuffer();
   const workbook = XLSX.read(arrayBuffer, { type: 'array' });
   const sheetName = workbook.SheetNames[0];
