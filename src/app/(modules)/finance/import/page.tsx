@@ -554,126 +554,177 @@ export default function ImportPage() {
       return;
     }
 
-    // Funzione helper per processare una lista
+    // Numero di righe per singola chiamata insert(): evita un'unica richiesta
+    // enorme su import molto grandi mantenendo comunque pochi round-trip.
+    const INSERT_CHUNK_SIZE = 500;
+
+    // Funzione helper per processare una lista: valida ogni riga, poi
+    // inserisce le righe valide in batch per tabella invece che una alla
+    // volta. Nota: un batch è tutto-o-niente (se una riga viola un vincolo,
+    // l'intero batch di quella chunk viene segnato in errore) invece che
+    // per singola riga come nella versione precedente — è la scelta fatta
+    // per privilegiare la velocità sui grandi import bancari.
     const processList = async (rows: ImportRow[]) => {
       if (!rows || rows.length === 0) return; // Non processare se la lista è vuota
       const updatedData = [...importData];
-      for (let i = 0; i < rows.length; i++) {
-        const row = rows[i];
+      const rowIndexById = new Map(updatedData.map((r, idx) => [r.id, idx]));
+
+      const validRows: { row: ImportRow; insertData: Record<string, unknown> }[] = [];
+
+      for (const row of rows) {
         const errors = validateRow(row);
-        const globalIdx = updatedData.findIndex((r) => r.id === row.id);
         if (errors.length > 0) {
           row.status = "error";
           row.errors = errors;
           errorCount++;
-        } else {
-          try {
-            const transactionDate = new Date(row.date)
-              .toISOString()
-              .split("T")[0];
-            let categoryId: string | null = null;
-            let subcategoryId: string | null = null;
-            if (row.category && row.category.trim() !== "") {
-              const category = userCategories.find(
-                (cat) => cat.name.toLowerCase() === row.category?.toLowerCase()
-              );
-              if (category) {
-                categoryId = category.id;
-                if (row.subcategory && row.subcategory.trim() !== "") {
-                  const subcategory = userSubcategories.find(
-                    (sub) =>
-                      sub.name.toLowerCase() ===
-                        row.subcategory?.toLowerCase() &&
-                      sub.category_id === category.id
-                  );
-                  if (subcategory) {
-                    subcategoryId = subcategory.id;
-                  }
+          continue;
+        }
+        try {
+          const transactionDate = new Date(row.date)
+            .toISOString()
+            .split("T")[0];
+          let categoryId: string | null = null;
+          let subcategoryId: string | null = null;
+          if (row.category && row.category.trim() !== "") {
+            const category = userCategories.find(
+              (cat) => cat.name.toLowerCase() === row.category?.toLowerCase()
+            );
+            if (category) {
+              categoryId = category.id;
+              if (row.subcategory && row.subcategory.trim() !== "") {
+                const subcategory = userSubcategories.find(
+                  (sub) =>
+                    sub.name.toLowerCase() ===
+                      row.subcategory?.toLowerCase() &&
+                    sub.category_id === category.id
+                );
+                if (subcategory) {
+                  subcategoryId = subcategory.id;
                 }
               }
             }
-            let insertData: Record<string, unknown> = {
-              user_id: user.id,
+          }
+          let insertData: Record<string, unknown> = {
+            user_id: user.id,
+          };
+          if (row.targetTable === "transactions") {
+            const initialAmount = parseFloat(
+              (row.initialAmount || row.amount).toString().replace(",", ".")
+            );
+            const currentAmount = parseFloat(
+              (row.currentAmount || row.amount).toString().replace(",", ".")
+            );
+            insertData = {
+              ...insertData,
+              transaction_date: transactionDate,
+              transaction_type:
+                TRANSACTION_TYPE_MAP[row.transactionType || ""] ||
+                row.transactionType ||
+                "expense",
+              transaction_details: row.description.trim(),
+              transaction_code: row.code || null,
+              account_id: row.account || null,
+              category_id: categoryId,
+              subcategory_id: subcategoryId,
+              currency: row.currency || "EUR",
+              initial_amount: initialAmount,
+              current_amount: currentAmount,
+              transaction_note: row.note || null,
+              // Usa il flag importato se presente, altrimenti false
+              is_refunded: !!row.is_refunded,
             };
-            if (row.targetTable === "transactions") {
-              const initialAmount = parseFloat(
-                (row.initialAmount || row.amount).toString().replace(",", ".")
-              );
-              const currentAmount = parseFloat(
-                (row.currentAmount || row.amount).toString().replace(",", ".")
-              );
-              insertData = {
-                ...insertData,
-                transaction_date: transactionDate,
-                transaction_type:
-                  TRANSACTION_TYPE_MAP[row.transactionType || ""] ||
-                  row.transactionType ||
-                  "expense",
-                transaction_details: row.description.trim(),
-                transaction_code: row.code || null,
-                account_id: row.account || null,
-                category_id: categoryId,
-                subcategory_id: subcategoryId,
-                currency: row.currency || "EUR",
-                initial_amount: initialAmount,
-                current_amount: currentAmount,
-                transaction_note: row.note || null,
-                // Usa il flag importato se presente, altrimenti false
-                is_refunded: !!row.is_refunded,
-              };
-            } else if (row.targetTable === "refunds") {
-              const initialAmount = parseFloat(
-                (row.initialAmount || row.amount).toString().replace(",", ".")
-              );
-              const currentAmount = parseFloat(
-                (row.currentAmount || row.amount).toString().replace(",", ".")
-              );
-              insertData = {
-                ...insertData,
-                refund_date: transactionDate,
-                refund_details: row.description.trim(),
-                refund_code: row.code || null,
-                account_id: row.account || null,
-                currency: row.currency || "EUR",
-                initial_amount: Math.abs(initialAmount),
-                current_amount: Math.abs(currentAmount),
-              };
-            } else if (row.targetTable === "funds_transfer") {
-              const amount = parseFloat(
-                row.amount.toString().replace(",", ".")
-              );
-              insertData = {
-                ...insertData,
-                funds_transfer_date: transactionDate,
-                funds_transfer_details: row.description.trim(),
-                funds_transfer_code: row.code || null,
-                account_id: row.account || null,
-                currency: row.currency || "EUR",
-                amount: amount, // NON usare Math.abs() - mantieni il segno originale!
-              };
-            }
-            // LOG DETTAGLIATO PRIMA DELL'INSERT
-            console.log("INSERT", row.targetTable, insertData);
-            const { error } = await supabase
-              .from(row.targetTable)
-              .insert(insertData);
-            if (error) throw error;
-            row.status = "success";
-            successCount++;
-          } catch (error) {
-            console.error("Error inserting transaction:", error);
+          } else if (row.targetTable === "refunds") {
+            const initialAmount = parseFloat(
+              (row.initialAmount || row.amount).toString().replace(",", ".")
+            );
+            const currentAmount = parseFloat(
+              (row.currentAmount || row.amount).toString().replace(",", ".")
+            );
+            insertData = {
+              ...insertData,
+              refund_date: transactionDate,
+              refund_details: row.description.trim(),
+              refund_code: row.code || null,
+              account_id: row.account || null,
+              currency: row.currency || "EUR",
+              initial_amount: Math.abs(initialAmount),
+              current_amount: Math.abs(currentAmount),
+            };
+          } else if (row.targetTable === "funds_transfer") {
+            const amount = parseFloat(
+              row.amount.toString().replace(",", ".")
+            );
+            insertData = {
+              ...insertData,
+              funds_transfer_date: transactionDate,
+              funds_transfer_details: row.description.trim(),
+              funds_transfer_code: row.code || null,
+              account_id: row.account || null,
+              currency: row.currency || "EUR",
+              amount: amount, // NON usare Math.abs() - mantieni il segno originale!
+            };
+          }
+          validRows.push({ row, insertData });
+        } catch (error) {
+          console.error("Errore nella preparazione della riga:", error);
+          row.status = "error";
+          row.errors = ["Errore durante il salvataggio"];
+          errorCount++;
+        }
+      }
+
+      const targetTable = rows[0].targetTable;
+      for (let i = 0; i < validRows.length; i += INSERT_CHUNK_SIZE) {
+        const chunk = validRows.slice(i, i + INSERT_CHUNK_SIZE);
+        const { error } = await supabase
+          .from(targetTable)
+          .insert(chunk.map((c) => c.insertData));
+
+        if (error) {
+          console.error("Errore durante l'insert in batch:", error);
+          chunk.forEach(({ row }) => {
             row.status = "error";
             row.errors = ["Errore durante il salvataggio"];
             errorCount++;
-          }
+          });
+        } else {
+          chunk.forEach(({ row }) => {
+            row.status = "success";
+            successCount++;
+          });
         }
-        // Aggiorna stats e stato globale
-        if (globalIdx !== -1) {
-          updatedData[globalIdx] = { ...row };
+
+        // Aggiorna stato e statistiche una volta per chunk invece che per riga
+        for (const { row } of chunk) {
+          const globalIdx = rowIndexById.get(row.id);
+          if (globalIdx !== undefined) {
+            updatedData[globalIdx] = { ...row };
+          }
         }
         setImportStats((prev) => ({
           ...prev,
-          processed: prev.processed + 1,
+          processed: prev.processed + chunk.length,
+          success: successCount,
+          errors: errorCount,
+        }));
+        setImportData([...updatedData]);
+      }
+
+      // Righe scartate in fase di validazione/preparazione (mai arrivate al
+      // batch insert): aggiorna comunque stato e conteggio finale.
+      const invalidRows = rows.filter(
+        (row) => !validRows.some((v) => v.row.id === row.id)
+      );
+      if (invalidRows.length > 0) {
+        for (const row of invalidRows) {
+          const globalIdx = rowIndexById.get(row.id);
+          if (globalIdx !== undefined) {
+            updatedData[globalIdx] = { ...row };
+          }
+        }
+        setImportStats((prev) => ({
+          ...prev,
+          processed: prev.processed + invalidRows.length,
           success: successCount,
           errors: errorCount,
         }));
