@@ -195,6 +195,7 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
             is_refunded,
             account_name,
             asset_id,
+            asset_quantity,
             accounts(type),
             categories(name),
             subcategories(name)
