@@ -269,6 +269,67 @@ logger che rispetta `NODE_ENV !== 'production'`.
 
 ---
 
+## 4bis. Infrastruttura live (Supabase / GitHub / Vercel)
+
+Accesso verificato il 2026-07-04 tramite MCP Supabase, git locale e API GitHub.
+**Vercel non è accessibile**: il connettore richiede autorizzazione che non può
+essere completata in questa sessione non interattiva — per usarlo, autorizzalo dalle
+impostazioni connettori di claude.ai. **GitHub**: la repo (`martinscavella/mosaiko`)
+è privata e non ho `gh` CLI né token, quindi non posso leggere PR/Issue/Actions da
+remoto (ho comunque piena visibilità sul git locale, già usato in Fase 1).
+
+### Scoperta principale: `database/schema.sql` è obsoleto rispetto al DB live
+Il progetto Supabase collegato (`mosaiko`, id `zrurebzyzrledxwvvpob`, eu-west-2,
+Postgres 15.8.1) ha **~22 funzioni trigger** (`handle_new_user`, `update_current_balance`,
+`update_account_balance_on_refund_transaction`, `update_category_subcategory_totals`,
+`calculate_monthly_summary`, ecc.) e **policy RLS granulari per comando**
+(select/insert/update/delete separate, con ottimizzazione `(select auth.uid())`)
+che **non esistono da nessuna parte in `database/schema.sql`**. Lo schema committato
+descrive solo la versione iniziale (RLS con singola policy `FOR ALL`, nessun trigger).
+Tre migrazioni sono state applicate direttamente sul progetto e non sono tracciate
+nel repo: `add_missing_indexes_on_user_id_and_fks`, `drop_unused_indexes`,
+`fix_rls_auth_uid_performance`. **Rischio**: chiunque guardi `schema.sql` per capire
+il modello dati si fa un'idea sbagliata di come funzionano saldi/totali (calcolati
+via trigger DB, non lato applicazione). Da allineare con `supabase db dump` o
+equivalente non appena possibile.
+
+### Sicurezza (live)
+- **9 funzioni trigger `SECURITY DEFINER` sono chiamabili via `/rest/v1/rpc/<nome>`
+  da `anon` e `authenticated`** (es. `handle_new_user`, `update_account_balance_on_refund_transaction`,
+  `update_transaction_current_amount`). Verificato il codice: sono tutte `RETURNS trigger`,
+  quindi una chiamata diretta fallisce a livello Postgres ("trigger functions can only
+  be called as triggers") — **non sono sfruttabili per manipolare dati direttamente**,
+  ma restano superficie d'attacco/rumore non necessaria nello schema pubblico
+  dell'API. Fix consigliato: `REVOKE EXECUTE ON FUNCTION ... FROM anon, authenticated`
+  su tutte le funzioni trigger interne.
+- **Tutte le ~22 funzioni hanno `search_path` mutabile** (WARN del linter Supabase) —
+  buona pratica: aggiungere `SET search_path = public` a ogni definizione.
+- **Password compromesse (HaveIBeenPwned check) disabilitato** e **poche opzioni
+  MFA abilitate** — entrambi WARN, si sistemano da Dashboard Supabase → Auth →
+  Policies (non richiede migrazione SQL).
+- **Versione Postgres con patch di sicurezza disponibili** — richiede upgrade del
+  progetto Supabase (azione con possibile downtime, va programmata con te, non
+  la eseguo senza conferma esplicita).
+- Verificate le RLS live: sono corrette e più granulari del previsto (policy
+  separate per comando, tutte con `user_id = (select auth.uid())`), incluso un
+  falso allarme controllato: `profiles` ha una policy INSERT con `with_check: true`
+  ma è ristretta al ruolo `service_role` (bypassa comunque RLS) — nessun problema.
+
+### Performance (live)
+- **Bug reale**: gli indici `idx_assets_account_id` e `idx_transactions_asset_id`
+  presenti in `schema.sql` **non esistono più nel DB live** — quasi certamente
+  rimossi per errore dalla migrazione `drop_unused_indexes` quando il DB era vuoto
+  (0 righe) e sembravano "non usati". Man mano che i dati crescono, i join su
+  `assets.account_id` e `transactions.asset_id` faranno sequential scan. Da
+  ricreare.
+- Il linter segnala 13 "unused index" (su `user_id` di quasi tutte le tabelle) —
+  **quasi certamente falsi positivi**: il DB ha 0-13 righe per tabella, quindi
+  qualunque indice risulta "non usato" per mancanza di traffico reale. Non vanno
+  rimossi sulla base di questo segnale.
+- Nel DB live la tabella `subcategories` ha un commento letterale
+  `"This is a duplicate of categories"` lasciato da uno sviluppatore — conferma
+  indipendente della ridondanza di modello già ipotizzabile dallo schema.
+
 ## 5. Riepilogo per la Fase 2
 
 I punti sopra sono pronti per essere prioritizzati in FASE 2 (Critici / Importanti /
@@ -281,5 +342,8 @@ Minori). In sintesi, i cluster di problemi più rilevanti sono:
 4. Bundle non ottimizzato (xlsx/jspdf statici) e re-render non memoizzati sul
    context principale dell'app.
 5. Zero test automatici — qualsiasi fix di Fase 3 partirà da coverage 0%.
+6. `database/schema.sql` disallineato dal DB Supabase live (mancano trigger e RLS
+   granulari) e due indici FK-covering presenti nello schema ma assenti dal DB
+   reale (`idx_assets_account_id`, `idx_transactions_asset_id`).
 
-Attendo la tua revisione prima di passare alla FASE 2 (triage e prioritizzazione).
+Procedo con la FASE 2 (triage) qui sotto.
