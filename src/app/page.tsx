@@ -130,10 +130,10 @@ export default function HomePage() {
             >
               <div className="flex items-center gap-4 mb-4">
                 <div className={clsx(
-                  "w-12 h-12 rounded-xl flex items-center justify-center text-2xl",
-                  module.status === 'active' ? "bg-blue-50" : "bg-gray-100"
+                  "w-12 h-12 rounded-xl flex items-center justify-center",
+                  module.status === 'active' ? "bg-blue-50 text-blue-600" : "bg-gray-100 text-gray-400"
                 )}>
-                  {module.icon}
+                  <module.icon className="w-6 h-6" />
                 </div>
                 <div>
                   <h3 className="font-semibold text-gray-900">{module.name}</h3>
