@@ -135,16 +135,40 @@ ciascuna sezione sotto.
   del tempo totale proporzionale a N (es. 10 asset ≈ 10x più lento del
   necessario).
 
-### I2 — Fetch illimitato di tutte le transazioni ad ogni mount/invalidazione cache
+### I2 — Fetch illimitato di tutte le transazioni ad ogni mount/invalidazione cache — RIMANDATO (decisione utente)
 - **File**: [src/lib/financeCache.tsx:181-229](src/lib/financeCache.tsx#L181)
 - **Sintomo**: nessun filtro data/limite superiore, loop `while(hasMore)` a batch
   di 1000.
 - **Impatto stimato**: cresce linearmente con lo storico dell'utente; per utenti
   pluriennali, migliaia di righe scaricate a ogni login.
+- **Perché rimandato**: un fix "vero" (senza rompere i filtri "tutto lo storico"
+  già presenti in Report e Transazioni) non è un fix a riga singola — richiede
+  di ripensare `FinanceCacheProvider` da "carica tutto in una cache unica al
+  mount" a "carica su richiesta per intervallo", toccando insieme Reports,
+  Transactions e Assets. L'utente ha scelto di rimandarlo a una sessione
+  dedicata invece di un tetto di sicurezza affrettato che avrebbe cambiato il
+  comportamento di default per chi ha dati più vecchi.
+- **Proposta di design per la prossima sessione**:
+  1. Introdurre un parametro di range (o un cursore) nelle funzioni che
+     leggono `financeData.transactions`, invece di assumere che l'array in
+     cache contenga sempre tutto lo storico.
+  2. Far diventare `fetchFinanceData` incrementale: caricamento iniziale
+     limitato (es. ultimi 12-24 mesi) + funzione `loadMoreTransactions(range)`
+     richiamabile da Report/Transazioni quando l'utente seleziona un periodo
+     più ampio o "tutto lo storico".
+  3. Verificare tutti i consumer di `financeData.transactions` (Reports,
+     Transactions, Assets, AssetPerformanceChart, TransactionsTable) per capire
+     quali assumono implicitamente "l'array contiene tutto" e andrebbero
+     adattati al caricamento incrementale.
+  4. Misurare i volumi reali (quante transazioni ha un utente tipo dopo N
+     anni) prima di scegliere la soglia di default.
 
-### I3 — Import bancario: insert riga-per-riga invece di batch
+### I3 — Import bancario: insert riga-per-riga invece di batch ✅ RISOLTO
 - **File**: [src/app/(modules)/finance/import/page.tsx:556-668](<src/app/(modules)/finance/import/page.tsx#L656>)
-- **Impatto stimato**: 500 righe = 500 round-trip di rete sequenziali + 500
+- **Azione applicata**: insert in batch da 500 righe per tabella invece che
+  riga per riga (confermato dall'utente, accettando il trade-off tutto-o-niente
+  per batch invece che per singola riga). Vedi commit `dd8d40e`.
+- **Impatto stimato (prima)**: 500 righe = 500 round-trip di rete sequenziali + 500
   re-render invece di 1 `insert([...])` batch — riduzione attesa del tempo di
   import di uno o due ordini di grandezza.
 
