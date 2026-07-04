@@ -112,68 +112,63 @@ export default function TotalBalanceChart({ data, className = '' }: TotalBalance
   // Early return se non ci sono dati
   if (!chartData.length) {
     return (
-      <div className={`group relative ${className}`}>
-        <div className="bg-white/95 backdrop-blur-xl border border-white/50 shadow-2xl rounded-2xl p-6 mb-4 min-h-[300px] max-h-[300px]">
-          <div className="h-full flex items-center justify-center text-gray-500">
-            Nessun dato disponibile
-          </div>
+      <div className={`bg-white border border-gray-200 shadow-sm rounded-xl p-5 mb-4 min-h-[300px] max-h-[300px] ${className}`}>
+        <div className="h-full flex items-center justify-center text-gray-500">
+          Nessun dato disponibile
         </div>
       </div>
     );
   }
 
   return (
-    <div className={`group relative ${className}`}>
-      <div className="bg-white/95 backdrop-blur-xl border border-white/50 shadow-2xl rounded-2xl p-6 mb-4 min-h-[300px] max-h-[300px]">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-4">
-            <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-lg">
-              <svg className="h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h11M9 21V3m12 7h-7m4 4-4-4m0 0 4-4" />
-              </svg>
-            </div>
-            <div>
-              <h3 className="text-lg font-bold text-gray-900 tracking-tight">Patrimonio</h3>
-                <p className="text-sm text-gray-600 font-medium">Andamento del tuo patrimonio</p>
-            </div>
+    <div className={`bg-white border border-gray-200 shadow-sm rounded-xl p-5 mb-4 min-h-[300px] max-h-[300px] ${className}`}>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center space-x-3">
+          <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-blue-100 text-blue-600">
+            <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h11M9 21V3m12 7h-7m4 4-4-4m0 0 4-4" />
+            </svg>
           </div>
-          
+          <div>
+            <h3 className="text-base font-semibold text-gray-900">Patrimonio</h3>
+            <p className="text-sm text-gray-500">Andamento del tuo patrimonio</p>
+          </div>
         </div>
-        <ResponsiveContainer width="100%" height={170}>
-          <AreaChart data={chartData} margin={{ top: 6, right: 0, left: 0, bottom: 0 }}>
-            <defs>
-              <linearGradient id="colorBalance" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#2563eb" stopOpacity={0.1} />
-                <stop offset="100%" stopColor="#2563eb" stopOpacity={0.01} />
-              </linearGradient>
-            </defs>
-            <Tooltip
-              contentStyle={{ 
-                borderRadius: 8, 
-                background: '#fff', 
-                border: '1px solid #e5e7eb', 
-                color: '#2563eb', 
-                fontWeight: 500, 
-                fontSize: 14, 
-                boxShadow: 'none',
-                padding: 8 
-              }}
-              itemStyle={{ color: '#2563eb', fontWeight: 500 }}
-              formatter={(value) => formatCurrency(Number(value))}
-              labelFormatter={(label) => new Date(label).toLocaleDateString('it-IT')}
-            />
-            <XAxis dataKey="date" hide />
-            <Area
-              type="basis"
-              dataKey="balance"
-              stroke="#2563eb"
-              strokeWidth={2}
-              fill="url(#colorBalance)"
-              dot={false}
-            />
-          </AreaChart>
-        </ResponsiveContainer>
       </div>
+      <ResponsiveContainer width="100%" height={170}>
+        <AreaChart data={chartData} margin={{ top: 6, right: 0, left: 0, bottom: 0 }}>
+          <defs>
+            <linearGradient id="colorBalance" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#2563eb" stopOpacity={0.1} />
+              <stop offset="100%" stopColor="#2563eb" stopOpacity={0.01} />
+            </linearGradient>
+          </defs>
+          <Tooltip
+            contentStyle={{
+              borderRadius: 8,
+              background: '#fff',
+              border: '1px solid #e5e7eb',
+              color: '#2563eb',
+              fontWeight: 500,
+              fontSize: 14,
+              boxShadow: 'none',
+              padding: 8
+            }}
+            itemStyle={{ color: '#2563eb', fontWeight: 500 }}
+            formatter={(value) => formatCurrency(Number(value))}
+            labelFormatter={(label) => new Date(label).toLocaleDateString('it-IT')}
+          />
+          <XAxis dataKey="date" hide />
+          <Area
+            type="basis"
+            dataKey="balance"
+            stroke="#2563eb"
+            strokeWidth={2}
+            fill="url(#colorBalance)"
+            dot={false}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
     </div>
   );
 }
