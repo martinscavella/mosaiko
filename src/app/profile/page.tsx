@@ -104,7 +104,7 @@ export default function ProfilePage() {
             <div className="lg:col-span-1">
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <div className="text-center">
-                  <div className="w-24 h-24 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full mx-auto mb-4 flex items-center justify-center shadow-lg">
+                  <div className="w-24 h-24 bg-blue-600 rounded-full mx-auto mb-4 flex items-center justify-center">
                     <span className="text-2xl font-bold text-white">
                       {(profile?.first_name?.[0] || user?.email?.[0] || 'U').toUpperCase()}
                     </span>
@@ -237,7 +237,7 @@ export default function ProfilePage() {
                         <button
                           onClick={handleSave}
                           disabled={loading}
-                          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <Save className="w-4 h-4 mr-2" />
                           {loading ? 'Salvataggio...' : 'Salva Modifiche'}
@@ -290,9 +290,9 @@ export default function ProfilePage() {
                         disabled={!editing}
                         className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-500 sm:text-sm"
                       >
-                        <option value="dark">🌙 Scuro</option>
-                        <option value="light">☀️ Chiaro</option>
-                        <option value="auto">🔄 Automatico</option>
+                        <option value="dark">Scuro</option>
+                        <option value="light">Chiaro</option>
+                        <option value="auto">Automatico</option>
                       </select>
                     </div>
 
@@ -309,7 +309,7 @@ export default function ProfilePage() {
                         </div>
                         <div className="ml-3">
                           <label className="text-sm font-medium text-gray-900">
-                            🔔 Notifiche Push
+                            Notifiche Push
                           </label>
                           <p className="text-xs text-gray-600 mt-1">
                             Ricevi aggiornamenti importanti e promemoria

@@ -90,15 +90,11 @@ export default function RegisterPage() {
       <div className="w-full h-screen">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-0 h-full">
           {/* Left side - Decorative */}
-          <div className="hidden md:flex flex-col items-center justify-center relative overflow-hidden p-8 h-full w-full bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900">
-            <div className="absolute inset-0 opacity-30">
-              <div className="absolute top-10 right-10 w-96 h-96 bg-gradient-to-br from-pink-500 to-purple-600 rounded-full blur-3xl animate-pulse" />
-              <div className="absolute bottom-10 left-10 w-80 h-80 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
-            </div>
-            <div className="relative z-10 text-center">
-              <p className="text-white text-opacity-70 text-sm font-semibold tracking-widest mb-8">INIZIA ORA</p>
+          <div className="hidden md:flex flex-col items-center justify-center p-8 h-full w-full bg-gray-900">
+            <div className="text-center">
+              <p className="text-gray-400 text-sm font-semibold tracking-widest mb-8">INIZIA ORA</p>
               <h2 className="text-5xl md:text-6xl font-bold text-white mb-6 leading-tight">Gestisci Tutto in Un Posto</h2>
-              <p className="text-white text-opacity-80 text-lg max-w-sm mx-auto leading-relaxed">Finanze, salute, apprendimento e task. Tutto organizzato e semplificato.</p>
+              <p className="text-gray-300 text-lg max-w-sm mx-auto leading-relaxed">Finanze, salute, apprendimento e task. Tutto organizzato e semplificato.</p>
             </div>
           </div>
 
