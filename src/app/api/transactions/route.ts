@@ -35,17 +35,10 @@ export async function GET(request: NextRequest) {
         { error: 'Errore nel recupero delle transazioni' },
         { status: 500 }
       )
-    }    // Trasforma i dati per il formato richiesto dal componente
-    console.log('🔍 Raw transactions from DB:', transactions)
-    
+    }
+
+    // Trasforma i dati per il formato richiesto dal componente
     const formattedTransactions = transactions.map(t => {
-      console.log('Processing transaction:', {
-        id: t.id,
-        type: t.transaction_type,
-        amount: t.initial_amount,
-        quantity: t.asset_quantity
-      })
-      
       // Per gli investimenti, se c'è asset_quantity positiva, è un acquisto
       // indipendentemente dal transaction_type nel database
       const isAcquisition = (t.asset_quantity || 0) > 0
@@ -59,8 +52,6 @@ export async function GET(request: NextRequest) {
         transaction_date: t.transaction_date
       }
     })
-
-    console.log('✅ Formatted transactions:', formattedTransactions)
 
     return NextResponse.json(formattedTransactions)
   } catch (error) {

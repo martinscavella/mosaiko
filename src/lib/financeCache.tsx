@@ -823,11 +823,7 @@ export function useAssetOperations() {
       const avgPurchasePrice = totalQuantityBought > 0 ? totalCostSpent / totalQuantityBought : 0
       const currentValue = Math.max(0, totalQuantity * avgPurchasePrice)
 
-      console.log('📊 Calcoli finali:', {
-        totalQuantity: totalQuantity.toFixed(4),
-        avgPurchasePrice: avgPurchasePrice.toFixed(2),
-        currentValue: currentValue.toFixed(2)
-      })      // 4. Aggiorna l'asset nel database
+      // 4. Aggiorna l'asset nel database
       const { data: updatedAssets, error: updateError } = await supabase
         .from('assets')
         .update({
@@ -850,12 +846,6 @@ export function useAssetOperations() {
       }
 
       const updatedAsset = updatedAssets[0]
-
-      console.log('✅ Asset aggiornato con successo:', {
-        id: assetId,
-        quantity: updatedAsset.quantity,
-        value: updatedAsset.value
-      })
 
       // 5. Refresh della cache
       await refetch()
@@ -1002,8 +992,6 @@ export function useAssetOperations() {
   const updateAssetMarketValue = useCallback(async (assetId: string) => {
     if (!user) throw new Error('User not authenticated')
 
-    console.log('💰 Aggiornamento valore asset con prezzo di mercato:', assetId)
-
     try {
       // 1. Recupera l'asset con simbolo e quantità
       const { data: asset, error: assetError } = await supabase
@@ -1040,7 +1028,6 @@ export function useAssetOperations() {
 
       // 3. Calcola il nuovo valore
       const newValue = asset.quantity * currentMarketPrice
-      console.log(`💰 Nuovo valore calcolato: ${asset.quantity} * ${currentMarketPrice} = ${newValue} EUR`)
 
       // 4. Aggiorna l'asset nel database
       const { error: updateError } = await supabase

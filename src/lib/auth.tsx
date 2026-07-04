@@ -25,10 +25,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const getSession = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       setUser(session?.user ?? null)
-      if (session?.user) {
-        console.log('User logged in:', session.user)
-        console.log('User metadata:', session.user.user_metadata)
-      }
       setLoading(false)
     }
 
@@ -36,10 +32,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
       setUser(session?.user ?? null)
-      if (session?.user) {
-        console.log('Auth state changed - User:', session.user)
-        console.log('User metadata:', session.user.user_metadata)
-      }
       setLoading(false)
     })
 
@@ -50,19 +42,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     try {
-      console.log('Tentativo di login con:', email)
-      
-      const { data, error } = await supabase.auth.signInWithPassword({ 
-        email, 
-        password 
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password
       })
-      
-      console.log('Risultato login:', { data, error })
-      
+
       if (error) {
         console.error('Errore di login:', error)
       }
-      
+
       return { error }
     } catch (error) {
       console.error('Errore catch login:', error)
@@ -72,8 +60,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signUp = async (email: string, password: string, metadata?: Partial<ProfileData>) => {
     try {
-      console.log('Tentativo di registrazione con:', { email, metadata })
-      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -81,8 +67,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           data: metadata
         }
       })
-
-      console.log('Risultato registrazione:', { data, error })
 
       if (error) {
         console.error('Errore di autenticazione:', error)
@@ -106,8 +90,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           app_theme: typeof md['app_theme'] === 'string' ? (md['app_theme'] as string) : typeof md['appTheme'] === 'string' ? (md['appTheme'] as string) : 'dark',
           notifications_enabled: typeof md['notifications_enabled'] === 'boolean' ? (md['notifications_enabled'] as boolean) : typeof md['notificationsEnabled'] === 'boolean' ? (md['notificationsEnabled'] as boolean) : true,
         }
-
-        console.log('Creazione profilo con dati:', profileData)
 
         // Creiamo il profilo nella tabella profiles
         const { error: profileError } = await createUserProfile(data.user.id, profileData)
