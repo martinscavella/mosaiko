@@ -312,16 +312,18 @@ export default function AssetsPage() {
         return
       }
       
-      // Aggiorna ogni asset
+      // Aggiorna ogni asset senza ricaricare la cache a ogni iterazione:
+      // un solo refetch() finale invece di uno per ogni asset (N+1 di rete).
       for (const asset of assetsWithSymbol) {
         try {
-          await updateAssetMarketValue(asset.id)
+          await updateAssetMarketValue(asset.id, { skipRefetch: true })
           console.log(`✅ Aggiornato ${asset.name}`)
         } catch (error) {
           console.error(`❌ Errore aggiornamento ${asset.name}:`, error)
         }
       }
-      
+
+      await refetch()
       console.log('✅ Aggiornamento completato')
       
     } catch (error) {

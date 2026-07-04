@@ -396,14 +396,14 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
     setError(null)
   }, [])
 
-  const contextValue: FinanceCacheContextType = {
+  const contextValue: FinanceCacheContextType = useMemo(() => ({
     data,
     loading,
     error,
     refetch,
     invalidateCache,
     isDataStale: data ? isDataStale(data.lastFetch) : false
-  };
+  }), [data, loading, error, refetch, invalidateCache, isDataStale]);
 
   return <FinanceCacheContext.Provider value={contextValue}>{children}</FinanceCacheContext.Provider>;
 }
@@ -989,7 +989,10 @@ export function useAssetOperations() {
   }, [user, supabase])
 
   // Funzione per aggiornare il valore di un asset con il prezzo di mercato corrente
-  const updateAssetMarketValue = useCallback(async (assetId: string) => {
+  // skipRefetch evita di ricaricare l'intera cache quando la funzione viene
+  // chiamata in sequenza per più asset (vedi handleUpdateAllAssetsValues):
+  // il chiamante fa un solo refetch() finale invece di uno per ogni asset.
+  const updateAssetMarketValue = useCallback(async (assetId: string, options?: { skipRefetch?: boolean }) => {
     if (!user) throw new Error('User not authenticated')
 
     try {
@@ -1047,7 +1050,9 @@ export function useAssetOperations() {
       console.log(`✅ Asset "${asset.name}" aggiornato con successo`)
       
       // 5. Refresh della cache
-      await refetch()
+      if (!options?.skipRefetch) {
+        await refetch()
+      }
 
       return {
         success: true,
