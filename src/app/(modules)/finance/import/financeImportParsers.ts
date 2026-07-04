@@ -794,7 +794,6 @@ export const BANK_PARSERS: BankParser[] = [
       
       // Estrai i campi - Trade Republic ha SEMPRE questi header
       const dateISO = findValue(headers, values, ['date']) || '';
-      const datetimeISO = findValue(headers, values, ['datetime']) || '';
       const categoryTR = (findValue(headers, values, ['category']) || '').toUpperCase().trim();
       const typeRaw = (findValue(headers, values, ['type']) || '').toUpperCase().trim();
       const amountStr = (findValue(headers, values, ['amount']) || '0').trim();
