@@ -13,7 +13,15 @@ export async function GET(request: NextRequest) {
   try {
     const cookieStore = cookies()
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
-    
+
+    // Verifica esplicita dell'autenticazione: prima ci si affidava solo alle
+    // RLS, senza difesa in profondità se una policy fosse mai stata
+    // disabilitata o modificata per errore.
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return NextResponse.json({ error: 'Non autenticato' }, { status: 401 })
+    }
+
     // Recupera le transazioni dell'asset dal database
     const { data: transactions, error } = await supabase
       .from('transactions')
