@@ -1222,10 +1222,10 @@ export default function ImportPage() {
         {/* Resto del contenuto... */}
         {/* Sezione Upload - Solo se non c'è un file caricato */}
         {!currentFile && (
-          <div className="bg-white/95 backdrop-blur-xl border border-white/50 shadow-2xl rounded-2xl p-8 relative">
-            <div className="flex itemscenter justify-between mb-6">
+          <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-8 relative">
+            <div className="flex items-center justify-between mb-6">
               <div className="flex items-center space-x-3">
-                <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg">
+                <div className="p-3 bg-blue-600 rounded-xl">
                   <Upload className="w-6 h-6 text-white" />
                 </div>
                 <div>
@@ -1374,7 +1374,7 @@ export default function ImportPage() {
 
         {/* Informazioni File Caricato */}
         {currentFile && (
-          <div className="bg-white/95 backdrop-blur-xl border border-white/50 shadow-lg rounded-xl p-6">
+          <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
                 <div className="p-3 bg-green-100 rounded-xl">
@@ -1401,7 +1401,7 @@ export default function ImportPage() {
 
         {/* Progress Bar durante l'import */}
         {isUploading && importStats.total > 0 && (
-          <div className="bg-white/95 backdrop-blur-xl border border-white/50 shadow-lg rounded-xl p-6">
+          <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">
                 Import in corso...
@@ -1425,7 +1425,7 @@ export default function ImportPage() {
 
         {/* Preview Dati */}
         {importData.length > 0 && (
-          <div className="bg-white/95 backdrop-blur-xl border border-white/50 shadow-lg rounded-xl overflow-hidden">
+          <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden">
             <div className="p-6 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <div>
