@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import ModuleLayout from '@/components/ModuleLayout'
 import ModuleHeader from '@/components/ui/ModuleHeader'
 import CacheStatus from '@/components/ui/CacheStatus'
 import { useAuth } from '@/lib/auth'
 import { useFinanceCache, useAssets, useAssetStats, useAssetOperations, useAccounts, useAssetTransactions, useUnlinkedAssetTransactions, type Asset } from '@/lib/financeCache'
+import { aggregateAssetPurchaseData, normalizeAssetTransaction, EMPTY_PURCHASE_DATA, type AssetPurchaseData, type NormalizedAssetTransaction } from '@/lib/helpers/assetPurchaseData'
 import AssetPerformanceChart from '@/components/ui/AssetPerformanceChart'
 import { 
   TrendingUp, 
@@ -100,65 +101,35 @@ export default function AssetsPage() {
     }).format(amount)
   }
 
-  // Helper function to get purchase data from transactions
+  // Costo/quantità/performance per asset, calcolati UNA SOLA VOLTA per ogni
+  // cambio di financeData invece che ad ogni render per ogni asset visibile
+  // e ad ogni confronto durante l'ordinamento per "Performance" (prima erano
+  // O(assets × transazioni), ora un solo raggruppamento O(transazioni)).
   // IMPORTANTE: deve stare prima di qualsiasi return condizionale (Rules of Hooks)
-  const getAssetPurchaseData = useCallback((assetId: string) => {
-    const assetTransactions = financeData?.transactions?.filter(t => t.asset_id === assetId) || []
-    
-    if (assetTransactions.length === 0) {
-      return {
-        totalCost: 0,
-        totalQuantity: 0,
-        avgPurchasePrice: 0,
-        firstPurchaseDate: null,
-        hasTransactions: false
-      }
+  const assetPurchaseDataMap = useMemo(() => {
+    const map = new Map<string, AssetPurchaseData>()
+    const transactionsByAsset = new Map<string, NormalizedAssetTransaction[]>()
+
+    for (const transaction of financeData?.transactions ?? []) {
+      if (!transaction.asset_id) continue
+      const normalized = normalizeAssetTransaction(transaction)
+      if (!normalized) continue
+
+      const list = transactionsByAsset.get(transaction.asset_id) ?? []
+      list.push(normalized)
+      transactionsByAsset.set(transaction.asset_id, list)
     }
 
-    // Replica la stessa logica di AssetPerformanceChart per calcolare i totali
-    let totalQuantity = 0
-    let totalCostSpent = 0
-    let totalQuantityBought = 0
-    let firstPurchaseDate: string | null = null
-
-    // Simula la struttura dell'API /api/transactions
-    const formattedTransactions = assetTransactions
-      .filter(t => t.asset_quantity !== null && t.asset_quantity !== undefined)
-      .map(t => {
-        const isAcquisition = (t.asset_quantity || 0) > 0
-        return {
-          transaction_type: isAcquisition ? 'buy' : 'sell' as 'buy' | 'sell',
-          quantity: Math.abs(t.asset_quantity || 0),
-          unit_price: Math.abs(t.current_amount || 0) / Math.abs(t.asset_quantity || 1),
-          transaction_date: t.transaction_date
-        }
-      })
-      .sort((a, b) => new Date(a.transaction_date).getTime() - new Date(b.transaction_date).getTime())
-
-    formattedTransactions.forEach(t => {
-      if (t.transaction_type === 'buy') {
-        totalQuantity += t.quantity
-        totalCostSpent += t.quantity * t.unit_price
-        totalQuantityBought += t.quantity
-        if (!firstPurchaseDate) {
-          firstPurchaseDate = t.transaction_date
-        }
-      } else if (t.transaction_type === 'sell') {
-        totalQuantity -= t.quantity
-      }
+    transactionsByAsset.forEach((normalizedTransactions, assetId) => {
+      map.set(assetId, aggregateAssetPurchaseData(normalizedTransactions))
     })
 
-    const avgPurchasePrice = totalQuantityBought > 0 ? totalCostSpent / totalQuantityBought : 0
-    const currentCost = totalQuantity * avgPurchasePrice
-
-    return {
-      totalCost: Math.max(0, currentCost),
-      totalQuantity: Math.max(0, totalQuantity),
-      avgPurchasePrice: avgPurchasePrice,
-      firstPurchaseDate: firstPurchaseDate,
-      hasTransactions: formattedTransactions.length > 0
-    }
+    return map
   }, [financeData])
+
+  const getAssetPurchaseData = useCallback((assetId: string): AssetPurchaseData => {
+    return assetPurchaseDataMap.get(assetId) ?? EMPTY_PURCHASE_DATA
+  }, [assetPurchaseDataMap])
 
   // Loading states
   if (authLoading) {

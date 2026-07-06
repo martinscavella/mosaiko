@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { TrendingUp, TrendingDown, BarChart3, RefreshCw, AlertTriangle } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceLine } from 'recharts'
 import { formatCurrency } from '@/lib/helpers/format'
+import { aggregateAssetPurchaseData } from '@/lib/helpers/assetPurchaseData'
 
 interface PerformanceDataPoint {
   date: string
@@ -63,7 +64,6 @@ export default function AssetPerformanceChart({
     if (!forceRefresh) {
       const cached = sessionStorage.getItem(cacheKey)
       if (cached) {
-        console.log('� Using cached transactions data')        
         const data = JSON.parse(cached)
         setTransactions(data.transactions)
         setTotalCost(data.totalCost)
@@ -73,57 +73,35 @@ export default function AssetPerformanceChart({
       }
     }
 
-    console.log('�🔍 Fetching transactions for asset:', asset.id, asset.name)
     try {
       const response = await fetch(`/api/transactions?asset_id=${asset.id}`)
-      console.log('📡 API Response status:', response.status)
-      
+
       if (response.ok) {
         const data = await response.json()
-        console.log('📊 Transactions data:', data)
-        setTransactions(data)        // Calcola totali: prima la quantità attuale, poi il costo medio
-        let totalQuantity = 0
-        let totalCostSpent = 0
-        let totalQuantityBought = 0
-        
-        data.forEach((t: Transaction) => {
-          console.log('Processing transaction:', t)
-          
-          if (t.transaction_type === 'buy') {
-            // Acquisto: aggiungi alla quantità totale e al costo totale speso
-            totalQuantity += t.quantity
-            totalCostSpent += t.quantity * t.unit_price
-            totalQuantityBought += t.quantity
-          } else if (t.transaction_type === 'sell') {
-            // Vendita: sottrai dalla quantità totale
-            totalQuantity -= t.quantity
-          }
-        })
-        
-        // Il costo da considerare per il ROI è proporzionale alla quantità attuale
-        const avgPurchasePrice = totalQuantityBought > 0 ? totalCostSpent / totalQuantityBought : 0
-        const currentCost = totalQuantity * avgPurchasePrice
-        
-        console.log('💰 Calculated totals - Current Quantity:', totalQuantity, 'Avg Price:', avgPurchasePrice, 'Current Cost:', currentCost)
-        setTotalQuantity(Math.max(0, totalQuantity))
-        setTotalCost(Math.max(0, currentCost))
-          // Salva in cache con timestamp
+        setTransactions(data)
+
+        const { totalQuantity, totalCost } = aggregateAssetPurchaseData(data)
+
+        setTotalQuantity(totalQuantity)
+        setTotalCost(totalCost)
+
+        // Salva in cache con timestamp
         const cacheData = {
           transactions: data,
-          totalCost: Math.max(0, currentCost),
-          totalQuantity: Math.max(0, totalQuantity),
+          totalCost,
+          totalQuantity,
           timestamp: new Date().toISOString()
         }
         sessionStorage.setItem(cacheKey, JSON.stringify(cacheData))
         setLastUpdated(cacheData.timestamp)
       } else {
         const errorData = await response.json()
-        console.error('❌ API Error:', errorData)
+        console.error('Errore API transazioni asset:', errorData)
       }
     } catch (error) {
-      console.error('❌ Fetch error:', error)
+      console.error('Errore nel recupero delle transazioni asset:', error)
     }
-  }, [asset.id, asset.name, getCacheKey])
+  }, [asset.id, getCacheKey])
   // Funzione per recuperare il prezzo di mercato attuale con cache
   const fetchCurrentPrice = useCallback(async (forceRefresh = false) => {
     const cacheKey = getCacheKey('price')
@@ -132,7 +110,6 @@ export default function AssetPerformanceChart({
     if (!forceRefresh) {
       const cached = sessionStorage.getItem(cacheKey)
       if (cached) {
-        console.log('� Using cached price data')
         const data = JSON.parse(cached)
         setCurrentMarketPrice(data.price)
         setLastUpdated(data.timestamp)
@@ -140,29 +117,24 @@ export default function AssetPerformanceChart({
       }
     }
 
-    console.log('�💱 Fetching price for asset:', asset.name, 'Type:', asset.type, 'Symbol:', asset.symbol)
-      if (asset.type === 'Buono Fruttifero') {
-      console.log('🏦 Buono Fruttifero - no market price needed')
+    if (asset.type === 'Buono Fruttifero') {
       setCurrentMarketPrice(0)
       return
     }
 
     // Verifica se l'asset ha un simbolo definito
     if (!asset.symbol) {
-      console.warn(`⚠️ Asset ${asset.name} non ha un simbolo definito nel database`)
       setCurrentMarketPrice(0)
       return
     }
 
     try {
       const response = await fetch(`/api/market-price?symbol=${asset.symbol}&type=${asset.type}`)
-      console.log('📈 Market price API status:', response.status)
-      
+
       if (response.ok) {
         const data = await response.json()
-        console.log('💰 Market price data:', data)
         setCurrentMarketPrice(data.price)
-        
+
         // Salva in cache con timestamp
         const cacheData = {
           price: data.price,
@@ -172,29 +144,28 @@ export default function AssetPerformanceChart({
         setLastUpdated(cacheData.timestamp)
       } else {
         const errorData = await response.json()
-        console.warn(`⚠️ Impossibile recuperare il prezzo per ${asset.symbol}:`, errorData)
+        console.warn(`Impossibile recuperare il prezzo per ${asset.symbol}:`, errorData)
         setCurrentMarketPrice(0)
       }
     } catch (error) {
-      console.error('❌ Market price fetch error:', error)
+      console.error('Errore nel recupero del prezzo di mercato:', error)
       setCurrentMarketPrice(0)
-    }}, [asset.type, asset.symbol, asset.name, getCacheKey])
+    }
+  }, [asset.type, asset.symbol, getCacheKey])
   // Funzione per refresh manuale dei dati
   const handleRefresh = useCallback(async () => {
     setRefreshing(true)
-    console.log('🔄 Manual refresh started for asset:', asset.name, 'Symbol:', asset.symbol)
     try {
       await Promise.all([
         fetchTransactions(true),
         fetchCurrentPrice(true)
       ])
-      console.log('✅ Manual refresh completed')
     } catch (error) {
-      console.error('❌ Error during manual refresh:', error)
+      console.error('Errore durante il refresh manuale:', error)
     } finally {
       setRefreshing(false)
     }
-  }, [fetchTransactions, fetchCurrentPrice, asset.name, asset.symbol])
+  }, [fetchTransactions, fetchCurrentPrice])
 
   // Carica i dati iniziali (senza forzare refresh)
   useEffect(() => {
@@ -269,26 +240,24 @@ export default function AssetPerformanceChart({
         const cacheKey = getCacheKey('history', `${timeRange}_${daysToFetch}`)
         const cached = sessionStorage.getItem(cacheKey)
         if (cached) {
-          console.log('📦 Using cached portfolio data')
           const data = JSON.parse(cached)
           setPerformanceData(data.data)
           setLastUpdated(data.timestamp)
           setLoading(false)
           return
-        }        console.log(`📊 Calculating portfolio performance for ${asset.name}`)
-        
+        }
+
         // Verifica che l'asset abbia un simbolo definito
         if (!asset.symbol) {
-          console.warn(`⚠️ Asset ${asset.name} non ha un simbolo definito per lo storico prezzi`)
+          console.warn(`Asset ${asset.name} non ha un simbolo definito per lo storico prezzi`)
           return
         }
-        
+
         // Recupera lo storico prezzi dall'API
         const response = await fetch(`/api/price-history?symbol=${asset.symbol}&type=${asset.type}&days=${daysToFetch}`)
-        
+
         if (response.ok) {
           const historyData = await response.json()
-          console.log(`📈 Received ${historyData.length} price points for portfolio calculation`)
             // Calcola il valore del portafoglio giorno per giorno
           const portfolioData: PerformanceDataPoint[] = []
           
@@ -354,7 +323,7 @@ export default function AssetPerformanceChart({
     
     // Se non c'è prezzo di mercato disponibile, non possiamo calcolare la performance
     if (currentMarketPrice === 0) {
-      console.warn(`⚠️ Prezzo di mercato non disponibile per ${asset.name} (symbol: ${asset.symbol})`)
+      console.warn(`Prezzo di mercato non disponibile per ${asset.name} (symbol: ${asset.symbol})`)
       return { 
         percentage: 0, 
         isPositive: true, 
