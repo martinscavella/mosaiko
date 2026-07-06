@@ -5,7 +5,7 @@ import ModuleLayout from '@/components/ModuleLayout'
 import ModuleHeader from '@/components/ui/ModuleHeader'
 import CacheStatus from '@/components/ui/CacheStatus'
 import { useAuth } from '@/lib/auth'
-import { useFinanceCache, useAssets, useAssetStats, useAssetOperations, useAccounts, useAssetTransactions, useUnlinkedAssetTransactions, type Asset } from '@/lib/financeCache'
+import { useFinanceCache, useAssets, useAssetStats, useAssetOperations, useAccounts, useAssetTransactions, useUnlinkedAssetTransactions, type Asset, type Account } from '@/lib/financeCache'
 import { aggregateAssetPurchaseData, normalizeAssetTransaction, EMPTY_PURCHASE_DATA, type AssetPurchaseData, type NormalizedAssetTransaction } from '@/lib/helpers/assetPurchaseData'
 import AssetPerformanceChart from '@/components/ui/AssetPerformanceChart'
 import { 
@@ -285,6 +285,165 @@ function AssetTransactionsContent({ assetId, formatCurrency, onDataChanged }: As
   )
 }
 
+interface AssetFormData {
+  name: string
+  type: Asset['type']
+  quantity: string
+  value: string
+  symbol: string
+  accountId: string
+}
+
+interface AssetFormModalProps {
+  mode: 'add' | 'edit'
+  formData: AssetFormData
+  onFormDataChange: (data: AssetFormData) => void
+  accounts: Account[]
+  onSubmit: () => void
+  onClose: () => void
+}
+
+// Modal condiviso per Aggiungi/Modifica Asset: prima erano due blocchi JSX
+// quasi identici (~130 righe ciascuno), che sarebbero divergiuti nel tempo
+// ad ogni piccola modifica fatta in uno solo dei due.
+function AssetFormModal({ mode, formData, onFormDataChange, accounts, onSubmit, onClose }: AssetFormModalProps) {
+  const isEdit = mode === 'edit'
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-semibold">{isEdit ? 'Modifica Asset' : 'Aggiungi Nuovo Asset'}</h3>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <form onSubmit={(e) => { e.preventDefault(); onSubmit(); }} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Nome Asset *
+            </label>
+            <input
+              type="text"
+              value={formData.name}
+              onChange={(e) => onFormDataChange({ ...formData, name: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Es. Appartamento Milano"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Tipo Asset *
+            </label>
+            <select
+              value={formData.type}
+              onChange={(e) => onFormDataChange({ ...formData, type: e.target.value as Asset['type'] })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              required
+            >
+              {Object.entries(ASSET_TYPES).map(([key, type]) => (
+                <option key={key} value={key}>{type.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Account Associato
+            </label>
+            <select
+              value={formData.accountId}
+              onChange={(e) => onFormDataChange({ ...formData, accountId: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">Nessun account</option>
+              {accounts.map((account) => (
+                <option key={account.id} value={account.id}>
+                  {account.name} ({account.type})
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500 mt-1">
+              Associa questo asset a un account specifico (opzionale)
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Quantità *
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              value={formData.quantity}
+              onChange={(e) => onFormDataChange({ ...formData, quantity: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="1.00"
+              required
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Quantità di asset posseduti (es. 1 per immobile, 100 per azioni)
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Simbolo/Ticker
+            </label>
+            <input
+              type="text"
+              value={formData.symbol}
+              onChange={(e) => onFormDataChange({ ...formData, symbol: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Es. AAPL, BTC, IWDA.MI"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Simbolo di trading per recuperare quotazioni automatiche (opzionale)
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Valore Attuale (€) *
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              value={formData.value}
+              onChange={(e) => onFormDataChange({ ...formData, value: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="0.00"
+              required
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Valore attuale dell&apos;asset. Per dati di acquisto, {isEdit ? 'modifica le transazioni collegate' : 'crea una transazione collegata'}.
+            </p>
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Annulla
+            </button>
+            <button
+              type="submit"
+              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              {isEdit ? 'Salva Modifiche' : 'Aggiungi Asset'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 export default function AssetsPage() {
   const { user, loading: authLoading } = useAuth()
   const { data: financeData, loading, error, refetch, isDataStale } = useFinanceCache()
@@ -304,9 +463,9 @@ export default function AssetsPage() {
   const [showTransactionsModal, setShowTransactionsModal] = useState(false)
   const [selectedAssetForTransactions, setSelectedAssetForTransactions] = useState<Asset | null>(null)
   // Form states
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<AssetFormData>({
     name: '',
-    type: 'other' as Asset['type'],
+    type: 'other',
     quantity: '',
     value: '',
     symbol: '',
@@ -897,275 +1056,29 @@ export default function AssetsPage() {
           )}
         </div>
 
-        {/* Modal per Aggiungere Asset */}
+        {/* Modal per Aggiungere/Modificare Asset (componente condiviso) */}
         {showAddModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold">Aggiungi Nuovo Asset</h3>
-                <button
-                  onClick={() => setShowAddModal(false)}
-                  className="p-1 hover:bg-gray-100 rounded"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <form onSubmit={(e) => { e.preventDefault(); saveAsset(); }} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Nome Asset *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Es. Appartamento Milano"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Tipo Asset *
-                  </label>
-                  <select
-                    value={formData.type}
-                    onChange={(e) => setFormData({...formData, type: e.target.value as Asset['type']})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  >
-                    {Object.entries(ASSET_TYPES).map(([key, type]) => (
-                      <option key={key} value={key}>{type.label}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Account Associato
-                  </label>
-                  <select
-                    value={formData.accountId}
-                    onChange={(e) => setFormData({...formData, accountId: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="">Nessun account</option>
-                    {accounts.map((account) => (
-                      <option key={account.id} value={account.id}>
-                        {account.name} ({account.type})
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Associa questo asset a un account specifico (opzionale)
-                  </p>
-                </div>                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Quantità *
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.quantity}
-                    onChange={(e) => setFormData({...formData, quantity: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="1.00"
-                    required
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Quantità di asset posseduti (es. 1 per immobile, 100 per azioni)
-                  </p>                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Simbolo/Ticker
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.symbol}
-                    onChange={(e) => setFormData({...formData, symbol: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Es. AAPL, BTC, IWDA.MI"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Simbolo di trading per recuperare quotazioni automatiche (opzionale)
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Valore Attuale (€) *
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.value}
-                    onChange={(e) => setFormData({...formData, value: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="0.00"
-                    required
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Valore attuale dell'asset. Per dati di acquisto, crea una transazione collegata.
-                  </p>
-                </div>
-
-                <div className="flex gap-3 pt-4">
-                  <button
-                    type="button"
-                    onClick={() => setShowAddModal(false)}
-                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    Annulla
-                  </button>
-                  <button
-                    type="submit"
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Aggiungi Asset
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
+          <AssetFormModal
+            mode="add"
+            formData={formData}
+            onFormDataChange={setFormData}
+            accounts={accounts}
+            onSubmit={saveAsset}
+            onClose={() => setShowAddModal(false)}
+          />
         )}
 
-        {/* Modal per Modificare Asset */}
         {showEditModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold">Modifica Asset</h3>
-                <button
-                  onClick={() => setShowEditModal(false)}
-                  className="p-1 hover:bg-gray-100 rounded"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <form onSubmit={(e) => { e.preventDefault(); saveAsset(); }} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Nome Asset *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Es. Appartamento Milano"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Tipo Asset *
-                  </label>
-                  <select
-                    value={formData.type}
-                    onChange={(e) => setFormData({...formData, type: e.target.value as Asset['type']})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  >
-                    {Object.entries(ASSET_TYPES).map(([key, type]) => (
-                      <option key={key} value={key}>{type.label}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Account Associato
-                  </label>
-                  <select
-                    value={formData.accountId}
-                    onChange={(e) => setFormData({...formData, accountId: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="">Nessun account</option>
-                    {accounts.map((account) => (
-                      <option key={account.id} value={account.id}>
-                        {account.name} ({account.type})
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Associa questo asset a un account specifico (opzionale)
-                  </p>
-                </div>                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Quantità *
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.quantity}
-                    onChange={(e) => setFormData({...formData, quantity: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="1.00"
-                    required
-                  />                  <p className="text-xs text-gray-500 mt-1">
-                    Quantità di asset posseduti (es. 1 per immobile, 100 per azioni)
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Simbolo/Ticker
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.symbol}
-                    onChange={(e) => setFormData({...formData, symbol: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Es. AAPL, BTC, IWDA.MI"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Simbolo di trading per recuperare quotazioni automatiche (opzionale)
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Valore Attuale (€) *
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.value}
-                    onChange={(e) => setFormData({...formData, value: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="0.00"
-                    required
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Valore attuale dell'asset. Per dati di acquisto, modifica le transazioni collegate.
-                  </p>
-                </div>
-
-                <div className="flex gap-3 pt-4">
-                  <button
-                    type="button"
-                    onClick={() => setShowEditModal(false)}
-                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    Annulla
-                  </button>
-                  <button
-                    type="submit"
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Salva Modifiche
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
+          <AssetFormModal
+            mode="edit"
+            formData={formData}
+            onFormDataChange={setFormData}
+            accounts={accounts}
+            onSubmit={saveAsset}
+            onClose={() => setShowEditModal(false)}
+          />
         )}
+
 
         {/* Modal per Conferma Eliminazione */}
         {showDeleteModal && assetToDelete && (
