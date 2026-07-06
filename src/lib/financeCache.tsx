@@ -798,9 +798,6 @@ export function useAssetOperations() {
         throw updateError
       }
 
-      // 5. Refresh della cache
-      await refetch()
-
       return {
         success: true,
         message: `Valore aggiornato a ${newValue.toFixed(2)} EUR`,
@@ -811,7 +808,7 @@ export function useAssetOperations() {
       console.error('Errore in updateAssetMarketValue:', error)
       throw error
     }
-  }, [user, supabase, refetch])
+  }, [user, supabase])
 
   return {
     createAsset,

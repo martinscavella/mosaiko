@@ -667,6 +667,9 @@ export default function AssetsPage() {
           console.error(`Errore aggiornamento ${asset.name}:`, error)
         }
       }
+
+      // Refresh una sola volta al fondo per evitare N re-render
+      await refetch()
     } catch (error) {
       console.error('❌ Errore durante l\'aggiornamento:', error)
     } finally {
