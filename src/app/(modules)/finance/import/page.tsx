@@ -579,7 +579,7 @@ export default function ImportPage() {
                 const subcategory = userSubcategories.find(
                   (sub) =>
                     sub.name.toLowerCase() ===
-                      row.subcategory?.toLowerCase() &&
+                    row.subcategory?.toLowerCase() &&
                     sub.category_id === category.id
                 );
                 if (subcategory) {
@@ -649,7 +649,7 @@ export default function ImportPage() {
             };
           }
           validRows.push({ row, insertData });
-        } catch (error) {
+        } catch {
           row.status = "error";
           row.errors = ["Errore durante il salvataggio"];
           errorCount++;
@@ -913,11 +913,10 @@ export default function ImportPage() {
             <select
               value={currentCategoryExists ? row.category : ""}
               onChange={(e) => updateRow(row.id, "category", e.target.value)}
-              className={`min-w-[150px] px-2 py-1 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                hasInvalidCategory
-                  ? "border-red-300 bg-red-50"
-                  : "border-gray-300"
-              }`}
+              className={`min-w-[150px] px-2 py-1 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 ${hasInvalidCategory
+                ? "border-red-300 bg-red-50"
+                : "border-gray-300"
+                }`}
             >
               <option value="">Seleziona categoria</option>
               {userCategories.length === 0 ? (
@@ -945,8 +944,8 @@ export default function ImportPage() {
         );
         const availableSubcategories = selectedCategory
           ? userSubcategories.filter(
-              (sub) => sub.category_id === selectedCategory.id
-            )
+            (sub) => sub.category_id === selectedCategory.id
+          )
           : [];
         const currentSubcategoryExists =
           row.subcategory &&
@@ -960,11 +959,10 @@ export default function ImportPage() {
             <select
               value={currentSubcategoryExists ? row.subcategory : ""}
               onChange={(e) => updateRow(row.id, "subcategory", e.target.value)}
-              className={`min-w-[150px] px-2 py-1 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                hasInvalidSubcategory
-                  ? "border-red-300 bg-red-50"
-                  : "border-gray-300"
-              }`}
+              className={`min-w-[150px] px-2 py-1 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 ${hasInvalidSubcategory
+                ? "border-red-300 bg-red-50"
+                : "border-gray-300"
+                }`}
               disabled={!selectedCategory}
             >
               <option value="">
@@ -1106,59 +1104,59 @@ export default function ImportPage() {
           stats={
             importData.length > 0
               ? [
-                  {
-                    label: "Righe Totali",
-                    value: importStats.total.toString(),
-                    color: "blue",
-                  },
-                  {
-                    label: "Transazioni",
-                    value: importData
-                      .filter((r) => r.targetTable === "transactions")
-                      .length.toString(),
-                    color: "purple",
-                  },
-                  {
-                    label: "Rimborsi",
-                    value: importData
-                      .filter((r) => r.targetTable === "refunds")
-                      .length.toString(),
-                    color: "green",
-                  },
-                  {
-                    label: "Trasferimenti",
-                    value: importData
-                      .filter((r) => r.targetTable === "funds_transfer")
-                      .length.toString(),
-                    color: "orange",
-                  },
-                ]
+                {
+                  label: "Righe Totali",
+                  value: importStats.total.toString(),
+                  color: "blue",
+                },
+                {
+                  label: "Transazioni",
+                  value: importData
+                    .filter((r) => r.targetTable === "transactions")
+                    .length.toString(),
+                  color: "purple",
+                },
+                {
+                  label: "Rimborsi",
+                  value: importData
+                    .filter((r) => r.targetTable === "refunds")
+                    .length.toString(),
+                  color: "green",
+                },
+                {
+                  label: "Trasferimenti",
+                  value: importData
+                    .filter((r) => r.targetTable === "funds_transfer")
+                    .length.toString(),
+                  color: "orange",
+                },
+              ]
               : []
           }
           actions={[
             ...(importData.length > 0
               ? [
-                  {
-                    label: "Nuovo File",
-                    onClick: loadNewFile,
-                    icon: <Plus className="w-4 h-4" />,
-                    color: "purple" as const,
-                    disabled: isUploading,
-                    hideTextOnMobile: true,
-                  },
-                  {
-                    label: isUploading ? "Importando..." : "Avvia Import",
-                    onClick: processImport,
-                    icon: isUploading ? (
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Upload className="w-4 h-4" />
-                    ),
-                    color: "blue" as const,
-                    disabled: isUploading || importData.length === 0,
-                    loading: isUploading,
-                  },
-                ]
+                {
+                  label: "Nuovo File",
+                  onClick: loadNewFile,
+                  icon: <Plus className="w-4 h-4" />,
+                  color: "purple" as const,
+                  disabled: isUploading,
+                  hideTextOnMobile: true,
+                },
+                {
+                  label: isUploading ? "Importando..." : "Avvia Import",
+                  onClick: processImport,
+                  icon: isUploading ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Upload className="w-4 h-4" />
+                  ),
+                  color: "blue" as const,
+                  disabled: isUploading || importData.length === 0,
+                  loading: isUploading,
+                },
+              ]
               : []),
           ]}
           statusIndicators={[
@@ -1169,11 +1167,10 @@ export default function ImportPage() {
             },
             {
               type: "success",
-              label: `Account rilevato: ${
-                detectedAccount
-                  ? userAccounts.find((acc) => acc.id === detectedAccount)?.name
-                  : "Nessuno"
-              }`,
+              label: `Account rilevato: ${detectedAccount
+                ? userAccounts.find((acc) => acc.id === detectedAccount)?.name
+                : "Nessuno"
+                }`,
               show: !!detectedAccount,
             },
             {
@@ -1231,11 +1228,10 @@ export default function ImportPage() {
             </div>
 
             <div
-              className={`border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200 ${
-                isDragOver
-                  ? "border-blue-400 bg-blue-50"
-                  : "border-gray-300 hover:border-blue-400"
-              }`}
+              className={`border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200 ${isDragOver
+                ? "border-blue-400 bg-blue-50"
+                : "border-gray-300 hover:border-blue-400"
+                }`}
               onDrop={handleDrop}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
@@ -1396,9 +1392,8 @@ export default function ImportPage() {
               <div
                 className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                 style={{
-                  width: `${
-                    (importStats.processed / importStats.total) * 100
-                  }%`,
+                  width: `${(importStats.processed / importStats.total) * 100
+                    }%`,
                 }}
               ></div>
             </div>
@@ -1441,8 +1436,8 @@ export default function ImportPage() {
                     targetTable === "transactions"
                       ? "Transazioni"
                       : targetTable === "refunds"
-                      ? "Rimborsi"
-                      : "Trasferimenti";
+                        ? "Rimborsi"
+                        : "Trasferimenti";
 
                   // Colonne dinamiche basate sul tipo di tabella
                   const getColumns = () => {
@@ -1503,13 +1498,12 @@ export default function ImportPage() {
                       <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
                         <h4 className="text-md font-medium text-gray-900 flex items-center">
                           <span
-                            className={`inline-block w-3 h-3 rounded-full mr-3 ${
-                              targetTable === "transactions"
-                                ? "bg-blue-500"
-                                : targetTable === "refunds"
+                            className={`inline-block w-3 h-3 rounded-full mr-3 ${targetTable === "transactions"
+                              ? "bg-blue-500"
+                              : targetTable === "refunds"
                                 ? "bg-green-500"
                                 : "bg-purple-500"
-                            }`}
+                              }`}
                           ></span>
                           {tableLabel} ({rows.length} record
                           {rows.length !== 1 ? "s" : ""})
@@ -1534,9 +1528,8 @@ export default function ImportPage() {
                             {rows.map((row: ImportRow) => (
                               <tr
                                 key={row.id}
-                                className={`hover:bg-gray-50 ${
-                                  row.status === "error" ? "bg-red-50" : ""
-                                }`}
+                                className={`hover:bg-gray-50 ${row.status === "error" ? "bg-red-50" : ""
+                                  }`}
                               >
                                 {columns.map((column) => (
                                   <td
