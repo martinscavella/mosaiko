@@ -206,6 +206,7 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
             is_refunded,
             account_name,
             asset_id,
+            asset_quantity,
             accounts(type),
             categories(name),
             subcategories(name)
@@ -219,19 +220,45 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
         }
 
         // Map Supabase data to Transaction type
-        const batchData: Transaction[] = (transactionsBatch.data || []).map((item: any) => ({
+        // Forma esatta delle colonne richieste nella select() sopra: evita `any`
+        // e fa emergere subito eventuali disallineamenti tra select e mapping.
+        // Il client Supabase (senza i tipi generati dello schema) inferisce le
+        // relazioni embedded come array anche quando a runtime sono oggetti
+        // singoli (relazione many-to-one via FK): normalizeEmbedded gestisce
+        // entrambe le forme senza assumere quale sia quella reale.
+        type RawTransactionRow = {
+          id: string
+          transaction_date: string
+          transaction_details: string
+          current_amount: number
+          transaction_type: string
+          is_refunded: boolean | null
+          account_name: string | null
+          asset_id: string | null
+          asset_quantity: number | null
+          accounts: { type: string } | { type: string }[] | null
+          categories: { name: string } | { name: string }[] | null
+          subcategories: { name: string } | { name: string }[] | null
+        }
+
+        const normalizeEmbedded = <T,>(value: T | T[] | null): T | null => {
+          if (!value) return null
+          return Array.isArray(value) ? (value[0] ?? null) : value
+        }
+
+        const batchData: Transaction[] = ((transactionsBatch.data || []) as RawTransactionRow[]).map((item) => ({
           id: item.id,
           transaction_date: item.transaction_date,
           transaction_details: item.transaction_details,
           current_amount: item.current_amount,
           transaction_type: item.transaction_type,
-          is_refunded: item.is_refunded,
-          account_name: item.account_name,
+          is_refunded: item.is_refunded ?? undefined,
+          account_name: item.account_name ?? undefined,
           asset_id: item.asset_id,
           asset_quantity: item.asset_quantity,
-          accounts: item.accounts,
-          categories: item.categories,
-          subcategories: item.subcategories
+          accounts: normalizeEmbedded(item.accounts),
+          categories: normalizeEmbedded(item.categories),
+          subcategories: normalizeEmbedded(item.subcategories)
         }));
         allTransactions = [...allTransactions, ...batchData];
 
@@ -245,10 +272,14 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
       const refunds = refundsResult.data || [];
       const fundsTransfer = fundsTransferResult.data || [];
 
-      // Filtraggio asset-related disponibile se necessario in futuro
-      // const assetPurchaseTransactions = allTransactions.filter((transaction: Transaction) => transaction.asset_id != null);
-
-      const assets = rawAssets as Asset[];
+      // Valida la forma minima invece di castare alla cieca: scarta righe
+      // malformate anziché propagarle silenziosamente nel resto dell'app.
+      const assets = rawAssets.filter((asset): asset is Asset =>
+        typeof asset?.id === 'string' &&
+        typeof asset?.name === 'string' &&
+        typeof asset?.type === 'string' &&
+        typeof asset?.value === 'number'
+      );
 
       const totalAssetsValue = assets.reduce((sum, asset) => sum + Number(asset.value || 0), 0);
 
@@ -364,7 +395,7 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
         fundsTransfer: processedFundsTransfer,
         goals: goals as FinancialGoal[],
         accounts: accounts as Account[],
-        assets: assets as Asset[],
+        assets,
         lastFetch: Date.now(),
         isStale: false
       };
