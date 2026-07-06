@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState, useCallback, ReactNode, useMemo } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useRef, ReactNode, useMemo } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useAuth } from '@/lib/auth';
 
@@ -147,6 +147,16 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const supabase = createClientComponentClient();
 
+  // Ref sincronizzati con data/loading: permettono a fetchFinanceData di leggere
+  // sempre il valore corrente senza doverli includere nelle dipendenze di
+  // useCallback (che ricreerebbe la funzione e reinnescherebbe l'effetto di
+  // caricamento iniziale ad ogni fetch, causando un loop infinito).
+  const dataRef = useRef(data);
+  const loadingRef = useRef(loading);
+
+  useEffect(() => { dataRef.current = data; }, [data]);
+  useEffect(() => { loadingRef.current = loading; }, [loading]);
+
   const isDataExpired = useCallback((timestamp: number) => {
     return Date.now() - timestamp > CACHE_DURATION;
   }, []);
@@ -158,15 +168,16 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
   const fetchFinanceData = useCallback(async (forceRefresh = false) => {
     if (!user) return;
 
-    if (data && !isDataExpired(data.lastFetch) && !forceRefresh) {
+    if (dataRef.current && !isDataExpired(dataRef.current.lastFetch) && !forceRefresh) {
       return;
     }
 
-    if (loading) {
+    if (loadingRef.current) {
       return;
     }
 
     try {
+      loadingRef.current = true;
       setLoading(true);
       setError(null);
 
@@ -358,11 +369,13 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
         isStale: false
       };
 
+      dataRef.current = newCacheData;
       setData(newCacheData);
 
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Errore sconosciuto');
     } finally {
+      loadingRef.current = false;
       setLoading(false);
     }
   }, [user, supabase, isDataExpired])
@@ -392,6 +405,7 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
   }, [fetchFinanceData])
 
   const invalidateCache = useCallback(() => {
+    dataRef.current = null
     setData(null)
     setError(null)
   }, [])
