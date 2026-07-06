@@ -61,7 +61,6 @@ export default function AssetsPage() {
   const [assetToDelete, setAssetToDelete] = useState<Asset | null>(null)
   const [showChartModal, setShowChartModal] = useState(false)
   const [selectedChartAsset, setSelectedChartAsset] = useState<Asset | null>(null)
-  const [showDebugInfo, setShowDebugInfo] = useState(false)
   const [showTransactionsModal, setShowTransactionsModal] = useState(false)
   const [selectedAssetForTransactions, setSelectedAssetForTransactions] = useState<Asset | null>(null)
   // Form states
@@ -93,23 +92,6 @@ export default function AssetsPage() {
     return () => window.removeEventListener('openNewItemModal', handleOpenModal);
   }, []);
 
-  // Debug: log dei dati per capire cosa sta succedendo
-  useEffect(() => {
-    if (financeData) {
-      console.log('📊 Finance data loaded:', {
-        assets: financeData.assets?.length || 0,
-        transactions: financeData.transactions?.length || 0,
-        transactionsWithAssetId: financeData.transactions?.filter(t => t.asset_id)?.length || 0
-      })
-      
-      // Mostra tutti gli asset_id presenti nelle transazioni
-      const assetIds = [...new Set(financeData.transactions?.filter(t => t.asset_id).map(t => t.asset_id) || [])]
-      console.log('🔗 Asset IDs found in transactions:', assetIds)
-      
-      // Mostra tutti gli asset disponibili
-      console.log('💎 Available assets:', assets.map(a => ({ id: a.id, name: a.name })))
-    }
-  }, [financeData, assets])
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('it-IT', {
@@ -301,28 +283,21 @@ export default function AssetsPage() {
     setIsUpdatingValues(true)
     
     try {
-      console.log('🔄 Aggiornamento valori di tutti gli asset...')
-      
       // Recupera tutti gli asset che hanno un simbolo
       const assetsWithSymbol = assets.filter(asset => asset.symbol)
-      
+
       if (assetsWithSymbol.length === 0) {
-        console.log('⚠️ Nessun asset con simbolo trovato')
         return
       }
-      
+
       // Aggiorna ogni asset
       for (const asset of assetsWithSymbol) {
         try {
           await updateAssetMarketValue(asset.id)
-          console.log(`✅ Aggiornato ${asset.name}`)
         } catch (error) {
-          console.error(`❌ Errore aggiornamento ${asset.name}:`, error)
+          console.error(`Errore aggiornamento ${asset.name}:`, error)
         }
       }
-      
-      console.log('✅ Aggiornamento completato')
-      
     } catch (error) {
       console.error('❌ Errore durante l\'aggiornamento:', error)
     } finally {
@@ -1407,25 +1382,6 @@ export default function AssetsPage() {
           </div>
         )}
 
-        {/* Modal per Debug Info */}
-        {showDebugInfo && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold">Debug Info</h3>
-                <button
-                  onClick={() => setShowDebugInfo(false)}
-                  className="p-1 hover:bg-gray-100 rounded"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <pre className="text-xs text-gray-500 whitespace-pre-wrap">
-                {JSON.stringify(financeData, null, 2)}
-              </pre>            </div>
-          </div>
-        )}
       </div>
     </ModuleLayout>
   )
