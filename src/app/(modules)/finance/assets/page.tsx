@@ -46,6 +46,245 @@ const ASSET_TYPES: Record<string, { label: string; icon: React.ComponentType<{ c
   other: { label: 'Altri', icon: DollarSign, color: 'text-gray-600 bg-gray-100' }
 }
 
+interface AssetTransactionsContentProps {
+  assetId: string
+  formatCurrency: (amount: number) => string
+  onDataChanged: () => Promise<void>
+}
+
+// Componente per visualizzare/collegare le transazioni di un asset.
+// Era definito dentro AssetsPage: React lo trattava come un tipo di
+// componente nuovo ad ogni render del genitore, perdendo lo stato interno
+// (es. il form "Collega transazione" aperto) se AssetsPage si
+// re-renderizzava mentre il modal era aperto (es. refetch della cache).
+function AssetTransactionsContent({ assetId, formatCurrency, onDataChanged }: AssetTransactionsContentProps) {
+  const { assetTransactions, totalSpentOnAsset, totalReceivedFromAsset, transactionCount, loading, refetch: refetchAssetTransactions } = useAssetTransactions(assetId)
+  const { linkAssetToTransaction, unlinkAssetFromTransaction } = useAssetOperations()
+  const { unlinkedTransactions, refetch: refetchUnlinkedTransactions } = useUnlinkedAssetTransactions()
+  const [showLinkForm, setShowLinkForm] = useState(false)
+  const [selectedTransactionId, setSelectedTransactionId] = useState('')
+  const [linkingTransaction, setLinkingTransaction] = useState(false)
+  const [unlinkingTransaction, setUnlinkingTransaction] = useState<string | null>(null)
+
+  const handleLinkTransaction = async () => {
+    if (!selectedTransactionId) return
+
+    setLinkingTransaction(true)
+    try {
+      await linkAssetToTransaction(assetId, selectedTransactionId)
+      setShowLinkForm(false)
+      setSelectedTransactionId('')
+      await refetchAssetTransactions()
+      await refetchUnlinkedTransactions()
+      await onDataChanged()
+    } catch (error) {
+      console.error('Errore nel collegare la transazione:', error)
+    } finally {
+      setLinkingTransaction(false)
+    }
+  }
+
+  const handleUnlinkTransaction = async (transactionId: string) => {
+    setUnlinkingTransaction(transactionId)
+    try {
+      await unlinkAssetFromTransaction(transactionId)
+      await refetchAssetTransactions()
+      await refetchUnlinkedTransactions()
+      await onDataChanged()
+    } catch (error) {
+      console.error('Errore nello scollegare la transazione:', error)
+    } finally {
+      setUnlinkingTransaction(null)
+    }
+  }
+
+  if (loading) {
+    return <div className="text-center py-8">Caricamento transazioni...</div>
+  }
+
+  // Estratto una volta sola: prima era duplicato identico sia per lo stato
+  // "nessuna transazione" che per quello con transazioni gia' collegate.
+  const linkForm = showLinkForm && (
+    <div className="border border-gray-200 rounded-lg p-4 mt-4">
+      <h4 className="font-medium text-gray-900 mb-3">Collega transazione esistente</h4>
+      {unlinkedTransactions.length === 0 ? (
+        <div className="text-center py-4">
+          <p className="text-gray-500">
+            Non ci sono transazioni disponibili per il collegamento.
+          </p>
+          <p className="text-sm text-gray-400 mt-1">
+            Le transazioni devono avere categoria "ASSET & INVESTIMENTI" e non essere già collegate ad altri asset.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-lg">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 sticky top-0">
+                <tr>
+                  <th className="text-left p-3 font-medium text-gray-700">Seleziona</th>
+                  <th className="text-left p-3 font-medium text-gray-700">Data</th>
+                  <th className="text-left p-3 font-medium text-gray-700">Descrizione</th>
+                  <th className="text-right p-3 font-medium text-gray-700">Importo</th>
+                </tr>
+              </thead>
+              <tbody>
+                {unlinkedTransactions.map((transaction) => (
+                  <tr
+                    key={transaction.id}
+                    className={`border-t border-gray-200 hover:bg-blue-50 cursor-pointer transition-colors ${
+                      selectedTransactionId === transaction.id ? 'bg-blue-100' : ''
+                    }`}
+                    onClick={() => setSelectedTransactionId(
+                      selectedTransactionId === transaction.id ? '' : transaction.id
+                    )}
+                  >
+                    <td className="p-3">
+                      <input
+                        type="radio"
+                        name="selectedTransaction"
+                        checked={selectedTransactionId === transaction.id}
+                        onChange={() => setSelectedTransactionId(transaction.id)}
+                        className="text-blue-600 focus:ring-blue-500"
+                      />
+                    </td>
+                    <td className="p-3 text-gray-700">
+                      {new Date(transaction.transaction_date).toLocaleDateString('it-IT')}
+                    </td>
+                    <td className="p-3">
+                      <div>
+                        <p className="font-medium text-gray-900 truncate">
+                          {transaction.transaction_details}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {transaction.transaction_type}
+                        </p>
+                      </div>
+                    </td>
+                    <td className="p-3 text-right">
+                      <span className={`font-semibold ${
+                        transaction.current_amount >= 0 ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                        {transaction.current_amount >= 0 ? '+' : ''}{formatCurrency(transaction.current_amount)}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                setShowLinkForm(false)
+                setSelectedTransactionId('')
+              }}
+              className="px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Annulla
+            </button>
+            <button
+              onClick={handleLinkTransaction}
+              disabled={!selectedTransactionId || linkingTransaction}
+              className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {linkingTransaction ? 'Collegando...' : 'Collega Transazione Selezionata'}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+
+  if (transactionCount === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center py-8">
+          <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Nessuna transazione collegata</h3>
+          <p className="text-gray-500 mb-4">
+            Non ci sono transazioni collegate a questo asset.
+          </p>
+          <button
+            onClick={() => setShowLinkForm(true)}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Collega transazione esistente
+          </button>
+        </div>
+        {linkForm}
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Statistiche */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-red-50 p-4 rounded-lg">
+          <p className="text-sm font-medium text-red-600">Totale Speso</p>
+          <p className="text-xl font-bold text-red-700">{formatCurrency(totalSpentOnAsset)}</p>
+        </div>
+        <div className="bg-green-50 p-4 rounded-lg">
+          <p className="text-sm font-medium text-green-600">Totale Ricevuto</p>
+          <p className="text-xl font-bold text-green-700">{formatCurrency(totalReceivedFromAsset)}</p>
+        </div>
+        <div className="bg-blue-50 p-4 rounded-lg">
+          <p className="text-sm font-medium text-blue-600">N° Transazioni</p>
+          <p className="text-xl font-bold text-blue-700">{transactionCount}</p>
+        </div>
+      </div>
+
+      {/* Lista Transazioni */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h4 className="font-medium text-gray-900">Transazioni Correlate</h4>
+          <button
+            onClick={() => setShowLinkForm(true)}
+            className="px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+          >
+            + Collega altra transazione
+          </button>
+        </div>
+        <div className="space-y-2">
+          {assetTransactions.map((transaction) => (
+            <div key={transaction.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+              <div className="flex-1">
+                <p className="font-medium text-gray-900">{transaction.transaction_details}</p>
+                <p className="text-sm text-gray-500">
+                  {new Date(transaction.transaction_date).toLocaleDateString('it-IT')}
+                  {transaction.categories?.name && ` • ${transaction.categories.name}`}
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="text-right">
+                  <p className={`font-semibold ${transaction.current_amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {transaction.current_amount >= 0 ? '+' : ''}{formatCurrency(transaction.current_amount)}
+                  </p>
+                  <p className="text-xs text-gray-500">{transaction.transaction_type}</p>
+                </div>
+                <button
+                  onClick={() => handleUnlinkTransaction(transaction.id)}
+                  disabled={unlinkingTransaction === transaction.id}
+                  className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
+                  title="Scollega transazione"
+                >
+                  {unlinkingTransaction === transaction.id ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <X className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+        {linkForm}
+      </div>
+    </div>
+  )
+}
+
 export default function AssetsPage() {
   const { user, loading: authLoading } = useAuth()
   const { data: financeData, loading, error, refetch, isDataStale } = useFinanceCache()
@@ -343,319 +582,6 @@ export default function AssetsPage() {
       hideTextOnMobile: true
     }
   ]
-  // Componente helper per visualizzare le transazioni dell'asset
-  const AssetTransactionsContent = ({ assetId, formatCurrency }: { assetId: string, formatCurrency: (amount: number) => string }) => {
-    const { assetTransactions, totalSpentOnAsset, totalReceivedFromAsset, transactionCount, loading, refetch: refetchAssetTransactions } = useAssetTransactions(assetId)
-    const { linkAssetToTransaction, unlinkAssetFromTransaction } = useAssetOperations()
-    const { unlinkedTransactions, refetch: refetchUnlinkedTransactions } = useUnlinkedAssetTransactions() // Usa il nuovo hook per transazioni senza limiti
-    const [showLinkForm, setShowLinkForm] = useState(false)
-    const [selectedTransactionId, setSelectedTransactionId] = useState('')
-    const [linkingTransaction, setLinkingTransaction] = useState(false)
-    const [unlinkingTransaction, setUnlinkingTransaction] = useState<string | null>(null)
-
-    const handleLinkTransaction = async () => {
-      if (!selectedTransactionId) return
-      
-      setLinkingTransaction(true)
-      try {
-        await linkAssetToTransaction(assetId, selectedTransactionId)
-        setShowLinkForm(false)
-        setSelectedTransactionId('')
-        await refetchAssetTransactions() // Refresh asset transactions
-        await refetchUnlinkedTransactions() // Refresh unlinked transactions
-        await refetch() // Refresh general data
-      } catch (error) {
-        console.error('Errore nel collegare la transazione:', error)
-      } finally {
-        setLinkingTransaction(false)
-      }
-    }
-
-    const handleUnlinkTransaction = async (transactionId: string) => {
-      setUnlinkingTransaction(transactionId)
-      try {
-        await unlinkAssetFromTransaction(transactionId)
-        await refetchAssetTransactions() // Refresh asset transactions
-        await refetchUnlinkedTransactions() // Refresh unlinked transactions
-        await refetch() // Refresh general data
-      } catch (error) {
-        console.error('Errore nello scollegare la transazione:', error)
-      } finally {
-        setUnlinkingTransaction(null)
-      }
-    }
-
-    if (loading) {
-      return <div className="text-center py-8">Caricamento transazioni...</div>
-    }
-
-    if (transactionCount === 0) {
-      return (
-        <div className="space-y-6">
-          <div className="text-center py-8">
-            <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Nessuna transazione collegata</h3>
-            <p className="text-gray-500 mb-4">
-              Non ci sono transazioni collegate a questo asset.
-            </p>            <button
-              onClick={() => setShowLinkForm(true)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Collega transazione esistente
-            </button>
-          </div>          {/* Form per collegare transazione esistente */}
-          {showLinkForm && (
-            <div className="border border-gray-200 rounded-lg p-4">
-              <h4 className="font-medium text-gray-900 mb-3">Collega transazione esistente</h4>
-              {unlinkedTransactions.length === 0 ? (
-                <div className="text-center py-4">
-                  <p className="text-gray-500">
-                    Non ci sono transazioni disponibili per il collegamento.
-                  </p>
-                  <p className="text-sm text-gray-400 mt-1">
-                    Le transazioni devono avere categoria "ASSET & INVESTIMENTI" e non essere già collegate ad altri asset.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-lg">
-                    <table className="w-full text-sm">
-                      <thead className="bg-gray-50 sticky top-0">
-                        <tr>
-                          <th className="text-left p-3 font-medium text-gray-700">Seleziona</th>
-                          <th className="text-left p-3 font-medium text-gray-700">Data</th>
-                          <th className="text-left p-3 font-medium text-gray-700">Descrizione</th>
-                          <th className="text-right p-3 font-medium text-gray-700">Importo</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {unlinkedTransactions.map((transaction) => (
-                          <tr 
-                            key={transaction.id}
-                            className={`border-t border-gray-200 hover:bg-blue-50 cursor-pointer transition-colors ${
-                              selectedTransactionId === transaction.id ? 'bg-blue-100' : ''
-                            }`}
-                            onClick={() => setSelectedTransactionId(
-                              selectedTransactionId === transaction.id ? '' : transaction.id
-                            )}
-                          >
-                            <td className="p-3">
-                              <input
-                                type="radio"
-                                name="selectedTransaction"
-                                checked={selectedTransactionId === transaction.id}
-                                onChange={() => setSelectedTransactionId(transaction.id)}
-                                className="text-blue-600 focus:ring-blue-500"
-                              />
-                            </td>
-                            <td className="p-3 text-gray-700">
-                              {new Date(transaction.transaction_date).toLocaleDateString('it-IT')}
-                            </td>
-                            <td className="p-3">
-                              <div>
-                                <p className="font-medium text-gray-900 truncate">
-                                  {transaction.transaction_details}
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                  {transaction.transaction_type}
-                                </p>
-                              </div>
-                            </td>
-                            <td className="p-3 text-right">
-                              <span className={`font-semibold ${
-                                transaction.current_amount >= 0 ? 'text-green-600' : 'text-red-600'
-                              }`}>
-                                {transaction.current_amount >= 0 ? '+' : ''}{formatCurrency(transaction.current_amount)}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => {
-                        setShowLinkForm(false)
-                        setSelectedTransactionId('')
-                      }}
-                      className="px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                    >
-                      Annulla
-                    </button>
-                    <button
-                      onClick={handleLinkTransaction}
-                      disabled={!selectedTransactionId || linkingTransaction}
-                      className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {linkingTransaction ? 'Collegando...' : 'Collega Transazione Selezionata'}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )
-    }
-
-    return (
-      <div className="space-y-6">
-        {/* Statistiche */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-red-50 p-4 rounded-lg">
-            <p className="text-sm font-medium text-red-600">Totale Speso</p>
-            <p className="text-xl font-bold text-red-700">{formatCurrency(totalSpentOnAsset)}</p>
-          </div>
-          <div className="bg-green-50 p-4 rounded-lg">
-            <p className="text-sm font-medium text-green-600">Totale Ricevuto</p>
-            <p className="text-xl font-bold text-green-700">{formatCurrency(totalReceivedFromAsset)}</p>
-          </div>
-          <div className="bg-blue-50 p-4 rounded-lg">
-            <p className="text-sm font-medium text-blue-600">N° Transazioni</p>
-            <p className="text-xl font-bold text-blue-700">{transactionCount}</p>
-          </div>
-        </div>
-
-        {/* Lista Transazioni */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h4 className="font-medium text-gray-900">Transazioni Correlate</h4>            <button
-              onClick={() => setShowLinkForm(true)}
-              className="px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-            >
-              + Collega altra transazione
-            </button>
-          </div>
-          <div className="space-y-2">
-            {assetTransactions.map((transaction) => (
-              <div key={transaction.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                <div className="flex-1">
-                  <p className="font-medium text-gray-900">{transaction.transaction_details}</p>
-                  <p className="text-sm text-gray-500">
-                    {new Date(transaction.transaction_date).toLocaleDateString('it-IT')}
-                    {transaction.categories?.name && ` • ${transaction.categories.name}`}
-                  </p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="text-right">
-                    <p className={`font-semibold ${transaction.current_amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {transaction.current_amount >= 0 ? '+' : ''}{formatCurrency(transaction.current_amount)}
-                    </p>
-                    <p className="text-xs text-gray-500">{transaction.transaction_type}</p>
-                  </div>
-                  <button
-                    onClick={() => handleUnlinkTransaction(transaction.id)}
-                    disabled={unlinkingTransaction === transaction.id}
-                    className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
-                    title="Scollega transazione"
-                  >
-                    {unlinkingTransaction === transaction.id ? (
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <X className="w-4 h-4" />
-                    )}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>          {/* Form per collegare transazione esistente */}
-          {showLinkForm && (
-            <div className="border border-gray-200 rounded-lg p-4 mt-4">
-              <h4 className="font-medium text-gray-900 mb-3">Collega transazione esistente</h4>
-              {unlinkedTransactions.length === 0 ? (
-                <div className="text-center py-4">
-                  <p className="text-gray-500">
-                    Non ci sono transazioni disponibili per il collegamento.
-                  </p>
-                  <p className="text-sm text-gray-400 mt-1">
-                    Le transazioni devono avere categoria "ASSET & INVESTIMENTI" e non essere già collegate ad altri asset.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-lg">
-                    <table className="w-full text-sm">
-                      <thead className="bg-gray-50 sticky top-0">
-                        <tr>
-                          <th className="text-left p-3 font-medium text-gray-700">Seleziona</th>
-                          <th className="text-left p-3 font-medium text-gray-700">Data</th>
-                          <th className="text-left p-3 font-medium text-gray-700">Descrizione</th>
-                          <th className="text-right p-3 font-medium text-gray-700">Importo</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {unlinkedTransactions.map((transaction) => (
-                          <tr 
-                            key={transaction.id}
-                            className={`border-t border-gray-200 hover:bg-blue-50 cursor-pointer transition-colors ${
-                              selectedTransactionId === transaction.id ? 'bg-blue-100' : ''
-                            }`}
-                            onClick={() => setSelectedTransactionId(
-                              selectedTransactionId === transaction.id ? '' : transaction.id
-                            )}
-                          >
-                            <td className="p-3">
-                              <input
-                                type="radio"
-                                name="selectedTransaction"
-                                checked={selectedTransactionId === transaction.id}
-                                onChange={() => setSelectedTransactionId(transaction.id)}
-                                className="text-blue-600 focus:ring-blue-500"
-                              />
-                            </td>
-                            <td className="p-3 text-gray-700">
-                              {new Date(transaction.transaction_date).toLocaleDateString('it-IT')}
-                            </td>
-                            <td className="p-3">
-                              <div>
-                                <p className="font-medium text-gray-900 truncate">
-                                  {transaction.transaction_details}
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                  {transaction.transaction_type}
-                                </p>
-                              </div>
-                            </td>
-                            <td className="p-3 text-right">
-                              <span className={`font-semibold ${
-                                transaction.current_amount >= 0 ? 'text-green-600' : 'text-red-600'
-                              }`}>
-                                {transaction.current_amount >= 0 ? '+' : ''}{formatCurrency(transaction.current_amount)}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => {
-                        setShowLinkForm(false)
-                        setSelectedTransactionId('')
-                      }}
-                      className="px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                    >
-                      Annulla
-                    </button>
-                    <button
-                      onClick={handleLinkTransaction}
-                      disabled={!selectedTransactionId || linkingTransaction}
-                      className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {linkingTransaction ? 'Collegando...' : 'Collega Transazione Selezionata'}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-    )
-  }
-
   return (
     <ModuleLayout moduleId="finance">
       <div className="max-w-7xl 3xl:max-w-[1600px] 4xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 3xl:px-10 py-8">
@@ -1348,7 +1274,11 @@ export default function AssetsPage() {
                 </button>
               </div>
 
-              <AssetTransactionsContent assetId={selectedAssetForTransactions.id} formatCurrency={formatCurrency} />
+              <AssetTransactionsContent
+                assetId={selectedAssetForTransactions.id}
+                formatCurrency={formatCurrency}
+                onDataChanged={refetch}
+              />
             </div>
           </div>
         )}
