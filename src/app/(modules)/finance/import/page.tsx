@@ -97,14 +97,8 @@ export default function ImportPage() {
   // Carica gli account dell'utente
   const loadUserAccounts = useCallback(async () => {
     if (!user) {
-      console.log("DEBUG loadUserAccounts - Nessun utente disponibile");
       return;
     }
-
-    console.log(
-      "DEBUG loadUserAccounts - Inizio caricamento per utente:",
-      user.id
-    );
 
     try {
       const { data: accounts, error } = await supabase
@@ -114,20 +108,12 @@ export default function ImportPage() {
         .order("name");
 
       if (error) {
-        console.error("DEBUG loadUserAccounts - Errore Supabase:", error);
         throw error;
       }
 
-      // Debug: logga gli account caricati
-      console.log("DEBUG - Account caricati dal database:", accounts);
-
       setUserAccounts(accounts || []);
-      console.log(
-        "DEBUG loadUserAccounts - Account impostati nello state:",
-        accounts?.length || 0
-      );
     } catch (error) {
-      console.error("Error loading accounts:", error);
+      console.error("Errore nel caricamento degli account:", error);
     }
   }, [user, supabase]);
 
@@ -316,7 +302,6 @@ export default function ImportPage() {
           errors: 0,
         });
       } else if (file.type === "text/csv") {
-        console.log("DEBUG - Chiamata parseCSV con account:", userAccounts);
         await parseCSV(
           file,
           detected || undefined,
@@ -326,7 +311,6 @@ export default function ImportPage() {
           userAccounts
         );
       } else {
-        console.log("DEBUG - Chiamata parseExcel con account:", userAccounts);
         await parseExcel(
           file,
           detected || undefined,
@@ -666,7 +650,6 @@ export default function ImportPage() {
           }
           validRows.push({ row, insertData });
         } catch (error) {
-          console.error("Errore nella preparazione della riga:", error);
           row.status = "error";
           row.errors = ["Errore durante il salvataggio"];
           errorCount++;
@@ -681,7 +664,6 @@ export default function ImportPage() {
           .insert(chunk.map((c) => c.insertData));
 
         if (error) {
-          console.error("Errore durante l'insert in batch:", error);
           chunk.forEach(({ row }) => {
             row.status = "error";
             row.errors = ["Errore durante il salvataggio"];

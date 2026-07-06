@@ -220,13 +220,7 @@ export default function RefundsPage() {
 
       setRefundTransactions(refundTransactionsData || []);
 
-      // Debug: verifica i dati
-      console.log("RefundTransactions loaded:", refundTransactionsData);
-      console.log("FinanceData available:", financeData);
-      console.log(
-        "Transactions available:",
-        financeData?.transactions?.length || 0
-      ); // Mappa refunds con transazioni collegate
+      // Mappa refunds con transazioni collegate
       const extendedRefunds: ExtendedRefund[] = (refundsData || []).map(
         (refund: Refund) => {
           const linkedTransactionIds = (refundTransactionsData || [])
@@ -254,10 +248,6 @@ export default function RefundsPage() {
             .reduce((sum: number, rt: RefundTransaction) => sum + rt.amount, 0);
 
           const account = accounts.find((acc) => acc.id === refund.account_id);
-
-          console.log(
-            `Refund ${refund.id}: linked transactions = ${linkedTransactions.length}, linkedTransactionIds = ${linkedTransactionIds.length}`
-          );
 
           return {
             ...refund,

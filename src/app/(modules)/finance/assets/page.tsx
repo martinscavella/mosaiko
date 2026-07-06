@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import ModuleLayout from '@/components/ModuleLayout'
 import ModuleHeader from '@/components/ui/ModuleHeader'
 import CacheStatus from '@/components/ui/CacheStatus'
 import { useAuth } from '@/lib/auth'
-import { useFinanceCache, useAssets, useAssetStats, useAssetOperations, useAccounts, useAssetTransactions, useUnlinkedAssetTransactions, type Asset } from '@/lib/financeCache'
+import { useFinanceCache, useAssets, useAssetStats, useAssetOperations, useAccounts, useAssetTransactions, useUnlinkedAssetTransactions, type Asset, type Account } from '@/lib/financeCache'
+import { aggregateAssetPurchaseData, normalizeAssetTransaction, EMPTY_PURCHASE_DATA, type AssetPurchaseData, type NormalizedAssetTransaction } from '@/lib/helpers/assetPurchaseData'
 import AssetPerformanceChart from '@/components/ui/AssetPerformanceChart'
 import { 
   TrendingUp, 
@@ -45,6 +46,404 @@ const ASSET_TYPES: Record<string, { label: string; icon: React.ComponentType<{ c
   other: { label: 'Altri', icon: DollarSign, color: 'text-gray-600 bg-gray-100' }
 }
 
+interface AssetTransactionsContentProps {
+  assetId: string
+  formatCurrency: (amount: number) => string
+  onDataChanged: () => Promise<void>
+}
+
+// Componente per visualizzare/collegare le transazioni di un asset.
+// Era definito dentro AssetsPage: React lo trattava come un tipo di
+// componente nuovo ad ogni render del genitore, perdendo lo stato interno
+// (es. il form "Collega transazione" aperto) se AssetsPage si
+// re-renderizzava mentre il modal era aperto (es. refetch della cache).
+function AssetTransactionsContent({ assetId, formatCurrency, onDataChanged }: AssetTransactionsContentProps) {
+  const { assetTransactions, totalSpentOnAsset, totalReceivedFromAsset, transactionCount, loading, refetch: refetchAssetTransactions } = useAssetTransactions(assetId)
+  const { linkAssetToTransaction, unlinkAssetFromTransaction } = useAssetOperations()
+  const { unlinkedTransactions, refetch: refetchUnlinkedTransactions } = useUnlinkedAssetTransactions()
+  const [showLinkForm, setShowLinkForm] = useState(false)
+  const [selectedTransactionId, setSelectedTransactionId] = useState('')
+  const [linkingTransaction, setLinkingTransaction] = useState(false)
+  const [unlinkingTransaction, setUnlinkingTransaction] = useState<string | null>(null)
+
+  const handleLinkTransaction = async () => {
+    if (!selectedTransactionId) return
+
+    setLinkingTransaction(true)
+    try {
+      await linkAssetToTransaction(assetId, selectedTransactionId)
+      setShowLinkForm(false)
+      setSelectedTransactionId('')
+      await refetchAssetTransactions()
+      await refetchUnlinkedTransactions()
+      await onDataChanged()
+    } catch (error) {
+      console.error('Errore nel collegare la transazione:', error)
+    } finally {
+      setLinkingTransaction(false)
+    }
+  }
+
+  const handleUnlinkTransaction = async (transactionId: string) => {
+    setUnlinkingTransaction(transactionId)
+    try {
+      await unlinkAssetFromTransaction(transactionId)
+      await refetchAssetTransactions()
+      await refetchUnlinkedTransactions()
+      await onDataChanged()
+    } catch (error) {
+      console.error('Errore nello scollegare la transazione:', error)
+    } finally {
+      setUnlinkingTransaction(null)
+    }
+  }
+
+  if (loading) {
+    return <div className="text-center py-8">Caricamento transazioni...</div>
+  }
+
+  // Estratto una volta sola: prima era duplicato identico sia per lo stato
+  // "nessuna transazione" che per quello con transazioni gia' collegate.
+  const linkForm = showLinkForm && (
+    <div className="border border-gray-200 rounded-lg p-4 mt-4">
+      <h4 className="font-medium text-gray-900 mb-3">Collega transazione esistente</h4>
+      {unlinkedTransactions.length === 0 ? (
+        <div className="text-center py-4">
+          <p className="text-gray-500">
+            Non ci sono transazioni disponibili per il collegamento.
+          </p>
+          <p className="text-sm text-gray-400 mt-1">
+            Le transazioni devono avere categoria "ASSET & INVESTIMENTI" e non essere già collegate ad altri asset.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-lg">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 sticky top-0">
+                <tr>
+                  <th className="text-left p-3 font-medium text-gray-700">Seleziona</th>
+                  <th className="text-left p-3 font-medium text-gray-700">Data</th>
+                  <th className="text-left p-3 font-medium text-gray-700">Descrizione</th>
+                  <th className="text-right p-3 font-medium text-gray-700">Importo</th>
+                </tr>
+              </thead>
+              <tbody>
+                {unlinkedTransactions.map((transaction) => (
+                  <tr
+                    key={transaction.id}
+                    className={`border-t border-gray-200 hover:bg-blue-50 cursor-pointer transition-colors ${
+                      selectedTransactionId === transaction.id ? 'bg-blue-100' : ''
+                    }`}
+                    onClick={() => setSelectedTransactionId(
+                      selectedTransactionId === transaction.id ? '' : transaction.id
+                    )}
+                  >
+                    <td className="p-3">
+                      <input
+                        type="radio"
+                        name="selectedTransaction"
+                        checked={selectedTransactionId === transaction.id}
+                        onChange={() => setSelectedTransactionId(transaction.id)}
+                        className="text-blue-600 focus:ring-blue-500"
+                      />
+                    </td>
+                    <td className="p-3 text-gray-700">
+                      {new Date(transaction.transaction_date).toLocaleDateString('it-IT')}
+                    </td>
+                    <td className="p-3">
+                      <div>
+                        <p className="font-medium text-gray-900 truncate">
+                          {transaction.transaction_details}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {transaction.transaction_type}
+                        </p>
+                      </div>
+                    </td>
+                    <td className="p-3 text-right">
+                      <span className={`font-semibold ${
+                        transaction.current_amount >= 0 ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                        {transaction.current_amount >= 0 ? '+' : ''}{formatCurrency(transaction.current_amount)}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                setShowLinkForm(false)
+                setSelectedTransactionId('')
+              }}
+              className="px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Annulla
+            </button>
+            <button
+              onClick={handleLinkTransaction}
+              disabled={!selectedTransactionId || linkingTransaction}
+              className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {linkingTransaction ? 'Collegando...' : 'Collega Transazione Selezionata'}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+
+  if (transactionCount === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center py-8">
+          <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Nessuna transazione collegata</h3>
+          <p className="text-gray-500 mb-4">
+            Non ci sono transazioni collegate a questo asset.
+          </p>
+          <button
+            onClick={() => setShowLinkForm(true)}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Collega transazione esistente
+          </button>
+        </div>
+        {linkForm}
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Statistiche */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-red-50 p-4 rounded-lg">
+          <p className="text-sm font-medium text-red-600">Totale Speso</p>
+          <p className="text-xl font-bold text-red-700">{formatCurrency(totalSpentOnAsset)}</p>
+        </div>
+        <div className="bg-green-50 p-4 rounded-lg">
+          <p className="text-sm font-medium text-green-600">Totale Ricevuto</p>
+          <p className="text-xl font-bold text-green-700">{formatCurrency(totalReceivedFromAsset)}</p>
+        </div>
+        <div className="bg-blue-50 p-4 rounded-lg">
+          <p className="text-sm font-medium text-blue-600">N° Transazioni</p>
+          <p className="text-xl font-bold text-blue-700">{transactionCount}</p>
+        </div>
+      </div>
+
+      {/* Lista Transazioni */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h4 className="font-medium text-gray-900">Transazioni Correlate</h4>
+          <button
+            onClick={() => setShowLinkForm(true)}
+            className="px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+          >
+            + Collega altra transazione
+          </button>
+        </div>
+        <div className="space-y-2">
+          {assetTransactions.map((transaction) => (
+            <div key={transaction.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+              <div className="flex-1">
+                <p className="font-medium text-gray-900">{transaction.transaction_details}</p>
+                <p className="text-sm text-gray-500">
+                  {new Date(transaction.transaction_date).toLocaleDateString('it-IT')}
+                  {transaction.categories?.name && ` • ${transaction.categories.name}`}
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="text-right">
+                  <p className={`font-semibold ${transaction.current_amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {transaction.current_amount >= 0 ? '+' : ''}{formatCurrency(transaction.current_amount)}
+                  </p>
+                  <p className="text-xs text-gray-500">{transaction.transaction_type}</p>
+                </div>
+                <button
+                  onClick={() => handleUnlinkTransaction(transaction.id)}
+                  disabled={unlinkingTransaction === transaction.id}
+                  className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
+                  title="Scollega transazione"
+                >
+                  {unlinkingTransaction === transaction.id ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <X className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+        {linkForm}
+      </div>
+    </div>
+  )
+}
+
+interface AssetFormData {
+  name: string
+  type: Asset['type']
+  quantity: string
+  value: string
+  symbol: string
+  accountId: string
+}
+
+interface AssetFormModalProps {
+  mode: 'add' | 'edit'
+  formData: AssetFormData
+  onFormDataChange: (data: AssetFormData) => void
+  accounts: Account[]
+  onSubmit: () => void
+  onClose: () => void
+}
+
+// Modal condiviso per Aggiungi/Modifica Asset: prima erano due blocchi JSX
+// quasi identici (~130 righe ciascuno), che sarebbero divergiuti nel tempo
+// ad ogni piccola modifica fatta in uno solo dei due.
+function AssetFormModal({ mode, formData, onFormDataChange, accounts, onSubmit, onClose }: AssetFormModalProps) {
+  const isEdit = mode === 'edit'
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-semibold">{isEdit ? 'Modifica Asset' : 'Aggiungi Nuovo Asset'}</h3>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <form onSubmit={(e) => { e.preventDefault(); onSubmit(); }} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Nome Asset *
+            </label>
+            <input
+              type="text"
+              value={formData.name}
+              onChange={(e) => onFormDataChange({ ...formData, name: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Es. Appartamento Milano"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Tipo Asset *
+            </label>
+            <select
+              value={formData.type}
+              onChange={(e) => onFormDataChange({ ...formData, type: e.target.value as Asset['type'] })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              required
+            >
+              {Object.entries(ASSET_TYPES).map(([key, type]) => (
+                <option key={key} value={key}>{type.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Account Associato
+            </label>
+            <select
+              value={formData.accountId}
+              onChange={(e) => onFormDataChange({ ...formData, accountId: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">Nessun account</option>
+              {accounts.map((account) => (
+                <option key={account.id} value={account.id}>
+                  {account.name} ({account.type})
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500 mt-1">
+              Associa questo asset a un account specifico (opzionale)
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Quantità *
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              value={formData.quantity}
+              onChange={(e) => onFormDataChange({ ...formData, quantity: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="1.00"
+              required
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Quantità di asset posseduti (es. 1 per immobile, 100 per azioni)
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Simbolo/Ticker
+            </label>
+            <input
+              type="text"
+              value={formData.symbol}
+              onChange={(e) => onFormDataChange({ ...formData, symbol: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Es. AAPL, BTC, IWDA.MI"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Simbolo di trading per recuperare quotazioni automatiche (opzionale)
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Valore Attuale (€) *
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              value={formData.value}
+              onChange={(e) => onFormDataChange({ ...formData, value: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="0.00"
+              required
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Valore attuale dell&apos;asset. Per dati di acquisto, {isEdit ? 'modifica le transazioni collegate' : 'crea una transazione collegata'}.
+            </p>
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Annulla
+            </button>
+            <button
+              type="submit"
+              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              {isEdit ? 'Salva Modifiche' : 'Aggiungi Asset'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 export default function AssetsPage() {
   const { user, loading: authLoading } = useAuth()
   const { data: financeData, loading, error, refetch, isDataStale } = useFinanceCache()
@@ -61,13 +460,12 @@ export default function AssetsPage() {
   const [assetToDelete, setAssetToDelete] = useState<Asset | null>(null)
   const [showChartModal, setShowChartModal] = useState(false)
   const [selectedChartAsset, setSelectedChartAsset] = useState<Asset | null>(null)
-  const [showDebugInfo, setShowDebugInfo] = useState(false)
   const [showTransactionsModal, setShowTransactionsModal] = useState(false)
   const [selectedAssetForTransactions, setSelectedAssetForTransactions] = useState<Asset | null>(null)
   // Form states
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<AssetFormData>({
     name: '',
-    type: 'other' as Asset['type'],
+    type: 'other',
     quantity: '',
     value: '',
     symbol: '',
@@ -93,84 +491,43 @@ export default function AssetsPage() {
     return () => window.removeEventListener('openNewItemModal', handleOpenModal);
   }, []);
 
-  // Debug: log dei dati per capire cosa sta succedendo
-  useEffect(() => {
-    if (financeData) {
-      console.log('📊 Finance data loaded:', {
-        assets: financeData.assets?.length || 0,
-        transactions: financeData.transactions?.length || 0,
-        transactionsWithAssetId: financeData.transactions?.filter(t => t.asset_id)?.length || 0
-      })
-      
-      // Mostra tutti gli asset_id presenti nelle transazioni
-      const assetIds = [...new Set(financeData.transactions?.filter(t => t.asset_id).map(t => t.asset_id) || [])]
-      console.log('🔗 Asset IDs found in transactions:', assetIds)
-      
-      // Mostra tutti gli asset disponibili
-      console.log('💎 Available assets:', assets.map(a => ({ id: a.id, name: a.name })))
-    }
-  }, [financeData, assets])
 
-  // Helper function to get purchase data from transactions
-  // NOTE: deve restare prima dei return condizionali sotto (authLoading/!user):
-  // gli hook non possono essere chiamati dopo un return anticipato (Rules of Hooks).
-  const getAssetPurchaseData = useCallback((assetId: string) => {
-    const assetTransactions = financeData?.transactions?.filter(t => t.asset_id === assetId) || []
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('it-IT', {
+      style: 'currency',
+      currency: 'EUR'
+    }).format(amount)
+  }
 
-    if (assetTransactions.length === 0) {
-      return {
-        totalCost: 0,
-        totalQuantity: 0,
-        avgPurchasePrice: 0,
-        firstPurchaseDate: null,
-        hasTransactions: false
-      }
+  // Costo/quantità/performance per asset, calcolati UNA SOLA VOLTA per ogni
+  // cambio di financeData invece che ad ogni render per ogni asset visibile
+  // e ad ogni confronto durante l'ordinamento per "Performance" (prima erano
+  // O(assets × transazioni), ora un solo raggruppamento O(transazioni)).
+  // IMPORTANTE: deve stare prima di qualsiasi return condizionale (Rules of Hooks)
+  const assetPurchaseDataMap = useMemo(() => {
+    const map = new Map<string, AssetPurchaseData>()
+    const transactionsByAsset = new Map<string, NormalizedAssetTransaction[]>()
+
+    for (const transaction of financeData?.transactions ?? []) {
+      if (!transaction.asset_id) continue
+      const normalized = normalizeAssetTransaction(transaction)
+      if (!normalized) continue
+
+      const list = transactionsByAsset.get(transaction.asset_id) ?? []
+      list.push(normalized)
+      transactionsByAsset.set(transaction.asset_id, list)
     }
 
-    // Replica la stessa logica di AssetPerformanceChart per calcolare i totali
-    let totalQuantity = 0
-    let totalCostSpent = 0
-    let totalQuantityBought = 0
-    let firstPurchaseDate: string | null = null
-
-    // Simula la struttura dell'API /api/transactions
-    const formattedTransactions = assetTransactions
-      .filter(t => t.asset_quantity !== null && t.asset_quantity !== undefined)
-      .map(t => {
-        const isAcquisition = (t.asset_quantity || 0) > 0
-        return {
-          transaction_type: isAcquisition ? 'buy' : 'sell' as 'buy' | 'sell',
-          quantity: Math.abs(t.asset_quantity || 0),
-          unit_price: Math.abs(t.current_amount || 0) / Math.abs(t.asset_quantity || 1),
-          transaction_date: t.transaction_date
-        }
-      })
-      .sort((a, b) => new Date(a.transaction_date).getTime() - new Date(b.transaction_date).getTime())
-
-    formattedTransactions.forEach(t => {
-      if (t.transaction_type === 'buy') {
-        totalQuantity += t.quantity
-        totalCostSpent += t.quantity * t.unit_price
-        totalQuantityBought += t.quantity
-        if (!firstPurchaseDate) {
-          firstPurchaseDate = t.transaction_date
-        }
-      } else if (t.transaction_type === 'sell') {
-        totalQuantity -= t.quantity
-      }
+    transactionsByAsset.forEach((normalizedTransactions, assetId) => {
+      map.set(assetId, aggregateAssetPurchaseData(normalizedTransactions))
     })
 
-    const avgPurchasePrice = totalQuantityBought > 0 ? totalCostSpent / totalQuantityBought : 0
-    const currentCost = totalQuantity * avgPurchasePrice
-
-    return {
-      totalCost: Math.max(0, currentCost),
-      totalQuantity: Math.max(0, totalQuantity),
-      avgPurchasePrice: avgPurchasePrice,
-      firstPurchaseDate: firstPurchaseDate,
-      hasTransactions: formattedTransactions.length > 0
-    }
+    return map
   }, [financeData])
+
+  const getAssetPurchaseData = useCallback((assetId: string): AssetPurchaseData => {
+    return assetPurchaseDataMap.get(assetId) ?? EMPTY_PURCHASE_DATA
+  }, [assetPurchaseDataMap])
 
   // Loading states
   if (authLoading) {
@@ -193,13 +550,6 @@ export default function AssetsPage() {
         </div>
       </ModuleLayout>
     )
-  }
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('it-IT', {
-      style: 'currency',
-      currency: 'EUR'
-    }).format(amount)
   }
 
   const calculatePerformance = (currentValue: number, totalCost: number) => {
@@ -302,30 +652,21 @@ export default function AssetsPage() {
     setIsUpdatingValues(true)
     
     try {
-      console.log('🔄 Aggiornamento valori di tutti gli asset...')
-      
       // Recupera tutti gli asset che hanno un simbolo
       const assetsWithSymbol = assets.filter(asset => asset.symbol)
-      
+
       if (assetsWithSymbol.length === 0) {
-        console.log('⚠️ Nessun asset con simbolo trovato')
         return
       }
-      
-      // Aggiorna ogni asset senza ricaricare la cache a ogni iterazione:
-      // un solo refetch() finale invece di uno per ogni asset (N+1 di rete).
+
+      // Aggiorna ogni asset
       for (const asset of assetsWithSymbol) {
         try {
-          await updateAssetMarketValue(asset.id, { skipRefetch: true })
-          console.log(`✅ Aggiornato ${asset.name}`)
+          await updateAssetMarketValue(asset.id)
         } catch (error) {
-          console.error(`❌ Errore aggiornamento ${asset.name}:`, error)
+          console.error(`Errore aggiornamento ${asset.name}:`, error)
         }
       }
-
-      await refetch()
-      console.log('✅ Aggiornamento completato')
-      
     } catch (error) {
       console.error('❌ Errore durante l\'aggiornamento:', error)
     } finally {
@@ -400,319 +741,6 @@ export default function AssetsPage() {
       hideTextOnMobile: true
     }
   ]
-  // Componente helper per visualizzare le transazioni dell'asset
-  const AssetTransactionsContent = ({ assetId, formatCurrency }: { assetId: string, formatCurrency: (amount: number) => string }) => {
-    const { assetTransactions, totalSpentOnAsset, totalReceivedFromAsset, transactionCount, loading, refetch: refetchAssetTransactions } = useAssetTransactions(assetId)
-    const { linkAssetToTransaction, unlinkAssetFromTransaction } = useAssetOperations()
-    const { unlinkedTransactions, refetch: refetchUnlinkedTransactions } = useUnlinkedAssetTransactions() // Usa il nuovo hook per transazioni senza limiti
-    const [showLinkForm, setShowLinkForm] = useState(false)
-    const [selectedTransactionId, setSelectedTransactionId] = useState('')
-    const [linkingTransaction, setLinkingTransaction] = useState(false)
-    const [unlinkingTransaction, setUnlinkingTransaction] = useState<string | null>(null)
-
-    const handleLinkTransaction = async () => {
-      if (!selectedTransactionId) return
-      
-      setLinkingTransaction(true)
-      try {
-        await linkAssetToTransaction(assetId, selectedTransactionId)
-        setShowLinkForm(false)
-        setSelectedTransactionId('')
-        await refetchAssetTransactions() // Refresh asset transactions
-        await refetchUnlinkedTransactions() // Refresh unlinked transactions
-        await refetch() // Refresh general data
-      } catch (error) {
-        console.error('Errore nel collegare la transazione:', error)
-      } finally {
-        setLinkingTransaction(false)
-      }
-    }
-
-    const handleUnlinkTransaction = async (transactionId: string) => {
-      setUnlinkingTransaction(transactionId)
-      try {
-        await unlinkAssetFromTransaction(transactionId)
-        await refetchAssetTransactions() // Refresh asset transactions
-        await refetchUnlinkedTransactions() // Refresh unlinked transactions
-        await refetch() // Refresh general data
-      } catch (error) {
-        console.error('Errore nello scollegare la transazione:', error)
-      } finally {
-        setUnlinkingTransaction(null)
-      }
-    }
-
-    if (loading) {
-      return <div className="text-center py-8">Caricamento transazioni...</div>
-    }
-
-    if (transactionCount === 0) {
-      return (
-        <div className="space-y-6">
-          <div className="text-center py-8">
-            <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Nessuna transazione collegata</h3>
-            <p className="text-gray-500 mb-4">
-              Non ci sono transazioni collegate a questo asset.
-            </p>            <button
-              onClick={() => setShowLinkForm(true)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Collega transazione esistente
-            </button>
-          </div>          {/* Form per collegare transazione esistente */}
-          {showLinkForm && (
-            <div className="border border-gray-200 rounded-lg p-4">
-              <h4 className="font-medium text-gray-900 mb-3">Collega transazione esistente</h4>
-              {unlinkedTransactions.length === 0 ? (
-                <div className="text-center py-4">
-                  <p className="text-gray-500">
-                    Non ci sono transazioni disponibili per il collegamento.
-                  </p>
-                  <p className="text-sm text-gray-400 mt-1">
-                    Le transazioni devono avere categoria "ASSET & INVESTIMENTI" e non essere già collegate ad altri asset.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-lg">
-                    <table className="w-full text-sm">
-                      <thead className="bg-gray-50 sticky top-0">
-                        <tr>
-                          <th className="text-left p-3 font-medium text-gray-700">Seleziona</th>
-                          <th className="text-left p-3 font-medium text-gray-700">Data</th>
-                          <th className="text-left p-3 font-medium text-gray-700">Descrizione</th>
-                          <th className="text-right p-3 font-medium text-gray-700">Importo</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {unlinkedTransactions.map((transaction) => (
-                          <tr 
-                            key={transaction.id}
-                            className={`border-t border-gray-200 hover:bg-blue-50 cursor-pointer transition-colors ${
-                              selectedTransactionId === transaction.id ? 'bg-blue-100' : ''
-                            }`}
-                            onClick={() => setSelectedTransactionId(
-                              selectedTransactionId === transaction.id ? '' : transaction.id
-                            )}
-                          >
-                            <td className="p-3">
-                              <input
-                                type="radio"
-                                name="selectedTransaction"
-                                checked={selectedTransactionId === transaction.id}
-                                onChange={() => setSelectedTransactionId(transaction.id)}
-                                className="text-blue-600 focus:ring-blue-500"
-                              />
-                            </td>
-                            <td className="p-3 text-gray-700">
-                              {new Date(transaction.transaction_date).toLocaleDateString('it-IT')}
-                            </td>
-                            <td className="p-3">
-                              <div>
-                                <p className="font-medium text-gray-900 truncate">
-                                  {transaction.transaction_details}
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                  {transaction.transaction_type}
-                                </p>
-                              </div>
-                            </td>
-                            <td className="p-3 text-right">
-                              <span className={`font-semibold ${
-                                transaction.current_amount >= 0 ? 'text-green-600' : 'text-red-600'
-                              }`}>
-                                {transaction.current_amount >= 0 ? '+' : ''}{formatCurrency(transaction.current_amount)}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => {
-                        setShowLinkForm(false)
-                        setSelectedTransactionId('')
-                      }}
-                      className="px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                    >
-                      Annulla
-                    </button>
-                    <button
-                      onClick={handleLinkTransaction}
-                      disabled={!selectedTransactionId || linkingTransaction}
-                      className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {linkingTransaction ? 'Collegando...' : 'Collega Transazione Selezionata'}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )
-    }
-
-    return (
-      <div className="space-y-6">
-        {/* Statistiche */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-red-50 p-4 rounded-lg">
-            <p className="text-sm font-medium text-red-600">Totale Speso</p>
-            <p className="text-xl font-bold text-red-700">{formatCurrency(totalSpentOnAsset)}</p>
-          </div>
-          <div className="bg-green-50 p-4 rounded-lg">
-            <p className="text-sm font-medium text-green-600">Totale Ricevuto</p>
-            <p className="text-xl font-bold text-green-700">{formatCurrency(totalReceivedFromAsset)}</p>
-          </div>
-          <div className="bg-blue-50 p-4 rounded-lg">
-            <p className="text-sm font-medium text-blue-600">N° Transazioni</p>
-            <p className="text-xl font-bold text-blue-700">{transactionCount}</p>
-          </div>
-        </div>
-
-        {/* Lista Transazioni */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h4 className="font-medium text-gray-900">Transazioni Correlate</h4>            <button
-              onClick={() => setShowLinkForm(true)}
-              className="px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-            >
-              + Collega altra transazione
-            </button>
-          </div>
-          <div className="space-y-2">
-            {assetTransactions.map((transaction) => (
-              <div key={transaction.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                <div className="flex-1">
-                  <p className="font-medium text-gray-900">{transaction.transaction_details}</p>
-                  <p className="text-sm text-gray-500">
-                    {new Date(transaction.transaction_date).toLocaleDateString('it-IT')}
-                    {transaction.categories?.name && ` • ${transaction.categories.name}`}
-                  </p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="text-right">
-                    <p className={`font-semibold ${transaction.current_amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {transaction.current_amount >= 0 ? '+' : ''}{formatCurrency(transaction.current_amount)}
-                    </p>
-                    <p className="text-xs text-gray-500">{transaction.transaction_type}</p>
-                  </div>
-                  <button
-                    onClick={() => handleUnlinkTransaction(transaction.id)}
-                    disabled={unlinkingTransaction === transaction.id}
-                    className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
-                    title="Scollega transazione"
-                  >
-                    {unlinkingTransaction === transaction.id ? (
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <X className="w-4 h-4" />
-                    )}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>          {/* Form per collegare transazione esistente */}
-          {showLinkForm && (
-            <div className="border border-gray-200 rounded-lg p-4 mt-4">
-              <h4 className="font-medium text-gray-900 mb-3">Collega transazione esistente</h4>
-              {unlinkedTransactions.length === 0 ? (
-                <div className="text-center py-4">
-                  <p className="text-gray-500">
-                    Non ci sono transazioni disponibili per il collegamento.
-                  </p>
-                  <p className="text-sm text-gray-400 mt-1">
-                    Le transazioni devono avere categoria "ASSET & INVESTIMENTI" e non essere già collegate ad altri asset.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-lg">
-                    <table className="w-full text-sm">
-                      <thead className="bg-gray-50 sticky top-0">
-                        <tr>
-                          <th className="text-left p-3 font-medium text-gray-700">Seleziona</th>
-                          <th className="text-left p-3 font-medium text-gray-700">Data</th>
-                          <th className="text-left p-3 font-medium text-gray-700">Descrizione</th>
-                          <th className="text-right p-3 font-medium text-gray-700">Importo</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {unlinkedTransactions.map((transaction) => (
-                          <tr 
-                            key={transaction.id}
-                            className={`border-t border-gray-200 hover:bg-blue-50 cursor-pointer transition-colors ${
-                              selectedTransactionId === transaction.id ? 'bg-blue-100' : ''
-                            }`}
-                            onClick={() => setSelectedTransactionId(
-                              selectedTransactionId === transaction.id ? '' : transaction.id
-                            )}
-                          >
-                            <td className="p-3">
-                              <input
-                                type="radio"
-                                name="selectedTransaction"
-                                checked={selectedTransactionId === transaction.id}
-                                onChange={() => setSelectedTransactionId(transaction.id)}
-                                className="text-blue-600 focus:ring-blue-500"
-                              />
-                            </td>
-                            <td className="p-3 text-gray-700">
-                              {new Date(transaction.transaction_date).toLocaleDateString('it-IT')}
-                            </td>
-                            <td className="p-3">
-                              <div>
-                                <p className="font-medium text-gray-900 truncate">
-                                  {transaction.transaction_details}
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                  {transaction.transaction_type}
-                                </p>
-                              </div>
-                            </td>
-                            <td className="p-3 text-right">
-                              <span className={`font-semibold ${
-                                transaction.current_amount >= 0 ? 'text-green-600' : 'text-red-600'
-                              }`}>
-                                {transaction.current_amount >= 0 ? '+' : ''}{formatCurrency(transaction.current_amount)}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => {
-                        setShowLinkForm(false)
-                        setSelectedTransactionId('')
-                      }}
-                      className="px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                    >
-                      Annulla
-                    </button>
-                    <button
-                      onClick={handleLinkTransaction}
-                      disabled={!selectedTransactionId || linkingTransaction}
-                      className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {linkingTransaction ? 'Collegando...' : 'Collega Transazione Selezionata'}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-    )
-  }
-
   return (
     <ModuleLayout moduleId="finance">
       <div className="max-w-7xl 3xl:max-w-[1600px] 4xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 3xl:px-10 py-8">
@@ -1028,275 +1056,29 @@ export default function AssetsPage() {
           )}
         </div>
 
-        {/* Modal per Aggiungere Asset */}
+        {/* Modal per Aggiungere/Modificare Asset (componente condiviso) */}
         {showAddModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold">Aggiungi Nuovo Asset</h3>
-                <button
-                  onClick={() => setShowAddModal(false)}
-                  className="p-1 hover:bg-gray-100 rounded"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <form onSubmit={(e) => { e.preventDefault(); saveAsset(); }} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Nome Asset *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Es. Appartamento Milano"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Tipo Asset *
-                  </label>
-                  <select
-                    value={formData.type}
-                    onChange={(e) => setFormData({...formData, type: e.target.value as Asset['type']})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  >
-                    {Object.entries(ASSET_TYPES).map(([key, type]) => (
-                      <option key={key} value={key}>{type.label}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Account Associato
-                  </label>
-                  <select
-                    value={formData.accountId}
-                    onChange={(e) => setFormData({...formData, accountId: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="">Nessun account</option>
-                    {accounts.map((account) => (
-                      <option key={account.id} value={account.id}>
-                        {account.name} ({account.type})
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Associa questo asset a un account specifico (opzionale)
-                  </p>
-                </div>                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Quantità *
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.quantity}
-                    onChange={(e) => setFormData({...formData, quantity: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="1.00"
-                    required
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Quantità di asset posseduti (es. 1 per immobile, 100 per azioni)
-                  </p>                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Simbolo/Ticker
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.symbol}
-                    onChange={(e) => setFormData({...formData, symbol: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Es. AAPL, BTC, IWDA.MI"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Simbolo di trading per recuperare quotazioni automatiche (opzionale)
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Valore Attuale (€) *
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.value}
-                    onChange={(e) => setFormData({...formData, value: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="0.00"
-                    required
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Valore attuale dell'asset. Per dati di acquisto, crea una transazione collegata.
-                  </p>
-                </div>
-
-                <div className="flex gap-3 pt-4">
-                  <button
-                    type="button"
-                    onClick={() => setShowAddModal(false)}
-                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    Annulla
-                  </button>
-                  <button
-                    type="submit"
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Aggiungi Asset
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
+          <AssetFormModal
+            mode="add"
+            formData={formData}
+            onFormDataChange={setFormData}
+            accounts={accounts}
+            onSubmit={saveAsset}
+            onClose={() => setShowAddModal(false)}
+          />
         )}
 
-        {/* Modal per Modificare Asset */}
         {showEditModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold">Modifica Asset</h3>
-                <button
-                  onClick={() => setShowEditModal(false)}
-                  className="p-1 hover:bg-gray-100 rounded"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <form onSubmit={(e) => { e.preventDefault(); saveAsset(); }} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Nome Asset *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Es. Appartamento Milano"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Tipo Asset *
-                  </label>
-                  <select
-                    value={formData.type}
-                    onChange={(e) => setFormData({...formData, type: e.target.value as Asset['type']})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  >
-                    {Object.entries(ASSET_TYPES).map(([key, type]) => (
-                      <option key={key} value={key}>{type.label}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Account Associato
-                  </label>
-                  <select
-                    value={formData.accountId}
-                    onChange={(e) => setFormData({...formData, accountId: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="">Nessun account</option>
-                    {accounts.map((account) => (
-                      <option key={account.id} value={account.id}>
-                        {account.name} ({account.type})
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Associa questo asset a un account specifico (opzionale)
-                  </p>
-                </div>                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Quantità *
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.quantity}
-                    onChange={(e) => setFormData({...formData, quantity: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="1.00"
-                    required
-                  />                  <p className="text-xs text-gray-500 mt-1">
-                    Quantità di asset posseduti (es. 1 per immobile, 100 per azioni)
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Simbolo/Ticker
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.symbol}
-                    onChange={(e) => setFormData({...formData, symbol: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Es. AAPL, BTC, IWDA.MI"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Simbolo di trading per recuperare quotazioni automatiche (opzionale)
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Valore Attuale (€) *
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.value}
-                    onChange={(e) => setFormData({...formData, value: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="0.00"
-                    required
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Valore attuale dell'asset. Per dati di acquisto, modifica le transazioni collegate.
-                  </p>
-                </div>
-
-                <div className="flex gap-3 pt-4">
-                  <button
-                    type="button"
-                    onClick={() => setShowEditModal(false)}
-                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    Annulla
-                  </button>
-                  <button
-                    type="submit"
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Salva Modifiche
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
+          <AssetFormModal
+            mode="edit"
+            formData={formData}
+            onFormDataChange={setFormData}
+            accounts={accounts}
+            onSubmit={saveAsset}
+            onClose={() => setShowEditModal(false)}
+          />
         )}
+
 
         {/* Modal per Conferma Eliminazione */}
         {showDeleteModal && assetToDelete && (
@@ -1405,30 +1187,15 @@ export default function AssetsPage() {
                 </button>
               </div>
 
-              <AssetTransactionsContent assetId={selectedAssetForTransactions.id} formatCurrency={formatCurrency} />
+              <AssetTransactionsContent
+                assetId={selectedAssetForTransactions.id}
+                formatCurrency={formatCurrency}
+                onDataChanged={refetch}
+              />
             </div>
           </div>
         )}
 
-        {/* Modal per Debug Info */}
-        {showDebugInfo && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold">Debug Info</h3>
-                <button
-                  onClick={() => setShowDebugInfo(false)}
-                  className="p-1 hover:bg-gray-100 rounded"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <pre className="text-xs text-gray-500 whitespace-pre-wrap">
-                {JSON.stringify(financeData, null, 2)}
-              </pre>            </div>
-          </div>
-        )}
       </div>
     </ModuleLayout>
   )

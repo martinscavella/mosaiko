@@ -1,13 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import ModuleLayout from '@/components/ModuleLayout'
 import ModuleHeader from '@/components/ui/ModuleHeader'
 import CacheStatus from '@/components/ui/CacheStatus'
 import { useAuth } from '@/lib/auth'
 import { useAccounts, useFinanceCache } from '@/lib/financeCache'
 import type { Account } from '@/lib/financeCache'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { CreditCard, Plus, MoreVertical, TrendingUp, TrendingDown, Edit2, Trash2, RefreshCw, Wallet, PiggyBank, Building2, Search, Filter, ArrowUpDown, ArrowUp, ArrowDown, Clock } from 'lucide-react'
 
 interface ExtendedAccount extends Account {
@@ -19,31 +18,11 @@ interface ExtendedAccount extends Account {
   lastUpdated?: string
 }
 
-interface FundsTransfer {
-  id: string
-  funds_transfer_date: string
-  funds_transfer_details: string
-  amount: number
-  account_id: string
-  user_id: string
-}
-
-interface Refund {
-  id: string
-  refund_date: string
-  refund_details: string
-  current_amount: number
-  account_id: string
-  user_id: string
-}
-
 export default function AccountsPage() {
   const { user, loading: authLoading } = useAuth()
   const { accounts: cacheAccounts, loading, error, refetch } = useAccounts()
   const { data: financeData, isDataStale } = useFinanceCache()
-  const supabase = createClientComponentClient()
-  
-  const [accounts, setAccounts] = useState<ExtendedAccount[]>([])
+
   const [showAddModal, setShowAddModal] = useState(false)
   const [selectedAccount, setSelectedAccount] = useState<ExtendedAccount | null>(null)
   
@@ -63,128 +42,54 @@ export default function AccountsPage() {
     return () => window.removeEventListener('openNewItemModal', handleOpenModal);
   }, []);
 
-  // Trasforma gli account dalla cache aggiungendo proprietà di visibilità e ultime transazioni
-  useEffect(() => {
-    if (!cacheAccounts.length || !financeData || !user) return
+  // Deriva gli account con ultima operazione/ultimo aggiornamento filtrando
+  // client-side i dati già disponibili in cache (transazioni, rimborsi,
+  // trasferimenti sono già stati fetchati globalmente da FinanceCacheProvider).
+  // Prima faceva 2 query Supabase per ogni account (N+1): non serve, i dati
+  // ci sono già.
+  const accounts: ExtendedAccount[] = useMemo(() => {
+    if (!cacheAccounts.length || !financeData) return []
 
-    const processAccountsWithAllOperations = async () => {
-      try {
-        // Per ogni account, recupera tutte le operazioni (transactions, funds_transfer, refunds)
-        const accountsWithExtras = await Promise.all(
-          cacheAccounts.map(async (account) => {
-            // 1. Transazioni dalla cache
-            const accountTransactions = financeData.transactions.filter(
-              (transaction) => transaction.account_name === account.name
-            )
+    return cacheAccounts.map((account) => {
+      const accountTransactions = financeData.transactions.filter(
+        (transaction) => transaction.account_name === account.name
+      )
+      const accountFundsTransfers = financeData.fundsTransfer.filter(
+        (transfer) => transfer.account_name === account.name
+      )
+      const accountRefunds = financeData.refunds.filter(
+        (refund) => refund.account_name === account.name
+      )
 
-            // 2. Trasferimenti di fondi dal database
-            const { data: fundsTransfers } = await supabase
-              .from('funds_transfer')
-              .select('*')
-              .eq('user_id', user.id)
-              .eq('account_id', account.id)
-              .order('funds_transfer_date', { ascending: false })
+      const allOperationDates: string[] = [
+        ...accountTransactions.map((transaction) => transaction.transaction_date),
+        ...accountFundsTransfers
+          .map((transfer) => transfer.funds_transfer_date)
+          .filter((date): date is string => Boolean(date)),
+        ...accountRefunds.map((refund) => refund.refund_date)
+      ]
 
-            // 3. Rimborsi dal database
-            const { data: refunds } = await supabase
-              .from('refunds')
-              .select('*')
-              .eq('user_id', user.id)
-              .eq('account_id', account.id)
-              .order('refund_date', { ascending: false })
+      const lastTransaction = accountTransactions.length > 0
+        ? [...accountTransactions].sort((a, b) =>
+            new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime()
+          )[0]
+        : null
 
-            // Raccogli tutte le date delle operazioni
-            const allOperationDates: string[] = []
+      const lastUpdated = allOperationDates.length > 0
+        ? [...allOperationDates].sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0]
+        : (account.updated_at || account.created_at)
 
-            // Aggiungi date delle transazioni
-            accountTransactions.forEach(transaction => {
-              allOperationDates.push(transaction.transaction_date)
-            })
-
-            // Aggiungi date dei trasferimenti
-            if (fundsTransfers) {
-              fundsTransfers.forEach((transfer: FundsTransfer) => {
-                if (transfer.funds_transfer_date) {
-                  allOperationDates.push(transfer.funds_transfer_date)
-                }
-              })
-            }
-
-            // Aggiungi date dei rimborsi
-            if (refunds) {
-              refunds.forEach((refund: Refund) => {
-                allOperationDates.push(refund.refund_date)
-              })
-            }
-
-            // Ordina le transazioni per data (più recente prima) e prendi la prima
-            const lastTransaction = accountTransactions.length > 0 
-              ? accountTransactions.sort((a, b) => 
-                  new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime()
-                )[0]
-              : null
-
-            // Trova la data più recente tra tutte le operazioni
-            let lastUpdated: string
-            if (allOperationDates.length > 0) {
-              // Ordina tutte le date e prendi la più recente
-              const sortedDates = allOperationDates.sort((a, b) => 
-                new Date(b).getTime() - new Date(a).getTime()
-              )
-              lastUpdated = sortedDates[0]
-            } else {
-              // Se non ci sono operazioni, usa i metadati dell'account
-              lastUpdated = account.updated_at || account.created_at
-            }
-
-            return {
-              ...account,
-              lastTransaction: lastTransaction ? {
-                date: lastTransaction.transaction_date,
-                amount: lastTransaction.current_amount,
-                description: lastTransaction.transaction_details
-              } : undefined,
-              lastUpdated: lastUpdated
-            }
-          })
-        )
-        
-        setAccounts(accountsWithExtras)
-      } catch (error) {
-        console.error('Errore nel processamento degli account:', error)
-        // Fallback alla logica precedente in caso di errore
-        const accountsWithExtras = cacheAccounts.map((account) => {
-          const accountTransactions = financeData.transactions.filter(
-            (transaction) => transaction.account_name === account.name
-          )
-
-          const lastTransaction = accountTransactions.length > 0 
-            ? accountTransactions.sort((a, b) => 
-                new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime()
-              )[0]
-            : null
-
-          const lastUpdated = lastTransaction 
-            ? lastTransaction.transaction_date 
-            : account.updated_at || account.created_at
-
-          return {
-            ...account,
-            lastTransaction: lastTransaction ? {
-              date: lastTransaction.transaction_date,
-              amount: lastTransaction.current_amount,
-              description: lastTransaction.transaction_details
-            } : undefined,
-            lastUpdated: lastUpdated
-          }
-        })
-        
-        setAccounts(accountsWithExtras)
+      return {
+        ...account,
+        lastTransaction: lastTransaction ? {
+          date: lastTransaction.transaction_date,
+          amount: lastTransaction.current_amount,
+          description: lastTransaction.transaction_details
+        } : undefined,
+        lastUpdated
       }
-    }
-
-    processAccountsWithAllOperations()
-  }, [cacheAccounts, financeData, user, supabase])
+    })
+  }, [cacheAccounts, financeData])
 
   const formatCurrency = (amount: number, currency: string = 'EUR') => {
     return new Intl.NumberFormat('it-IT', {
