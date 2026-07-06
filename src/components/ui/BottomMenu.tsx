@@ -230,9 +230,9 @@ export function BottomMenu() {
         <div className="md:hidden fixed bottom-20 right-4 left-4 sm:left-auto sm:w-72 bg-white rounded-2xl shadow-2xl border border-gray-200 z-50 overflow-hidden animate-in slide-in-from-bottom-4 duration-200">
           {/* Header solo se utente loggato */}
           {user && (
-            <div className="p-4 bg-gradient-to-br from-blue-50 to-white border-b border-gray-100">
+            <div className="p-4 bg-gray-50 border-b border-gray-100">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-blue-700 rounded-full flex items-center justify-center ring-2 ring-blue-100">
+                <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center">
                   <User size={20} className="text-white" />
                 </div>
                 <div className="flex-1 min-w-0">

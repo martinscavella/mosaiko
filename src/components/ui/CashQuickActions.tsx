@@ -5,7 +5,7 @@ import { useAuth } from '@/lib/auth'
 import { useAccounts } from '@/lib/financeCache'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import NewTransactionModal from './NewTransactionModal'
-import { Wallet } from 'lucide-react'
+import { Wallet, Dumbbell, Trophy, Coins, LucideIcon } from 'lucide-react'
 import { clsx } from 'clsx'
 
 interface Account {
@@ -31,7 +31,7 @@ interface QuickAction {
   id: string
   label: string
   description?: string
-  emoji: string
+  icon: LucideIcon
   transaction_type: string
   typical_amount?: number
   category: string
@@ -43,7 +43,7 @@ const QUICK_ACTIONS: QuickAction[] = [
     id: 'padel',
     label: 'Padel',
     description: 'Padel: ',
-    emoji: '🎾',
+    icon: Dumbbell,
     transaction_type: 'Spesa',
     typical_amount: -10,
     category: 'Sport',
@@ -53,7 +53,7 @@ const QUICK_ACTIONS: QuickAction[] = [
     id: 'calcio',
     label: 'Calcio',
     description: 'Calcio: ',
-    emoji: '⚽️',
+    icon: Trophy,
     transaction_type: 'Spesa',
     typical_amount: -5,
     category: 'Sport',
@@ -63,7 +63,7 @@ const QUICK_ACTIONS: QuickAction[] = [
     id: 'other',
     label: 'Altro',
     description: '',
-    emoji: '💰',
+    icon: Coins,
     transaction_type: 'Spesa',
     category: ''
   }
@@ -284,7 +284,7 @@ export default function CashQuickActions() {
               disabled={isLoading}
               className="flex flex-col items-center gap-2 p-4 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 hover:border-gray-300 transition-all duration-150 disabled:opacity-50 active:scale-95"
             >
-              <span className="text-2xl">{action.emoji}</span>
+              <action.icon className="w-6 h-6 text-gray-600" />
               <span className="text-sm font-medium text-gray-700">{action.label}</span>
               {action.typical_amount && (
                 <span className="text-xs text-gray-500">{action.typical_amount}€</span>

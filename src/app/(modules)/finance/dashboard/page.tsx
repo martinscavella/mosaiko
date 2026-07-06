@@ -88,7 +88,7 @@ export default function FinanceDashboard() {
     <>
       {/* Layout principale della dashboard finanza */}
       <ModuleLayout moduleId="finance">
-        <div className="max-w-7xl 3xl:max-w-[1600px] 4xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 3xl:px-10 py-8 custom-scrollbar">
+        <div className="max-w-7xl 3xl:max-w-[1600px] 4xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 3xl:px-10 py-8">
           {/* Header fisso e fluttante - solo il box stondato */}
           <ModuleHeader
               title="Dashboard Finanziaria"

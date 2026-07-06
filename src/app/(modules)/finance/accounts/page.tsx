@@ -352,37 +352,7 @@ export default function AccountsPage() {
 
   return (
     <ModuleLayout moduleId="finance">
-      <style jsx>{`
-        .custom-scrollbar {
-          scrollbar-width: thin;
-          scrollbar-color: #CBD5E0 #EDF2F7;
-        }
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 6px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: #EDF2F7;
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: linear-gradient(180deg, #CBD5E0, #A0AEC0);
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: linear-gradient(180deg, #A0AEC0, #718096);
-        }
-        .shimmer-effect {
-          animation: shimmer 2s infinite;
-        }
-        @keyframes shimmer {
-          0% { transform: translateX(-100%) skewX(-12deg); }
-          100% { transform: translateX(200%) skewX(-12deg); }
-        }
-        .btn-refresh:hover .shimmer-effect {
-          animation: shimmer 0.7s ease-out;
-        }
-      `}</style>
-      <div className="max-w-7xl 3xl:max-w-[1600px] 4xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 3xl:px-10 py-8 custom-scrollbar">
+      <div className="max-w-7xl 3xl:max-w-[1600px] 4xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 3xl:px-10 py-8">
         
         {/* Header utilizzando il componente riutilizzabile */}
         <ModuleHeader
@@ -437,7 +407,7 @@ export default function AccountsPage() {
 
         {/* Filters and Search */}
         <div className="mb-6">
-          <div className="bg-white/80 backdrop-blur-sm border border-white/60 shadow-sm rounded-xl p-4 transition-all duration-200 hover:shadow-md">
+          <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-4">
             <div className="flex flex-col md:flex-row gap-4">
               {/* Search */}
               <div className="flex-1">
@@ -448,7 +418,7 @@ export default function AccountsPage() {
                     placeholder="Cerca account..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-gray-50/50 focus:bg-white text-sm"
+                    className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm"
                   />
                 </div>
               </div>
@@ -459,7 +429,7 @@ export default function AccountsPage() {
                   <select
                     value={selectedAccountType}
                     onChange={(e) => setSelectedAccountType(e.target.value)}
-                    className="w-full appearance-none pl-4 pr-10 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white/90 focus:bg-white transition-all duration-200 text-sm font-medium text-gray-700 cursor-pointer shadow-sm hover:shadow-md"
+                    className="w-full appearance-none pl-4 pr-10 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-sm font-medium text-gray-700 cursor-pointer"
                   >
                     <option value="all">Tutti i tipi</option>
                     {getUniqueAccountTypes().map(type => (
@@ -486,7 +456,7 @@ export default function AccountsPage() {
                         setSearchTerm('')
                         setSelectedAccountType('all')
                       }}
-                      className="px-3 py-1.5 text-xs font-medium text-purple-600 hover:text-purple-700 border border-purple-200 hover:border-purple-300 rounded-lg transition-colors"
+                      className="px-3 py-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 border border-gray-200 hover:border-gray-300 rounded-lg transition-colors"
                     >
                       Reset
                     </button>
@@ -499,194 +469,176 @@ export default function AccountsPage() {
 
         {/* Accounts Table */}
         {loading ? (
-          <div className="group relative">
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-50/80 to-purple-50/80 rounded-xl blur-sm opacity-0 group-hover:opacity-100 transition-all duration-300"></div>
-            <div className="relative bg-white/80 backdrop-blur-sm border border-white/60 shadow-lg rounded-xl p-6 transition-all duration-200 hover:shadow-xl">
-              <div className="animate-pulse space-y-4">
-                <div className="h-5 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 rounded-lg"></div>
-                {[...Array(5)].map((_, i) => (
-                  <div key={i} className="h-12 bg-gradient-to-r from-gray-100 via-gray-200 to-gray-100 rounded-lg"></div>
-                ))}
-              </div>
+          <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
+            <div className="animate-pulse space-y-4">
+              <div className="h-5 bg-gray-200 rounded-lg"></div>
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="h-12 bg-gray-100 rounded-lg"></div>
+              ))}
             </div>
           </div>
         ) : (
-          <div className="group relative">
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-50/80 to-purple-50/80 rounded-xl blur-sm opacity-0 group-hover:opacity-100 transition-all duration-300"></div>
-            <div className="relative bg-white/80 backdrop-blur-sm border border-white/60 shadow-lg rounded-xl overflow-hidden transition-all duration-200 hover:shadow-xl">
-              
-              <div className="overflow-x-auto">
-                <table className="min-w-full">
-                  <thead className="bg-gradient-to-r from-gray-50/60 to-white/40">
-                    <tr>
-                      <th 
-                        className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100/40 transition-all duration-200 group/header"
-                        onClick={() => handleSort('name')}
-                      >
-                        <div className="flex items-center space-x-2">
-                          <span>Account</span>
-                          <div className="transition-transform duration-200 group-hover/header:scale-110">
-                            {getSortIcon('name')}
-                          </div>
-                        </div>
-                      </th>
-                      <th 
-                        className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden md:table-cell cursor-pointer hover:bg-gray-100/40 transition-all duration-200 group/header"
-                        onClick={() => handleSort('type')}
-                      >
-                        <div className="flex items-center space-x-2">
-                          <span>Tipo</span>
-                          <div className="transition-transform duration-200 group-hover/header:scale-110">
-                            {getSortIcon('type')}
-                          </div>
-                        </div>
-                      </th>
-                      <th 
-                        className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100/40 transition-all duration-200 group/header"
-                        onClick={() => handleSort('balance')}
-                      >
-                        <div className="flex items-center justify-end space-x-2">
-                          <span>Saldo</span>
-                          <div className="transition-transform duration-200 group-hover/header:scale-110">
-                            {getSortIcon('balance')}
-                          </div>
-                        </div>
-                      </th>
-                      <th className="px-6 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider hidden lg:table-cell">
-                        Ultimo Aggiornamento
-                      </th>
-                      <th className="px-6 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                        Azioni
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100/50">
-                    {filteredAndSortedAccounts.map((account) => (
-                      <tr 
-                        key={account.id} 
-                        className="hover:bg-gradient-to-r hover:from-blue-50/30 hover:to-purple-50/30 transition-all duration-200 group/row"
-                        style={{ borderLeft: `4px solid ${account.color}` }}
-                      >
-                        <td className="px-6 py-4">
-                          <div className="flex items-center space-x-3">
-                            <div 
-                              className="w-10 h-10 rounded-xl flex items-center justify-center shadow-sm border transition-all duration-200 group-hover/row:shadow-md group-hover/row:scale-105"
-                              style={{ 
-                                backgroundColor: `${account.color}15`,
-                                borderColor: (() => {
-                                  const hex = account.color.replace('#', '')
-                                  const r = Math.max(0, parseInt(hex.substr(0, 2), 16) - 40)
-                                  const g = Math.max(0, parseInt(hex.substr(2, 2), 16) - 40)
-                                  const b = Math.max(0, parseInt(hex.substr(4, 2), 16) - 40)
-                                  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`
-                                })()
-                              }}
-                            >
-                              {(() => {
-                                const IconComponent = getAccountIcon(account.type)
+          <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th
+                      className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                      onClick={() => handleSort('name')}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <span>Account</span>
+                        {getSortIcon('name')}
+                      </div>
+                    </th>
+                    <th
+                      className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden md:table-cell cursor-pointer hover:bg-gray-100 transition-colors"
+                      onClick={() => handleSort('type')}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <span>Tipo</span>
+                        {getSortIcon('type')}
+                      </div>
+                    </th>
+                    <th
+                      className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                      onClick={() => handleSort('balance')}
+                    >
+                      <div className="flex items-center justify-end space-x-2">
+                        <span>Saldo</span>
+                        {getSortIcon('balance')}
+                      </div>
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider hidden lg:table-cell">
+                      Ultimo Aggiornamento
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      Azioni
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {filteredAndSortedAccounts.map((account) => (
+                    <tr
+                      key={account.id}
+                      className="hover:bg-gray-50 transition-colors"
+                      style={{ borderLeft: `4px solid ${account.color}` }}
+                    >
+                      <td className="px-6 py-4">
+                        <div className="flex items-center space-x-3">
+                          <div
+                            className="w-10 h-10 rounded-lg flex items-center justify-center border"
+                            style={{
+                              backgroundColor: `${account.color}15`,
+                              borderColor: (() => {
                                 const hex = account.color.replace('#', '')
                                 const r = Math.max(0, parseInt(hex.substr(0, 2), 16) - 40)
                                 const g = Math.max(0, parseInt(hex.substr(2, 2), 16) - 40)
                                 const b = Math.max(0, parseInt(hex.substr(4, 2), 16) - 40)
-                                const iconColor = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`
-                                return <IconComponent className="w-5 h-5" style={{ color: iconColor }} />
-                              })()}
+                                return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`
+                              })()
+                            }}
+                          >
+                            {(() => {
+                              const IconComponent = getAccountIcon(account.type)
+                              const hex = account.color.replace('#', '')
+                              const r = Math.max(0, parseInt(hex.substr(0, 2), 16) - 40)
+                              const g = Math.max(0, parseInt(hex.substr(2, 2), 16) - 40)
+                              const b = Math.max(0, parseInt(hex.substr(4, 2), 16) - 40)
+                              const iconColor = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`
+                              return <IconComponent className="w-5 h-5" style={{ color: iconColor }} />
+                            })()}
+                          </div>
+                          <div>
+                            <div className="font-semibold text-gray-900">{account.name}</div>
+                            <div className="text-sm text-gray-500 md:hidden">
+                              {getAccountTypeLabel(account.type)}
                             </div>
-                            <div>
-                              <div className="font-semibold text-gray-900">{account.name}</div>
-                              <div className="text-sm text-gray-500 md:hidden">
-                                {getAccountTypeLabel(account.type)}
-                              </div>
-                              <div className="flex items-center space-x-1 text-xs text-gray-400 lg:hidden">
-                                <Clock className="w-3 h-3" />
-                                <span>
-                                  {account.lastUpdated ? formatRelativeTime(account.lastUpdated) : 'Mai aggiornato'}
-                                </span>
-                              </div>
+                            <div className="flex items-center space-x-1 text-xs text-gray-400 lg:hidden">
+                              <Clock className="w-3 h-3" />
+                              <span>
+                                {account.lastUpdated ? formatRelativeTime(account.lastUpdated) : 'Mai aggiornato'}
+                              </span>
                             </div>
                           </div>
-                        </td>
-                        <td className="px-6 py-4 hidden md:table-cell">
-                          <span className={`inline-flex px-3 py-1 text-xs font-medium rounded-full border ${getAccountTypeColor(account.type)} transition-all duration-200 group-hover/row:scale-105`}>
-                            {getAccountTypeLabel(account.type)}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex items-center justify-end space-x-2">
-                            <div className={`font-bold text-lg ${account.current_balance >= 0 ? 'text-green-600' : 'text-red-600'} transition-all duration-200 group-hover/row:scale-105`}>
-                              {formatCurrency(account.current_balance)}
-                            </div>
-                            <div className={`p-1 rounded-full ${account.current_balance >= 0 ? 'bg-green-100' : 'bg-red-100'} transition-all duration-200 group-hover/row:scale-110`}>
-                              {account.current_balance >= 0 ? (
-                                <TrendingUp className="w-4 h-4 text-green-600" />
-                              ) : (
-                                <TrendingDown className="w-4 h-4 text-red-600" />
-                              )}
-                            </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 hidden md:table-cell">
+                        <span className={`inline-flex px-3 py-1 text-xs font-medium rounded-full border ${getAccountTypeColor(account.type)}`}>
+                          {getAccountTypeLabel(account.type)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end space-x-2">
+                          <div className={`font-bold text-lg ${account.current_balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {formatCurrency(account.current_balance)}
                           </div>
-                        </td>
-                        <td className="px-6 py-4 text-center hidden lg:table-cell">
-                          <div className="flex items-center justify-center space-x-2">
-                            <Clock className="w-4 h-4 text-gray-400" />
-                            <span className="text-sm text-gray-600 font-medium">
-                              {account.lastUpdated ? formatRelativeTime(account.lastUpdated) : 'Mai aggiornato'}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          <div className="relative">
-                            <button
-                              onClick={() => setSelectedAccount(selectedAccount?.id === account.id ? null : account)}
-                              className="p-2 rounded-full text-gray-500 hover:text-gray-700 hover:bg-gray-100/50 transition-all duration-200 hover:scale-110"
-                            >
-                              <MoreVertical className="w-4 h-4" />
-                            </button>
-                            {selectedAccount?.id === account.id && (
-                              <div className="absolute right-0 top-10 bg-white/95 backdrop-blur-sm border border-gray-200/80 rounded-xl shadow-xl py-2 z-20 min-w-[140px]">
-                                <button className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50/70 transition-colors">
-                                  <Edit2 className="w-4 h-4 mr-3" />
-                                  Modifica
-                                </button>
-                                <button className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50/70 transition-colors">
-                                  <Trash2 className="w-4 h-4 mr-3" />
-                                  Elimina
-                                </button>
-                              </div>
+                          <div className={`p-1 rounded-full ${account.current_balance >= 0 ? 'bg-green-100' : 'bg-red-100'}`}>
+                            {account.current_balance >= 0 ? (
+                              <TrendingUp className="w-4 h-4 text-green-600" />
+                            ) : (
+                              <TrendingDown className="w-4 h-4 text-red-600" />
                             )}
                           </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              
-              {/* No results message */}
-              {filteredAndSortedAccounts.length === 0 && (
-                <div className="text-center py-16">
-                  <div className="group relative">
-                    <div className="absolute inset-0 bg-gradient-to-br from-blue-50/80 to-purple-50/80 rounded-xl blur-sm opacity-0 group-hover:opacity-100 transition-all duration-300"></div>
-                    <div className="relative bg-white/60 backdrop-blur-sm border border-white/70 shadow-sm rounded-xl p-8 transition-all duration-200 hover:shadow-md">
-                      <div className="text-gray-400 mb-6">
-                        <Search className="w-20 h-20 mx-auto" />
-                      </div>
-                      <h3 className="text-xl font-semibold text-gray-800 mb-3">Nessun account trovato</h3>
-                      <p className="text-gray-600 mb-6">Prova a modificare i filtri di ricerca per trovare i tuoi account</p>
-                      <button
-                        onClick={() => {
-                          setSearchTerm('')
-                          setSelectedAccountType('all')
-                        }}
-                        className="inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-xl text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105"
-                      >
-                        <RefreshCw className="w-4 h-4 mr-2" />
-                        Cancella filtri
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-center hidden lg:table-cell">
+                        <div className="flex items-center justify-center space-x-2">
+                          <Clock className="w-4 h-4 text-gray-400" />
+                          <span className="text-sm text-gray-600 font-medium">
+                            {account.lastUpdated ? formatRelativeTime(account.lastUpdated) : 'Mai aggiornato'}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <div className="relative">
+                          <button
+                            onClick={() => setSelectedAccount(selectedAccount?.id === account.id ? null : account)}
+                            className="p-2 rounded-full text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+                          >
+                            <MoreVertical className="w-4 h-4" />
+                          </button>
+                          {selectedAccount?.id === account.id && (
+                            <div className="absolute right-0 top-10 bg-white border border-gray-200 rounded-xl shadow-lg py-2 z-20 min-w-[140px]">
+                              <button className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                                <Edit2 className="w-4 h-4 mr-3" />
+                                Modifica
+                              </button>
+                              <button className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors">
+                                <Trash2 className="w-4 h-4 mr-3" />
+                                Elimina
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
+
+            {/* No results message */}
+            {filteredAndSortedAccounts.length === 0 && (
+              <div className="text-center py-16 px-8">
+                <div className="text-gray-300 mb-6">
+                  <Search className="w-16 h-16 mx-auto" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-800 mb-3">Nessun account trovato</h3>
+                <p className="text-gray-600 mb-6">Prova a modificare i filtri di ricerca per trovare i tuoi account</p>
+                <button
+                  onClick={() => {
+                    setSearchTerm('')
+                    setSelectedAccountType('all')
+                  }}
+                  className="inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-xl text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors shadow-sm"
+                >
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Cancella filtri
+                </button>
+              </div>
+            )}
           </div>
         )}
 

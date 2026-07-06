@@ -651,7 +651,7 @@ export default function RefundsPage() {
 
         {/* Filters and Search */}
         <div className="mb-6">
-          <div className="bg-white/80 backdrop-blur-sm border border-white/60 shadow-sm rounded-xl p-4 transition-all duration-200 hover:shadow-md">
+          <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-4">
             <div className="flex flex-col md:flex-row gap-4">
               {/* Search */}
               <div className="flex-1">
@@ -662,7 +662,7 @@ export default function RefundsPage() {
                     placeholder="Cerca rimborsi..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-gray-50/50 focus:bg-white text-sm"
+                    className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm"
                   />
                 </div>
               </div>
@@ -769,8 +769,8 @@ export default function RefundsPage() {
           </div>
         ) : refunds.length === 0 ? (
           <div className="text-center py-16">
-            <div className="bg-white/60 backdrop-blur-sm border border-white/70 shadow-sm rounded-xl p-8">
-              <RotateCcw className="w-20 h-20 mx-auto text-gray-400 mb-6" />
+            <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-8">
+              <RotateCcw className="w-16 h-16 mx-auto text-gray-300 mb-6" />
               <h3 className="text-xl font-semibold text-gray-800 mb-3">
                 Nessun rimborso
               </h3>
@@ -779,7 +779,7 @@ export default function RefundsPage() {
               </p>
               <button
                 onClick={handleAddRefund}
-                className="inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-xl text-white bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105"
+                className="inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-xl text-white bg-blue-600 hover:bg-blue-700 transition-colors shadow-sm"
               >
                 <Plus className="w-4 h-4 mr-2" />
                 Aggiungi il primo rimborso

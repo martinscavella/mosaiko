@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { TrendingUp, TrendingDown, BarChart3, RefreshCw } from 'lucide-react'
+import { TrendingUp, TrendingDown, BarChart3, RefreshCw, AlertTriangle } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceLine } from 'recharts'
 import { formatCurrency } from '@/lib/helpers/format'
 
@@ -526,7 +526,7 @@ export default function AssetPerformanceChart({
           {performance.noPriceData && (
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 text-amber-600">⚠️</div>
+                <AlertTriangle className="w-4 h-4 text-amber-600" />
                 <p className="text-sm text-amber-800">
                   <strong>Prezzo di mercato non disponibile</strong>
                 </p>

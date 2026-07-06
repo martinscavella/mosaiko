@@ -16,10 +16,7 @@ export type ProfileData = {
 
 export const createUserProfile = async (userId: string, profileData: ProfileData) => {
   const supabase = createClientComponentClient()
-  
-  console.log('🔥 Tentativo di creazione profilo per utente:', userId)
-  console.log('🔥 Dati profilo ricevuti:', profileData)
-  
+
   // Prepariamo solo i campi che esistono nella tabella profiles (esclusi quelli auto-generati)
   const insertData = {
     id: userId,
@@ -36,21 +33,14 @@ export const createUserProfile = async (userId: string, profileData: ProfileData
     subscription_type: profileData.subscription_type || null
     // Non includiamo: full_name (auto-generato), created_at, updated_at (auto-generati)
   }
-  
-  console.log('🔥 Dati da inserire nel database:', insertData)
-  
+
   const { data, error } = await supabase
     .from('profiles')
     .insert([insertData])
     .select()
 
   if (error) {
-    console.error('🔥 ERRORE dettagliato creazione profilo:', error)
-    console.error('🔥 Codice errore:', error.code)
-    console.error('🔥 Messaggio errore:', error.message)
-    console.error('🔥 Dettagli errore:', error.details)
-  } else {
-    console.log('🔥 ✅ Profilo creato con successo:', data)
+    console.error('Errore creazione profilo:', error.code, error.message)
   }
 
   return { data, error }

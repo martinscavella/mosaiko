@@ -1,4 +1,3 @@
-import jsPDF from 'jspdf';
 import { Calendar, FileText } from 'lucide-react';
 import Modal, { ModalButton } from './Modal';
 
@@ -25,6 +24,8 @@ export default function TransactionDetailsModal({ isOpen, onClose, transaction }
   const handleDownloadReceipt = async () => {
     const conferma = window.confirm('Vuoi scaricare la ricevuta in PDF di questa transazione?');
     if (!conferma) return;
+    // Import dinamico: jspdf e' pesante e serve solo per questa azione rara
+    const { default: jsPDF } = await import('jspdf');
     const doc = new jsPDF();
     doc.setFontSize(18);
     doc.text('Ricevuta Transazione', 14, 18);

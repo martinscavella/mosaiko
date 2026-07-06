@@ -211,7 +211,7 @@ export default function PWAManager() {
       <div className="fixed bottom-4 left-4 right-4 z-50 max-w-sm mx-auto">
         <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-4 animate-slide-up">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center flex-shrink-0">
+            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center flex-shrink-0">
               <span className="text-white font-bold text-sm">M</span>
             </div>
             

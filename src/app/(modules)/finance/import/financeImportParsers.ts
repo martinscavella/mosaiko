@@ -2,7 +2,6 @@
 // Contiene funzioni: parseCSV, parseExcel, parseEdenredExcel, costanti e tipi correlati
 
 import type { ImportRow, BankParser } from './types.js';
-import * as XLSX from 'xlsx';
 
 // Tipo per le statistiche di import
 export type ImportStats = {
@@ -794,7 +793,6 @@ export const BANK_PARSERS: BankParser[] = [
       
       // Estrai i campi - Trade Republic ha SEMPRE questi header
       const dateISO = findValue(headers, values, ['date']) || '';
-      const datetimeISO = findValue(headers, values, ['datetime']) || '';
       const categoryTR = (findValue(headers, values, ['category']) || '').toUpperCase().trim();
       const typeRaw = (findValue(headers, values, ['type']) || '').toUpperCase().trim();
       const amountStr = (findValue(headers, values, ['amount']) || '0').trim();
@@ -1175,6 +1173,8 @@ export async function parseCSV(file: File, accountId?: string, setDetectedBank?:
 
 // --- parseExcel ---
 export async function parseExcel(file: File, accountId?: string, setDetectedBank?: (parser: BankParser | null) => void, setImportData?: (rows: ImportRow[]) => void, setImportStats?: (stats: ImportStats) => void, accounts?: Account[]) {
+  // Import dinamico: xlsx e' pesante e serve solo quando l'utente importa un file Excel
+  const XLSX = await import('xlsx');
   const arrayBuffer = await file.arrayBuffer();
   const workbook = XLSX.read(arrayBuffer, { type: 'array' });
   const sheetName = workbook.SheetNames[0];

@@ -111,38 +111,12 @@ export default function AssetsPage() {
     }
   }, [financeData, assets])
 
-  // Loading states
-  if (authLoading) {
-    return (
-      <ModuleLayout moduleId="finance">
-        <div className="max-w-7xl 3xl:max-w-[1600px] 4xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 3xl:px-10 py-8">
-          <div className="animate-pulse">
-            {/* ...existing loading skeleton... */}
-          </div>
-        </div>
-      </ModuleLayout>
-    )
-  }
-
-  if (!user) {
-    return (
-      <ModuleLayout moduleId="finance">
-        <div className="max-w-7xl 3xl:max-w-[1600px] 4xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 3xl:px-10 py-8">
-          {/* ...existing user check JSX... */}
-        </div>
-      </ModuleLayout>
-    )
-  }  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('it-IT', {
-      style: 'currency',
-      currency: 'EUR'
-    }).format(amount)
-  }
-
   // Helper function to get purchase data from transactions
+  // NOTE: deve restare prima dei return condizionali sotto (authLoading/!user):
+  // gli hook non possono essere chiamati dopo un return anticipato (Rules of Hooks).
   const getAssetPurchaseData = useCallback((assetId: string) => {
     const assetTransactions = financeData?.transactions?.filter(t => t.asset_id === assetId) || []
-    
+
     if (assetTransactions.length === 0) {
       return {
         totalCost: 0,
@@ -197,6 +171,36 @@ export default function AssetsPage() {
       hasTransactions: formattedTransactions.length > 0
     }
   }, [financeData])
+
+  // Loading states
+  if (authLoading) {
+    return (
+      <ModuleLayout moduleId="finance">
+        <div className="max-w-7xl 3xl:max-w-[1600px] 4xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 3xl:px-10 py-8">
+          <div className="animate-pulse">
+            {/* ...existing loading skeleton... */}
+          </div>
+        </div>
+      </ModuleLayout>
+    )
+  }
+
+  if (!user) {
+    return (
+      <ModuleLayout moduleId="finance">
+        <div className="max-w-7xl 3xl:max-w-[1600px] 4xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 3xl:px-10 py-8">
+          {/* ...existing user check JSX... */}
+        </div>
+      </ModuleLayout>
+    )
+  }
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('it-IT', {
+      style: 'currency',
+      currency: 'EUR'
+    }).format(amount)
+  }
 
   const calculatePerformance = (currentValue: number, totalCost: number) => {
     if (totalCost === 0) return 0
@@ -308,16 +312,18 @@ export default function AssetsPage() {
         return
       }
       
-      // Aggiorna ogni asset
+      // Aggiorna ogni asset senza ricaricare la cache a ogni iterazione:
+      // un solo refetch() finale invece di uno per ogni asset (N+1 di rete).
       for (const asset of assetsWithSymbol) {
         try {
-          await updateAssetMarketValue(asset.id)
+          await updateAssetMarketValue(asset.id, { skipRefetch: true })
           console.log(`✅ Aggiornato ${asset.name}`)
         } catch (error) {
           console.error(`❌ Errore aggiornamento ${asset.name}:`, error)
         }
       }
-      
+
+      await refetch()
       console.log('✅ Aggiornamento completato')
       
     } catch (error) {

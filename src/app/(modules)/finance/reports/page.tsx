@@ -12,7 +12,10 @@ import {
   Download,
   Eye,
   Filter,
-  X
+  X,
+  ChevronDown,
+  ChevronUp,
+  Building2
 } from 'lucide-react'
 import { 
   BarChart, 
@@ -699,8 +702,8 @@ export default function ReportsPage() {
                   {stats.goalProgress.toFixed(1)}% completamento medio su {goals.length} obiettivi
                 </p>
                 <div className="mt-2 w-full bg-purple-200 rounded-full h-2">
-                  <div 
-                    className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full transition-all duration-300"
+                  <div
+                    className="bg-purple-600 h-2 rounded-full transition-all duration-300"
                     style={{ width: `${Math.min(stats.goalProgress, 100)}%` }}
                   ></div>
                 </div>
@@ -708,7 +711,7 @@ export default function ReportsPage() {
 
               {/* Raccomandazione intelligente */}
               <div className="bg-gray-50 rounded-lg p-4 border-l-4 border-blue-500">
-                <h4 className="font-medium text-gray-900 mb-1">💡 Raccomandazione</h4>
+                <h4 className="font-medium text-gray-900 mb-1">Raccomandazione</h4>
                 <p className="text-gray-700 text-sm">
                   {advancedStats.netFlow < 0 
                     ? `Considera di ridurre le spese in "${advancedStats.topCategory?.name || 'categorie principali'}" per migliorare il bilancio.`
@@ -723,7 +726,7 @@ export default function ReportsPage() {
         </div>
 
         {/* Sezione Comparazione Periodi */}
-        <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl border border-blue-200 p-6">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
             <BarChart3 className="h-5 w-5 text-blue-600 mr-2" />
             Analisi Comparativa
@@ -1482,8 +1485,8 @@ export default function ReportsPage() {
                         <span className="text-sm text-gray-600">{percentage.toFixed(1)}%</span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-gradient-to-r from-orange-400 to-orange-600 h-2 rounded-full transition-all duration-300"
+                        <div
+                          className="bg-orange-500 h-2 rounded-full transition-all duration-300"
                           style={{ width: `${percentage}%` }}
                         ></div>
                       </div>
@@ -1563,8 +1566,8 @@ export default function ReportsPage() {
                   </div>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div 
-                    className="bg-gradient-to-r from-blue-500 to-green-500 h-2 rounded-full transition-all duration-300"
+                  <div
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                     style={{ width: `${Math.min(progress, 100)}%` }}
                   ></div>
                 </div>
@@ -1595,29 +1598,8 @@ export default function ReportsPage() {
 
   return (
     <>
-      <style jsx>{`
-        .custom-scrollbar {
-          scrollbar-width: thin;
-          scrollbar-color: #CBD5E0 #EDF2F7;
-        }
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 6px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: #EDF2F7;
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: linear-gradient(180deg, #CBD5E0, #A0AEC0);
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: linear-gradient(180deg, #A0AEC0, #718096);
-        }
-      `}</style>
-      
       <ModuleLayout moduleId="finance">
-        <div className="max-w-7xl 3xl:max-w-[1600px] 4xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 3xl:px-10 py-8 custom-scrollbar">
+        <div className="max-w-7xl 3xl:max-w-[1600px] 4xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 3xl:px-10 py-8">
           <ModuleHeader
             title="Report Finanziari"
             subtitle="Analisi dettagliate e statistiche avanzate delle tue finanze" 
@@ -1685,13 +1667,14 @@ export default function ReportsPage() {
                   )}
                   <button
                     onClick={() => setShowFilters(!showFilters)}
-                    className={`text-sm font-medium transition-colors ${
-                      showFilters 
-                        ? 'text-blue-800 hover:text-blue-900' 
+                    className={`flex items-center gap-1 text-sm font-medium transition-colors ${
+                      showFilters
+                        ? 'text-blue-800 hover:text-blue-900'
                         : 'text-blue-600 hover:text-blue-800'
                     }`}
                   >
-                    {showFilters ? '🔽 Nascondi' : '🔽 Mostra'}
+                    {showFilters ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    {showFilters ? 'Nascondi' : 'Mostra'}
                   </button>
                 </div>
                 
@@ -1752,7 +1735,7 @@ export default function ReportsPage() {
                     {/* Filtro Date Range */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        📅 Periodo personalizzato
+                        Periodo personalizzato
                       </label>
                       <div className="space-y-2">
                         <div>
@@ -1783,7 +1766,7 @@ export default function ReportsPage() {
                       {dateRange.start && dateRange.end && (
                         <div className="mt-2 p-2 bg-blue-50 rounded-md">
                           <p className="text-xs text-blue-700">
-                            📊 Periodo: {Math.ceil((dateRange.end.getTime() - dateRange.start.getTime()) / (1000 * 60 * 60 * 24))} giorni
+                            Periodo: {Math.ceil((dateRange.end.getTime() - dateRange.start.getTime()) / (1000 * 60 * 60 * 24))} giorni
                             <br />
                             Dal {dateRange.start.toLocaleDateString('it-IT')} al {dateRange.end.toLocaleDateString('it-IT')}
                           </p>
@@ -1805,7 +1788,10 @@ export default function ReportsPage() {
                               onChange={() => setSelectedAccounts([])}
                               className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                             />
-                            <span className="text-sm text-gray-700 font-medium">🏦 Tutti gli account</span>
+                            <span className="flex items-center gap-1.5 text-sm text-gray-700 font-medium">
+                              <Building2 className="w-4 h-4 text-gray-400" />
+                              Tutti gli account
+                            </span>
                             <span className="text-xs text-gray-500 ml-auto">{transactions.length}</span>
                           </label>
                           <hr className="my-1 border-gray-200" />
@@ -1913,9 +1899,9 @@ export default function ReportsPage() {
                     <button
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id)}
-                      className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${
+                      className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
                         activeTab === tab.id
-                          ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
+                          ? 'bg-blue-600 text-white'
                           : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                       }`}
                     >

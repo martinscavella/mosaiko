@@ -310,30 +310,30 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none bg-white hover:bg-gray-50 text-gray-900 font-medium"
                     required
                   >
-                    <option value="Abbonamento">🔄 Abbonamento</option>
-                    <option value="Acquisto">🛒 Acquisto</option>
-                    <option value="AZIONE">📈 AZIONE</option>
-                    <option value="Bonifico">🏦 Bonifico</option>
-                    <option value="Buono fruttifero">🏛️ Buono fruttifero</option>
-                    <option value="Cancellazione rimborso">❌ Cancellazione rimborso</option>
-                    <option value="Commissione">💳 Commissione</option>
-                    <option value="Competenze">🎯 Competenze</option>
-                    <option value="Delivery">🚚 Delivery</option>
-                    <option value="Eccesso Rimborso">💰 Eccesso Rimborso</option>
-                    <option value="Entrata">💸 Entrata</option>
-                    <option value="ETF">📊 ETF</option>
-                    <option value="Imposte">🏛️ Imposte</option>
-                    <option value="Iscrizione">📝 Iscrizione</option>
-                    <option value="Ordine">📋 Ordine</option>
-                    <option value="Prelievo">🏧 Prelievo</option>
-                    <option value="Quattordicesima">💰 Quattordicesima</option>
-                    <option value="Rata">💳 Rata</option>
-                    <option value="Refund">💰 Refund</option>
-                    <option value="Ricarica">🔋 Ricarica</option>
-                    <option value="Spesa">💸 Spesa</option>
-                    <option value="Stipendio">💼 Stipendio</option>
-                    <option value="TFR">💰 TFR</option>
-                    <option value="Tredicesima">💰 Tredicesima</option>
+                    <option value="Abbonamento">Abbonamento</option>
+                    <option value="Acquisto">Acquisto</option>
+                    <option value="AZIONE">AZIONE</option>
+                    <option value="Bonifico">Bonifico</option>
+                    <option value="Buono fruttifero">Buono fruttifero</option>
+                    <option value="Cancellazione rimborso">Cancellazione rimborso</option>
+                    <option value="Commissione">Commissione</option>
+                    <option value="Competenze">Competenze</option>
+                    <option value="Delivery">Delivery</option>
+                    <option value="Eccesso Rimborso">Eccesso Rimborso</option>
+                    <option value="Entrata">Entrata</option>
+                    <option value="ETF">ETF</option>
+                    <option value="Imposte">Imposte</option>
+                    <option value="Iscrizione">Iscrizione</option>
+                    <option value="Ordine">Ordine</option>
+                    <option value="Prelievo">Prelievo</option>
+                    <option value="Quattordicesima">Quattordicesima</option>
+                    <option value="Rata">Rata</option>
+                    <option value="Refund">Refund</option>
+                    <option value="Ricarica">Ricarica</option>
+                    <option value="Spesa">Spesa</option>
+                    <option value="Stipendio">Stipendio</option>
+                    <option value="TFR">TFR</option>
+                    <option value="Tredicesima">Tredicesima</option>
                   </select>
                   <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none">
                     <div className="flex items-center space-x-2">
@@ -486,12 +486,12 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
             </div>
 
             {/* È stato rimborsato? */}
-            <div className="bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200 rounded-lg p-4">
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
               <div className="flex items-center space-x-3">
-                <div 
-                  className={`relative w-6 h-6 rounded-md cursor-pointer transition-all duration-300 ease-in-out transform hover:scale-105 ${
-                    formData.is_refunded 
-                      ? 'bg-gradient-to-r from-amber-500 to-yellow-500 border-2 border-amber-400 shadow-lg shadow-amber-200' 
+                <div
+                  className={`relative w-6 h-6 rounded-md cursor-pointer transition-colors ${
+                    formData.is_refunded
+                      ? 'bg-amber-500 border-2 border-amber-500'
                       : 'bg-white border-2 border-amber-300 hover:border-amber-400'
                   }`}
                   onClick={() => setFormData(prev => ({ ...prev, is_refunded: !prev.is_refunded }))}

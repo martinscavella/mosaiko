@@ -195,6 +195,7 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
             is_refunded,
             account_name,
             asset_id,
+            asset_quantity,
             accounts(type),
             categories(name),
             subcategories(name)
@@ -233,9 +234,6 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
       const rawAssets = assetsResult.data || [];
       const refunds = refundsResult.data || [];
       const fundsTransfer = fundsTransferResult.data || [];
-
-      // Filtraggio asset-related disponibile se necessario in futuro
-      // const assetPurchaseTransactions = allTransactions.filter((transaction: Transaction) => transaction.asset_id != null);
 
       const assets = rawAssets as Asset[];
 
@@ -396,14 +394,14 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
     setError(null)
   }, [])
 
-  const contextValue: FinanceCacheContextType = {
+  const contextValue: FinanceCacheContextType = useMemo(() => ({
     data,
     loading,
     error,
     refetch,
     invalidateCache,
     isDataStale: data ? isDataStale(data.lastFetch) : false
-  };
+  }), [data, loading, error, refetch, invalidateCache, isDataStale]);
 
   return <FinanceCacheContext.Provider value={contextValue}>{children}</FinanceCacheContext.Provider>;
 }
@@ -522,12 +520,6 @@ export function useAssetStats() {
     topPerformingAsset: assets.length > 0 ? assets[0] : null // Temporaneo - senza purchase_price non possiamo calcolare performance
   }
 }
-
-// Hook per asset con valutazione automatica - RIMOSSO: campo non presente nel database
-// export function useAutoValuationAssets() {
-//   ...
-// }
-
 
 // Hook per recuperare le transazioni correlate a un asset
 export function useAssetTransactions(assetId: string | null) {
@@ -823,11 +815,7 @@ export function useAssetOperations() {
       const avgPurchasePrice = totalQuantityBought > 0 ? totalCostSpent / totalQuantityBought : 0
       const currentValue = Math.max(0, totalQuantity * avgPurchasePrice)
 
-      console.log('📊 Calcoli finali:', {
-        totalQuantity: totalQuantity.toFixed(4),
-        avgPurchasePrice: avgPurchasePrice.toFixed(2),
-        currentValue: currentValue.toFixed(2)
-      })      // 4. Aggiorna l'asset nel database
+      // 4. Aggiorna l'asset nel database
       const { data: updatedAssets, error: updateError } = await supabase
         .from('assets')
         .update({
@@ -850,12 +838,6 @@ export function useAssetOperations() {
       }
 
       const updatedAsset = updatedAssets[0]
-
-      console.log('✅ Asset aggiornato con successo:', {
-        id: assetId,
-        quantity: updatedAsset.quantity,
-        value: updatedAsset.value
-      })
 
       // 5. Refresh della cache
       await refetch()
@@ -999,10 +981,11 @@ export function useAssetOperations() {
   }, [user, supabase])
 
   // Funzione per aggiornare il valore di un asset con il prezzo di mercato corrente
-  const updateAssetMarketValue = useCallback(async (assetId: string) => {
+  // skipRefetch evita di ricaricare l'intera cache quando la funzione viene
+  // chiamata in sequenza per più asset (vedi handleUpdateAllAssetsValues):
+  // il chiamante fa un solo refetch() finale invece di uno per ogni asset.
+  const updateAssetMarketValue = useCallback(async (assetId: string, options?: { skipRefetch?: boolean }) => {
     if (!user) throw new Error('User not authenticated')
-
-    console.log('💰 Aggiornamento valore asset con prezzo di mercato:', assetId)
 
     try {
       // 1. Recupera l'asset con simbolo e quantità
@@ -1040,7 +1023,6 @@ export function useAssetOperations() {
 
       // 3. Calcola il nuovo valore
       const newValue = asset.quantity * currentMarketPrice
-      console.log(`💰 Nuovo valore calcolato: ${asset.quantity} * ${currentMarketPrice} = ${newValue} EUR`)
 
       // 4. Aggiorna l'asset nel database
       const { error: updateError } = await supabase
@@ -1060,7 +1042,9 @@ export function useAssetOperations() {
       console.log(`✅ Asset "${asset.name}" aggiornato con successo`)
       
       // 5. Refresh della cache
-      await refetch()
+      if (!options?.skipRefetch) {
+        await refetch()
+      }
 
       return {
         success: true,
@@ -1088,19 +1072,6 @@ export function useAssetOperations() {
   }
 }
 
-// Aggiungi queste interfacce dopo le interfacce esistenti
-interface RawAssetData {
-  id: string
-  name: string
-  type: string
-  quantity: number
-  value: number
-  currency: string
-  account_id: string | null
-  created_at: string
-  updated_at: string
-  user_id: string
-}
 
 interface CategoryAmounts {
   [key: string]: number
