@@ -22,25 +22,10 @@ interface Account {
 const createAccountMappings = (accounts: Account[]): { [key: string]: string } => {
   const mappings: { [key: string]: string } = {};
 
-  // Debug: logga gli account ricevuti
-  if (typeof window !== 'undefined' && window.console) {
-    console.log('DEBUG createAccountMappings - Account ricevuti:', accounts);
-  }
-
   accounts.forEach(account => {
     const normalizedName = account.name.toUpperCase();
     mappings[normalizedName] = account.id;
-
-    // Debug: logga ogni mapping creato
-    if (typeof window !== 'undefined' && window.console) {
-      console.log(`DEBUG createAccountMappings - Mapping creato: "${normalizedName}" -> ${account.id}`);
-    }
   });
-
-  // Debug: logga il mapping finale
-  if (typeof window !== 'undefined' && window.console) {
-    console.log('DEBUG createAccountMappings - Mappings finali:', mappings);
-  }
 
   return mappings;
 };
@@ -156,12 +141,7 @@ export const BANK_PARSERS: BankParser[] = [
       return oldFormat || xmeFormat || genericFormat;
     },
     parseRow: (headers: string[], values: string[], _accountMappings?: { [key: string]: string }) => {
-      // DEBUG: logga header e valori per capire cosa arriva
       void _accountMappings;
-      if (typeof window !== 'undefined' && window.console) {
-        console.log('DEBUG Intesa parseRow headers:', headers);
-        console.log('DEBUG Intesa parseRow values:', values);
-      }
       let date = ''
       date = findValue(headers, values, ['data operazione', 'data', 'data valuta', 'data registrazione']) || ''
       let description = ''
@@ -460,16 +440,8 @@ export const BANK_PARSERS: BankParser[] = [
       const currency = findValue(headers, values, ['currency', 'valuta']) || 'EUR';
       const productRaw = findValue(headers, values, ['product']) || '';
 
-      // MODIFICA: Prova a leggere Type, Category e Subcategory dal CSV
+      // Prova a leggere il Type dal CSV (category/subcategory sono lette piu' sotto)
       const typeFromCSV = findValue(headers, values, ['tipo']);
-      const categoryFromCSV = findValue(headers, values, ['categoria', 'category']);
-      const subcategoryFromCSV = findValue(headers, values, ['sottocategoria', 'subcategory']);
-
-      // Debug
-      if (typeof window !== 'undefined' && window.console) {
-        console.log('DEBUG Revolut - Amount raw:', amountStr, 'TypeRaw:', typeRaw, 'TypeFromCSV:', typeFromCSV);
-        console.log('DEBUG Revolut - CategoryFromCSV:', categoryFromCSV, 'SubcategoryFromCSV:', subcategoryFromCSV);
-      }
 
       // Parsing robusto dell'importo preservando il segno
       let amountNum = 0;
@@ -603,13 +575,6 @@ export const BANK_PARSERS: BankParser[] = [
             if (found) accountId = accountMappings[found];
           }
         }
-      }
-
-      // Debug finale
-      if (typeof window !== 'undefined' && window.console) {
-        console.log('DEBUG Revolut - Final:', {
-          type, category, subcategory, amount: amountNum, transactionType, targetTable, product: productRaw, account: accountId
-        });
       }
 
       return {
@@ -1097,13 +1062,7 @@ export async function parseCSV(file: File, accountId?: string, setDetectedBank?:
           parsedRow.date = detectedParser.transformDate(parsedRow.date);
         }
         if (detectedParser.transformAmount && parsedRow.amount) {
-          const originalAmount = parsedRow.amount;
           parsedRow.amount = detectedParser.transformAmount(parsedRow.amount);
-
-          // Debug: traccia la trasformazione dell'importo per Revolut
-          if (typeof window !== 'undefined' && window.console && detectedParser.identifier === 'revolut') {
-            console.log('DEBUG parseCSV - Transform amount:', originalAmount, '->', parsedRow.amount);
-          }
         }
         const row: ImportRow = {
           id: `row-${i}`,
@@ -1123,11 +1082,6 @@ export async function parseCSV(file: File, accountId?: string, setDetectedBank?:
           note: '',
           transactionType: parsedRow.transactionType || parsedRow.type || 'expense'
         };
-
-        // Debug: logga la riga finale per Revolut
-        if (typeof window !== 'undefined' && window.console && detectedParser.identifier === 'revolut') {
-          console.log('DEBUG parseCSV - Final row amount:', row.amount, 'Type:', row.type, 'TransactionType:', row.transactionType);
-        }
 
         rows.push(row);
       } else {
@@ -1230,13 +1184,7 @@ export async function parseExcel(file: File, accountId?: string, setDetectedBank
           parsedRow.date = detectedParser.transformDate(parsedRow.date);
         }
         if (detectedParser.transformAmount && parsedRow.amount) {
-          const originalAmount = parsedRow.amount;
           parsedRow.amount = detectedParser.transformAmount(parsedRow.amount);
-
-          // Debug: traccia la trasformazione dell'importo per Revolut
-          if (typeof window !== 'undefined' && window.console && detectedParser.identifier === 'revolut') {
-            console.log('DEBUG parseExcel - Transform amount:', originalAmount, '->', parsedRow.amount);
-          }
         }
         // Assicura che targetTable sia sempre valorizzato
         let targetTable = parsedRow.targetTable;

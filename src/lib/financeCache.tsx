@@ -722,13 +722,11 @@ export function useAssetOperations() {
       .eq('user_id', user.id)
 
     if (error) {
-      console.error('❌ Error linking transaction to asset:', error)
+      console.error('Errore nel collegare la transazione all\'asset:', error)
       throw error
-    }    console.log('✅ Transaction successfully linked to asset in database')
-    
-    // Refresh cache data after linking
+    }
+
     await refetch()
-    console.log('🔄 Cache refreshed after linking')
   }, [user, supabase, refetch])
 
   const unlinkAssetFromTransaction = useCallback(async (transactionId: string) => {
@@ -751,8 +749,6 @@ export function useAssetOperations() {
   const updateAssetMarketValue = useCallback(async (assetId: string) => {
     if (!user) throw new Error('User not authenticated')
 
-    console.log('💰 Aggiornamento valore asset con prezzo di mercato:', assetId)
-
     try {
       // 1. Recupera l'asset con simbolo e quantità
       const { data: asset, error: assetError } = await supabase
@@ -763,19 +759,16 @@ export function useAssetOperations() {
         .single()
 
       if (assetError || !asset) {
-        console.error('❌ Asset non trovato:', assetError)
         throw new Error('Asset non trovato')
       }
 
       if (!asset.symbol) {
-        console.log('⚠️ Asset senza simbolo, impossibile recuperare prezzo di mercato')
         throw new Error('Asset non ha un simbolo per il prezzo di mercato')
       }
 
       // 2. Recupera il prezzo di mercato corrente
-      console.log(`🌐 Recupero prezzo di mercato per ${asset.symbol}...`)
       const priceResponse = await fetch(`/api/market-price?symbol=${encodeURIComponent(asset.symbol)}&type=${encodeURIComponent(asset.type)}`)
-      
+
       if (!priceResponse.ok) {
         throw new Error('Prezzo di mercato non disponibile')
       }
@@ -789,7 +782,6 @@ export function useAssetOperations() {
 
       // 3. Calcola il nuovo valore
       const newValue = asset.quantity * currentMarketPrice
-      console.log(`💰 Nuovo valore calcolato: ${asset.quantity} * ${currentMarketPrice} = ${newValue} EUR`)
 
       // 4. Aggiorna l'asset nel database
       const { error: updateError } = await supabase
@@ -802,12 +794,10 @@ export function useAssetOperations() {
         .eq('user_id', user.id)
 
       if (updateError) {
-        console.error('❌ Errore nell\'aggiornamento:', updateError)
+        console.error('Errore nell\'aggiornamento del valore asset:', updateError)
         throw updateError
       }
 
-      console.log(`✅ Asset "${asset.name}" aggiornato con successo`)
-      
       // 5. Refresh della cache
       await refetch()
 
@@ -818,7 +808,7 @@ export function useAssetOperations() {
       }
 
     } catch (error) {
-      console.error('❌ Errore in updateAssetMarketValue:', error)
+      console.error('Errore in updateAssetMarketValue:', error)
       throw error
     }
   }, [user, supabase, refetch])
@@ -866,10 +856,11 @@ export function useUnlinkedAssetTransactions() {
       }
 
       if (!categoryData) {
-        console.log('⚠️ Categoria ASSET & INVESTIMENTI non esiste')
         setUnlinkedTransactions([])
         return
-      }      // Poi cerca le transazioni con quella categoria e senza asset_id
+      }
+
+      // Poi cerca le transazioni con quella categoria e senza asset_id
       const { data, error: queryError } = await supabase
         .from('transactions')
         .select(`

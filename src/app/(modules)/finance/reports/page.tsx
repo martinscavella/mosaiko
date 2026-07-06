@@ -93,16 +93,7 @@ export default function ReportsPage() {
       
       return true
     })
-    
-    // Debug per vedere se i filtri funzionano
-    console.log('🔍 Filtri Debug:', {
-      totalOperations: allOperations.length,
-      filteredOperations: filtered.length,
-      dateRange,
-      selectedAccounts: selectedAccounts.length,
-      accountsList: selectedAccounts
-    })
-    
+
     return filtered
   }, [allOperations, dateRange, selectedAccounts])
 
