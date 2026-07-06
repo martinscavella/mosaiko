@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useState, useMemo } from "react";
+import { ReactNode } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -18,14 +18,7 @@ import {
   Package,
 } from "lucide-react";
 import { Transaction } from "@/lib/financeCache";
-import { isInDateRange, type DateRangeType } from "@/lib/helpers/dateRange";
-
-export interface FilterOption {
-  id: string;
-  label: string;
-  icon: React.ElementType;
-  filterFn: (transaction: Transaction) => boolean;
-}
+import type { TransactionFilterType } from "@/hooks/useTransactionFilters";
 
 export interface TransactionTableColumn {
   key: string;
@@ -36,7 +29,32 @@ export interface TransactionTableColumn {
   headerClassName?: string;
 }
 
+interface FilterChip {
+  id: TransactionFilterType;
+  label: string;
+  icon: React.ElementType;
+}
+
+const FILTER_CHIPS: FilterChip[] = [
+  { id: "all", label: "Tutte", icon: Calendar },
+  { id: "income", label: "Entrate", icon: TrendingUp },
+  { id: "expense", label: "Uscite", icon: TrendingDown },
+  { id: "transfer", label: "Trasferimenti", icon: ArrowLeftRight },
+  { id: "refunded", label: "Rimborsate", icon: RotateCcw },
+  { id: "assets", label: "Con Asset", icon: Package },
+];
+
+const DATE_RANGE_OPTIONS = [
+  { id: "all", label: "Tutte le date" },
+  { id: "today", label: "Oggi" },
+  { id: "week", label: "Ultima settimana" },
+  { id: "month", label: "Ultimo mese" },
+  { id: "quarter", label: "Ultimo trimestre" },
+  { id: "year", label: "Ultimo anno" },
+];
+
 export interface TransactionsTableProps {
+  /** Transazioni gia' filtrate e ordinate a monte (es. da useTransactionFilters) */
   data: Transaction[];
   columns: TransactionTableColumn[];
   currentPage: number;
@@ -50,21 +68,27 @@ export interface TransactionsTableProps {
   sortBy?: string;
   sortOrder?: "asc" | "desc";
   onSort?: (key: string, order: "asc" | "desc") => void;
-  // Nuove props per i filtri
+  // Filtri: componente controllato, la logica di filtro vive nel chiamante
+  // (useTransactionFilters) per evitare di duplicarla qui.
   enableFilters?: boolean;
-  filterOptions?: FilterOption[];  enableSearch?: boolean;
-  searchPlaceholder?: string;  searchFields?: string[];
-  // Controlli per filtri e ricerca (controlled components)
-  searchTerm?: string;
-  onSearchChange?: (term: string) => void;
-  selectedFilter?: string;
-  onFilterChange?: (filter: string) => void;  // Nuove props per filtri avanzati
-  selectedCategory?: string;
-  onCategoryChange?: (category: string) => void;
-  selectedSubcategory?: string;
-  onSubcategoryChange?: (subcategory: string) => void;
-  selectedDateRange?: string;
-  onDateRangeChange?: (range: string) => void;
+  enableSearch?: boolean;
+  searchPlaceholder?: string;
+  searchTerm: string;
+  onSearchChange: (term: string) => void;
+  selectedFilter: TransactionFilterType;
+  onFilterChange: (filter: TransactionFilterType) => void;
+  selectedCategory: string;
+  onCategoryChange: (category: string) => void;
+  selectedSubcategory: string;
+  onSubcategoryChange: (subcategory: string) => void;
+  selectedDateRange: string;
+  onDateRangeChange: (range: string) => void;
+  // Opzioni per i select categoria/sottocategoria, derivate dal chiamante
+  // sul set COMPLETO di transazioni (non da `data`, che e' gia' filtrato)
+  availableCategories?: string[];
+  availableSubcategories?: string[];
+  /** Numero di risultati prima della paginazione (per il riepilogo filtri) */
+  totalUnpaginatedCount?: number;
 }
 
 export default function TransactionsTable({
@@ -82,261 +106,27 @@ export default function TransactionsTable({
   sortOrder,
   onSort,
   enableFilters = false,
-  filterOptions = [],  enableSearch = false,
+  enableSearch = false,
   searchPlaceholder = "Cerca...",
-  searchFields = ["transaction_details"],
-  searchTerm: controlledSearchTerm,
+  searchTerm,
   onSearchChange,
-  selectedFilter: controlledSelectedFilter,
-  onFilterChange,  selectedCategory: controlledSelectedCategory,
+  selectedFilter,
+  onFilterChange,
+  selectedCategory,
   onCategoryChange,
-  selectedSubcategory: controlledSelectedSubcategory,
+  selectedSubcategory,
   onSubcategoryChange,
-  selectedDateRange: controlledSelectedDateRange,
+  selectedDateRange,
   onDateRangeChange,
-}: TransactionsTableProps) {  // Stati interni per filtri e ricerca (usati solo se non controllati)
-  const [internalSearchTerm, setInternalSearchTerm] = useState("");
-  const [internalSelectedFilter, setInternalSelectedFilter] = useState("all");
-  const [internalSelectedCategory, setInternalSelectedCategory] = useState("all");
-  const [internalSelectedSubcategory, setInternalSelectedSubcategory] = useState("all");
-  const [internalSelectedDateRange, setInternalSelectedDateRange] = useState("all");
-  
-  // Usa i valori controllati se forniti, altrimenti usa gli stati interni
-  const searchTerm = controlledSearchTerm !== undefined ? controlledSearchTerm : internalSearchTerm;
-  const selectedFilter = controlledSelectedFilter !== undefined ? controlledSelectedFilter : internalSelectedFilter;
-  const selectedCategory = controlledSelectedCategory !== undefined ? controlledSelectedCategory : internalSelectedCategory;  const selectedSubcategory = controlledSelectedSubcategory !== undefined ? controlledSelectedSubcategory : internalSelectedSubcategory;
-  const selectedDateRange = controlledSelectedDateRange !== undefined ? controlledSelectedDateRange : internalSelectedDateRange;
-
-  // Estrai categorie e sottocategorie uniche dai dati
-  const availableCategories = useMemo(() => {
-    const categories = new Set<string>();
-    data.forEach(transaction => {
-      if (transaction.categories?.name) {
-        categories.add(transaction.categories.name);
-      }
-    });
-    return Array.from(categories).sort();
-  }, [data]);
-
-  const availableSubcategories = useMemo(() => {
-    const subcategories = new Set<string>();
-    data.forEach(transaction => {
-      if (transaction.subcategories?.name && 
-          (selectedCategory === "all" || transaction.categories?.name === selectedCategory)) {
-        subcategories.add(transaction.subcategories.name);
-      }
-    });
-    return Array.from(subcategories).sort();
-  }, [data, selectedCategory]);
-  // Opzioni per il filtro data
-  const dateRangeOptions = [
-    { id: "all", label: "Tutte le date" },
-    { id: "today", label: "Oggi" },
-    { id: "week", label: "Ultima settimana" },
-    { id: "month", label: "Ultimo mese" },
-    { id: "quarter", label: "Ultimo trimestre" },
-    { id: "year", label: "Ultimo anno" },  ];
-
-  // Filtri di default migliorati
-  const defaultFilters: FilterOption[] = [
-    {
-      id: "all",
-      label: "Tutte",
-      icon: Calendar,
-      filterFn: () => true,
-    },
-    {
-      id: "income",
-      label: "Entrate",
-      icon: TrendingUp,
-      filterFn: (transaction: Transaction) => 
-        transaction.current_amount > 0 || transaction.transaction_type === 'income',
-    },    {
-      id: "expense",
-      label: "Uscite",
-      icon: TrendingDown,
-      filterFn: (transaction: Transaction) =>
-        transaction.current_amount < 0 || transaction.transaction_type === 'expense',
-    },
-    {
-      id: "transfer",
-      label: "Trasferimenti",
-      icon: ArrowLeftRight,
-      filterFn: (transaction: Transaction) =>
-        transaction.transaction_type === "transfer",
-    },
-    {
-      id: "refunded",
-      label: "Rimborsate",
-      icon: RotateCcw,
-      filterFn: (transaction: Transaction) => 
-        transaction.is_refunded === true,
-    },
-    {
-      id: "assets",
-      label: "Con Asset",
-      icon: Package,
-      filterFn: (transaction: Transaction) =>
-        transaction.asset_id !== null && transaction.asset_id !== undefined,    },
-  ];
-  const activeFilters = filterOptions.length > 0 ? filterOptions : defaultFilters;
-
-  // Funzione helper per accedere a proprietà annidate
-  const getNestedValue = (obj: unknown, path: string): unknown => {
-    return path.split('.').reduce((current, key) => {
-      if (current && typeof current === 'object' && current !== null && key in current) {
-        return (current as Record<string, unknown>)[key];
-      }
-      return undefined;
-    }, obj);
-  };  // Dati filtrati e ordinati
-  const processedData = useMemo(() => {
-    // Funzione di ricerca ottimizzata (spostata qui per evitare problemi con dependencies)
-    const searchInTransaction = (transaction: Transaction, term: string): boolean => {
-      if (!term) return true;
-      
-      const searchLower = term.toLowerCase();
-      
-      // Ricerca nei campi specificati
-      for (const field of searchFields) {
-        const value = getNestedValue(transaction, field);
-        if (value && String(value).toLowerCase().includes(searchLower)) {
-          return true;
-        }
-      }
-      
-      // Ricerca aggiuntiva in campi comuni
-      if (transaction.account_name?.toLowerCase().includes(searchLower)) return true;
-      if (transaction.categories?.name?.toLowerCase().includes(searchLower)) return true;
-      if (transaction.subcategories?.name?.toLowerCase().includes(searchLower)) return true;
-      
-      return false;
-    };
-
-    let filtered = [...data];    // Applicazione filtri
-    if (enableFilters && selectedFilter !== "all") {
-      const activeFilterOption = activeFilters.find(f => f.id === selectedFilter);
-      if (activeFilterOption) {
-        filtered = filtered.filter(activeFilterOption.filterFn);
-      }
-    }
-
-    // Filtro per categoria
-    if (selectedCategory !== "all") {
-      filtered = filtered.filter(transaction => 
-        transaction.categories?.name === selectedCategory
-      );
-    }
-
-    // Filtro per sottocategoria
-    if (selectedSubcategory !== "all") {
-      filtered = filtered.filter(transaction => 
-        transaction.subcategories?.name === selectedSubcategory
-      );
-    }
-
-    // Filtro per intervallo di date
-    if (selectedDateRange !== "all") {
-      filtered = filtered.filter(transaction => 
-        isInDateRange(transaction.transaction_date, selectedDateRange as DateRangeType)
-      );
-    }
-
-    // Applicazione ricerca
-    if (enableSearch && searchTerm) {
-      filtered = filtered.filter(transaction => 
-        searchInTransaction(transaction, searchTerm)
-      );
-    }
-
-    // Applicazione ordinamento
-    if (sortBy && onSort) {
-      filtered.sort((a, b) => {
-        let aValue: unknown;
-        let bValue: unknown;
-
-        switch (sortBy) {
-          case "transaction_date":
-            aValue = new Date(a.transaction_date).getTime();
-            bValue = new Date(b.transaction_date).getTime();
-            break;
-          case "current_amount":
-            aValue = a.current_amount;
-            bValue = b.current_amount;
-            break;
-          default:
-            aValue = getNestedValue(a, sortBy) || "";
-            bValue = getNestedValue(b, sortBy) || "";
-        }
-
-        if (typeof aValue === "number" && typeof bValue === "number") {
-          return sortOrder === "asc" ? aValue - bValue : bValue - aValue;
-        } else {
-          const aStr = String(aValue);
-          const bStr = String(bValue);
-          return sortOrder === "asc" 
-            ? aStr.localeCompare(bStr) 
-            : bStr.localeCompare(aStr);
-        }
-      });
-    }    return filtered;
-  }, [data, selectedFilter, searchTerm, sortBy, sortOrder, enableFilters, enableSearch, activeFilters, searchFields, onSort, selectedCategory, selectedSubcategory, selectedDateRange]);
-  // Reset pagina quando cambiano i filtri
-  const handleFilterChange = (newFilter: string) => {
-    if (onFilterChange) {
-      onFilterChange(newFilter);
-    } else {
-      setInternalSelectedFilter(newFilter);
-    }
-    onPageChange(1);
-  };
-  const handleSearchChange = (newSearch: string) => {
-    if (onSearchChange) {
-      onSearchChange(newSearch);
-    } else {
-      setInternalSearchTerm(newSearch);
-    }
-    onPageChange(1);
-  };
-
-  const handleCategoryChange = (newCategory: string) => {
-    if (onCategoryChange) {
-      onCategoryChange(newCategory);
-    } else {
-      setInternalSelectedCategory(newCategory);
-    }
-    // Reset sottocategoria quando cambia la categoria
-    if (onSubcategoryChange) {
-      onSubcategoryChange("all");
-    } else {
-      setInternalSelectedSubcategory("all");
-    }
-    onPageChange(1);
-  };
-
-  const handleSubcategoryChange = (newSubcategory: string) => {
-    if (onSubcategoryChange) {
-      onSubcategoryChange(newSubcategory);
-    } else {
-      setInternalSelectedSubcategory(newSubcategory);
-    }
-    onPageChange(1);
-  };
-
-  const handleDateRangeChange = (newDateRange: string) => {
-    if (onDateRangeChange) {
-      onDateRangeChange(newDateRange);
-    } else {
-      setInternalSelectedDateRange(newDateRange);
-    }
-    onPageChange(1);
-  };// Calcoli per la paginazione usando i dati processati
-  const totalPages = Math.ceil(processedData.length / itemsPerPage);
+  availableCategories = [],
+  availableSubcategories = [],
+}: TransactionsTableProps) {
+  // Calcoli per la paginazione: `data` arriva gia' filtrato e ordinato
+  const totalPages = Math.ceil(data.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const paginatedData = processedData.slice(startIndex, endIndex);
+  const paginatedData = data.slice(startIndex, endIndex);
 
-  // Gestione ordinamento
   const handleSort = (columnKey: string) => {
     if (!onSort) return;
 
@@ -357,6 +147,132 @@ export default function TransactionsTable({
       <ArrowDown className="h-4 w-4" />
     );
   };
+
+  const filtersBar = (enableSearch || enableFilters) && (
+    <div className="p-4 border-b border-gray-200 bg-gray-50">
+      <div className="space-y-3">
+        {/* Prima riga: Ricerca */}
+        {enableSearch && (
+          <div className="flex-1 max-w-md">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder={searchPlaceholder}
+                value={searchTerm}
+                onChange={(e) => {
+                  onSearchChange(e.target.value);
+                  onPageChange(1);
+                }}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-sm"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Seconda riga: Filtri tipo transazione */}
+        {enableFilters && (
+          <div>
+            <div className="flex flex-wrap gap-2">
+              {FILTER_CHIPS.map((filter) => {
+                const IconComponent = filter.icon;
+                return (
+                  <button
+                    key={filter.id}
+                    onClick={() => {
+                      onFilterChange(filter.id);
+                      onPageChange(1);
+                    }}
+                    className={`inline-flex items-center px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 ${
+                      selectedFilter === filter.id
+                        ? "bg-blue-600 text-white shadow-sm"
+                        : "bg-white text-gray-700 hover:bg-blue-50 hover:text-blue-700 border border-gray-200 hover:border-blue-300"
+                    }`}
+                  >
+                    <IconComponent className="h-3.5 w-3.5 mr-1.5" />
+                    {filter.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Terza riga: Filtri avanzati */}
+        <div className="flex flex-wrap gap-3 items-center">
+          {/* Filtro Categoria */}
+          {availableCategories.length > 0 && (
+            <div className="min-w-0">
+              <select
+                value={selectedCategory}
+                onChange={(e) => {
+                  onCategoryChange(e.target.value);
+                  onPageChange(1);
+                }}
+                className="text-sm border border-gray-300 rounded-md px-3 py-1.5 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-[120px]"
+              >
+                <option value="all">Tutte le categorie</option>
+                {availableCategories.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Filtro Sottocategoria */}
+          {availableSubcategories.length > 0 && (
+            <div className="min-w-0">
+              <select
+                value={selectedSubcategory}
+                onChange={(e) => {
+                  onSubcategoryChange(e.target.value);
+                  onPageChange(1);
+                }}
+                className="text-sm border border-gray-300 rounded-md px-3 py-1.5 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-[120px]"
+              >
+                <option value="all">Tutte le sottocategorie</option>
+                {availableSubcategories.map((subcategory) => (
+                  <option key={subcategory} value={subcategory}>
+                    {subcategory}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Filtro Data */}
+          <div className="min-w-0">
+            <select
+              value={selectedDateRange}
+              onChange={(e) => {
+                onDateRangeChange(e.target.value);
+                onPageChange(1);
+              }}
+              className="text-sm border border-gray-300 rounded-md px-3 py-1.5 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-[120px]"
+            >
+              {DATE_RANGE_OPTIONS.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Riepilogo filtri attivi */}
+        {(selectedFilter !== "all" || selectedCategory !== "all" || selectedSubcategory !== "all" || selectedDateRange !== "all") && (
+          <div className="text-xs text-gray-600 border-t border-gray-200 pt-2">
+            <span className="inline-flex items-center">
+              <div className="h-1.5 w-1.5 bg-blue-600 rounded-full mr-1.5"></div>
+              {data.length} risultato{data.length !== 1 ? 'i' : ''} con i filtri attuali
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 
   if (loading) {
     return (
@@ -395,120 +311,22 @@ export default function TransactionsTable({
       </div>
     );
   }
-  if (processedData.length === 0 && !loading) {
+
+  if (data.length === 0) {
     return (
       <div
         className={`bg-white border border-gray-200 shadow-sm rounded-lg ${className}`}
-      >        {/* Controlli filtri anche quando vuoto */}
-        {(enableSearch || enableFilters) && (
-          <div className="p-4 border-b border-gray-200 bg-gray-50">
-            <div className="space-y-3">
-              {/* Prima riga: Ricerca */}
-              {enableSearch && (
-                <div className="flex-1 max-w-md">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <input
-                      type="text"
-                      placeholder={searchPlaceholder}
-                      value={searchTerm}
-                      onChange={(e) => handleSearchChange(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-sm"
-                    />
-                  </div>
-                </div>
-              )}
+      >
+        {filtersBar}
 
-              {/* Seconda riga: Filtri tipo transazione */}
-              {enableFilters && (
-                <div>
-                  <div className="flex flex-wrap gap-2">
-                    {activeFilters.map((filter) => {
-                      const IconComponent = filter.icon;
-                      return (
-                        <button
-                          key={filter.id}
-                          onClick={() => handleFilterChange(filter.id)}
-                          className={`inline-flex items-center px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 ${
-                            selectedFilter === filter.id
-                              ? "bg-blue-600 text-white shadow-sm"
-                              : "bg-white text-gray-700 hover:bg-blue-50 hover:text-blue-700 border border-gray-200 hover:border-blue-300"
-                          }`}
-                        >
-                          <IconComponent className="h-3.5 w-3.5 mr-1.5" />
-                          {filter.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Terza riga: Filtri avanzati */}
-              <div className="flex flex-wrap gap-3 items-center">
-                {/* Filtro Categoria */}
-                {availableCategories.length > 0 && (
-                  <div className="min-w-0">
-                    <select
-                      value={selectedCategory}
-                      onChange={(e) => handleCategoryChange(e.target.value)}
-                      className="text-sm border border-gray-300 rounded-md px-3 py-1.5 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-[120px]"
-                    >
-                      <option value="all">Tutte le categorie</option>
-                      {availableCategories.map((category) => (
-                        <option key={category} value={category}>
-                          {category}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                {/* Filtro Sottocategoria */}
-                {availableSubcategories.length > 0 && (
-                  <div className="min-w-0">
-                    <select
-                      value={selectedSubcategory}
-                      onChange={(e) => handleSubcategoryChange(e.target.value)}
-                      className="text-sm border border-gray-300 rounded-md px-3 py-1.5 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-[120px]"
-                    >
-                      <option value="all">Tutte le sottocategorie</option>
-                      {availableSubcategories.map((subcategory) => (
-                        <option key={subcategory} value={subcategory}>
-                          {subcategory}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                {/* Filtro Data */}
-                <div className="min-w-0">
-                  <select
-                    value={selectedDateRange}
-                    onChange={(e) => handleDateRangeChange(e.target.value)}
-                    className="text-sm border border-gray-300 rounded-md px-3 py-1.5 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-[120px]"
-                  >
-                    {dateRangeOptions.map((option) => (
-                      <option key={option.id} value={option.id}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-        
         <div className="text-center py-16">
           {emptyIcon && (
             <div className="mx-auto mb-6 opacity-50">{emptyIcon}</div>
           )}
           <div className="space-y-3">
             <p className="text-gray-700 text-xl font-semibold">
-              {searchTerm || selectedFilter !== "all" 
-                ? "Nessuna transazione trovata con i filtri attuali" 
+              {searchTerm || selectedFilter !== "all"
+                ? "Nessuna transazione trovata con i filtri attuali"
                 : emptyMessage}
             </p>
             <p className="text-gray-500 text-sm max-w-md mx-auto">
@@ -521,120 +339,12 @@ export default function TransactionsTable({
       </div>
     );
   }
+
   return (
     <div
       className={`bg-white border border-gray-200 shadow-sm rounded-lg overflow-hidden ${className}`}
-    >      {/* Controlli filtri e ricerca - Versione compatta */}
-      {(enableSearch || enableFilters) && (
-        <div className="p-4 border-b border-gray-200 bg-gray-50">
-          <div className="space-y-3">
-            {/* Prima riga: Ricerca */}
-            {enableSearch && (
-              <div className="flex-1 max-w-md">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder={searchPlaceholder}
-                    value={searchTerm}
-                    onChange={(e) => handleSearchChange(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-sm"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Seconda riga: Filtri tipo transazione */}
-            {enableFilters && (
-              <div>
-                <div className="flex flex-wrap gap-2">
-                  {activeFilters.map((filter) => {
-                    const IconComponent = filter.icon;
-                    return (
-                      <button
-                        key={filter.id}
-                        onClick={() => handleFilterChange(filter.id)}
-                        className={`inline-flex items-center px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 ${
-                          selectedFilter === filter.id
-                            ? "bg-blue-600 text-white shadow-sm"
-                            : "bg-white text-gray-700 hover:bg-blue-50 hover:text-blue-700 border border-gray-200 hover:border-blue-300"
-                        }`}
-                      >
-                        <IconComponent className="h-3.5 w-3.5 mr-1.5" />
-                        {filter.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Terza riga: Filtri avanzati */}
-            <div className="flex flex-wrap gap-3 items-center">
-              {/* Filtro Categoria */}
-              {availableCategories.length > 0 && (
-                <div className="min-w-0">
-                  <select
-                    value={selectedCategory}
-                    onChange={(e) => handleCategoryChange(e.target.value)}
-                    className="text-sm border border-gray-300 rounded-md px-3 py-1.5 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-[120px]"
-                  >
-                    <option value="all">Tutte le categorie</option>
-                    {availableCategories.map((category) => (
-                      <option key={category} value={category}>
-                        {category}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {/* Filtro Sottocategoria */}
-              {availableSubcategories.length > 0 && (
-                <div className="min-w-0">
-                  <select
-                    value={selectedSubcategory}
-                    onChange={(e) => handleSubcategoryChange(e.target.value)}
-                    className="text-sm border border-gray-300 rounded-md px-3 py-1.5 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-[120px]"
-                  >
-                    <option value="all">Tutte le sottocategorie</option>
-                    {availableSubcategories.map((subcategory) => (
-                      <option key={subcategory} value={subcategory}>
-                        {subcategory}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {/* Filtro Data */}
-              <div className="min-w-0">
-                <select
-                  value={selectedDateRange}
-                  onChange={(e) => handleDateRangeChange(e.target.value)}
-                  className="text-sm border border-gray-300 rounded-md px-3 py-1.5 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-[120px]"
-                >
-                  {dateRangeOptions.map((option) => (
-                    <option key={option.id} value={option.id}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Riepilogo filtri attivi */}
-            {(selectedFilter !== "all" || selectedCategory !== "all" || selectedSubcategory !== "all" || selectedDateRange !== "all") && (
-              <div className="text-xs text-gray-600 border-t border-gray-200 pt-2">
-                <span className="inline-flex items-center">
-                  <div className="h-1.5 w-1.5 bg-blue-600 rounded-full mr-1.5"></div>
-                  {processedData.length} risultato{processedData.length !== 1 ? 'i' : ''} con i filtri attuali
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+    >
+      {filtersBar}
 
       {/* Tabella semplice */}
       <div className="overflow-x-auto">
@@ -696,15 +406,13 @@ export default function TransactionsTable({
       {totalPages > 1 && (
         <div className="bg-gray-50 border-t border-gray-200 px-6 py-3">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-4">              <div className="text-sm text-gray-700">
+            <div className="flex items-center gap-4">
+              <div className="text-sm text-gray-700">
                 Mostrando <span className="font-medium">{startIndex + 1}</span>-
                 <span className="font-medium">
-                  {Math.min(endIndex, processedData.length)}
+                  {Math.min(endIndex, data.length)}
                 </span>{" "}
-                di <span className="font-medium">{processedData.length}</span> risultati
-                {(searchTerm || selectedFilter !== "all") && data.length !== processedData.length && (
-                  <span className="text-gray-500"> (filtrati da {data.length})</span>
-                )}
+                di <span className="font-medium">{data.length}</span> risultati
               </div>
 
               <select

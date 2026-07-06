@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import ModuleLayout from '@/components/ModuleLayout'
 import ModuleHeader from '@/components/ui/ModuleHeader'
 import TransactionsTable, { TransactionTableColumn } from '@/components/ui/TransactionsTable'
@@ -8,138 +8,59 @@ import CacheStatus from '@/components/ui/CacheStatus'
 import NewTransactionModal from '@/components/ui/NewTransactionModal'
 import { useAllTransactions, useFinanceCache, type Transaction } from '@/lib/financeCache'
 import { useAuth } from '@/lib/auth'
-import { isInDateRange, type DateRangeType } from '@/lib/helpers/dateRange'
-import { 
-  ArrowUpRight, 
-  ArrowDownLeft, 
-  Calendar, 
+import { useTransactionFilters } from '@/hooks/useTransactionFilters'
+import {
+  ArrowUpRight,
+  ArrowDownLeft,
+  Calendar,
   Plus,
   TrendingUp,
   RefreshCw
 } from 'lucide-react'
 
-export default function TransactionsPage() {  const { transactions, loading, error, refetch } = useAllTransactions()
+export default function TransactionsPage() {
+  const { transactions, loading, error, refetch } = useAllTransactions()
   const { isDataStale } = useFinanceCache()
   const { user, loading: authLoading } = useAuth()
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(10)
-  const [sortBy, setSortBy] = useState('transaction_date')
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
-  const [searchTerm, setSearchTerm] = useState('')
-  const [selectedFilter, setSelectedFilter] = useState('all')
-  const [selectedCategory, setSelectedCategory] = useState('all')
-  const [selectedSubcategory, setSelectedSubcategory] = useState('all')
-  const [selectedDateRange, setSelectedDateRange] = useState('all')
   const [showNewTransactionModal, setShowNewTransactionModal] = useState(false)
+
+  // Unica fonte di verità per filtri/ordinamento: usata sia dalla vista
+  // mobile che dalla tabella desktop, cosi non possono più divergere.
+  const {
+    filters,
+    setFilter,
+    sortBy,
+    sortOrder,
+    handleSort,
+    filteredTransactions,
+    availableCategories,
+    availableSubcategories
+  } = useTransactionFilters(transactions)
 
   // Listener per il FAB della navbar mobile
   useEffect(() => {
     const handleOpenModal = () => {
       setShowNewTransactionModal(true);
     };
-    
+
     window.addEventListener('openNewItemModal', handleOpenModal);
     return () => window.removeEventListener('openNewItemModal', handleOpenModal);
   }, []);
 
-  // Logica di filtri duplicata dalla tabella per calcolare le statistiche
-  const filteredData = useMemo(() => {
-    let filtered = [...transactions]
-
-    // Applicazione filtri
-    if (selectedFilter !== 'all') {
-      switch (selectedFilter) {
-        case 'income':
-          filtered = filtered.filter((t: Transaction) => 
-            t.current_amount > 0 || t.transaction_type === 'income'
-          )
-          break
-        case 'expense':
-          filtered = filtered.filter((t: Transaction) => 
-            t.current_amount < 0 || t.transaction_type === 'expense'
-          )
-          break
-        case 'transfer':
-          filtered = filtered.filter((t: Transaction) => 
-            t.transaction_type === 'transfer'
-          )
-          break
-        case 'refunded':
-          filtered = filtered.filter((t: Transaction) => 
-            t.is_refunded === true
-          )
-          break
-        case 'assets':
-          filtered = filtered.filter((t: Transaction) => 
-            t.asset_id !== null && t.asset_id !== undefined
-          )
-          break
-      }
-    }
-
-    // Filtro per categoria
-    if (selectedCategory !== 'all') {
-      filtered = filtered.filter((t: Transaction) => 
-        t.categories?.name === selectedCategory
-      )
-    }
-
-    // Filtro per sottocategoria
-    if (selectedSubcategory !== 'all') {
-      filtered = filtered.filter((t: Transaction) => 
-        t.subcategories?.name === selectedSubcategory
-      )
-    }
-
-    // Filtro per intervallo di date
-    if (selectedDateRange !== 'all') {
-      filtered = filtered.filter((t: Transaction) => 
-        isInDateRange(t.transaction_date, selectedDateRange as DateRangeType)
-      )
-    }
-
-    // Applicazione ricerca
-    if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase()
-      filtered = filtered.filter((transaction: Transaction) => {
-        return (
-          transaction.transaction_details?.toLowerCase().includes(searchLower) ||
-          transaction.account_name?.toLowerCase().includes(searchLower) ||
-          transaction.categories?.name?.toLowerCase().includes(searchLower) ||
-          transaction.subcategories?.name?.toLowerCase().includes(searchLower)
-        )
-      })
-    }
-
-    return filtered
-  }, [transactions, selectedFilter, searchTerm, selectedCategory, selectedSubcategory, selectedDateRange])
-
-  // Gestori per filtri avanzati
-  const handleCategoryChange = (category: string) => {
-    setSelectedCategory(category)
-    setSelectedSubcategory('all') // Reset sottocategoria quando cambia categoria
-  }
-
-  const handleSubcategoryChange = (subcategory: string) => {
-    setSelectedSubcategory(subcategory)
-  }
-
-  const handleDateRangeChange = (dateRange: string) => {
-    setSelectedDateRange(dateRange)
-  }
-
-  // Calcola le statistiche sui dati filtrati
+  // Statistiche sui dati filtrati (stessa fonte usata da mobile e desktop)
   const filteredStats = {
-    total: filteredData.length,
-    income: filteredData.filter((t: Transaction) => t.current_amount > 0).reduce((sum: number, t: Transaction) => sum + t.current_amount, 0),
-    expenses: Math.abs(filteredData.filter((t: Transaction) => t.current_amount < 0).reduce((sum: number, t: Transaction) => sum + t.current_amount, 0))
+    total: filteredTransactions.length,
+    income: filteredTransactions.filter((t: Transaction) => t.current_amount > 0).reduce((sum: number, t: Transaction) => sum + t.current_amount, 0),
+    expenses: Math.abs(filteredTransactions.filter((t: Transaction) => t.current_amount < 0).reduce((sum: number, t: Transaction) => sum + t.current_amount, 0))
   }
 
   // Funzioni utili
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
-    return date.toLocaleDateString('it-IT', { 
-      day: 'numeric', 
+    return date.toLocaleDateString('it-IT', {
+      day: 'numeric',
       month: 'short',
       year: date.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined,
       weekday: 'short'
@@ -182,35 +103,13 @@ export default function TransactionsPage() {  const { transactions, loading, err
       return 'text-red-600'
     }
   }
-  // Paginazione per vista mobile
-  const sortedAndFilteredData = useMemo(() => {
-    const data = [...filteredData]
-    
-    // Ordinamento
-    data.sort((a, b) => {
-      const aVal = a[sortBy as keyof Transaction]
-      const bVal = b[sortBy as keyof Transaction]
-      
-      if (aVal === null || aVal === undefined) return 1
-      if (bVal === null || bVal === undefined) return -1
-      
-      if (sortOrder === 'asc') {
-        return aVal > bVal ? 1 : -1
-      } else {
-        return aVal < bVal ? 1 : -1
-      }
-    })
-    
-    return data
-  }, [filteredData, sortBy, sortOrder])
 
-  const paginatedMobileData = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage
-    const endIndex = startIndex + itemsPerPage
-    return sortedAndFilteredData.slice(startIndex, endIndex)
-  }, [sortedAndFilteredData, currentPage, itemsPerPage])
-
-  const totalPages = Math.ceil(sortedAndFilteredData.length / itemsPerPage)
+  // Paginazione (condivisa tra vista mobile e desktop, sugli stessi dati filtrati+ordinati)
+  const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage)
+  const paginatedMobileData = filteredTransactions.slice(
+    (currentPage - 1) * itemsPerPage,
+    (currentPage - 1) * itemsPerPage + itemsPerPage
+  )
 
   // Definizione colonne tabella
   const columns: TransactionTableColumn[] = [
@@ -306,11 +205,6 @@ export default function TransactionsPage() {  const { transactions, loading, err
       )
     }
   ]
-  // Gestione ordinamento
-  const handleSort = (columnKey: string, order: 'asc' | 'desc') => {
-    setSortBy(columnKey)
-    setSortOrder(order)
-  }
 
   if (authLoading) {
     return (
@@ -343,7 +237,8 @@ export default function TransactionsPage() {  const { transactions, loading, err
 
   return (
     <ModuleLayout moduleId="finance">
-      <div className="max-w-7xl 3xl:max-w-[1600px] 4xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 3xl:px-10 py-8">        <ModuleHeader
+      <div className="max-w-7xl 3xl:max-w-[1600px] 4xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 3xl:px-10 py-8">
+        <ModuleHeader
           title="Transazioni"
           subtitle="Visualizza e gestisci tutte le tue transazioni finanziarie"
           icon={<Calendar className="h-6 w-6 text-white" />}
@@ -358,7 +253,9 @@ export default function TransactionsPage() {  const { transactions, loading, err
               type: 'success',
               label: 'Tutti i sistemi operativi',
               show: !loading && !error && transactions.length > 0
-            }          ]}          stats={!loading && transactions.length > 0 ? [
+            }
+          ]}
+          stats={!loading && transactions.length > 0 ? [
             {
               label: 'Totale Transazioni',
               value: filteredStats.total.toString(),
@@ -397,21 +294,30 @@ export default function TransactionsPage() {  const { transactions, loading, err
               loading: loading,
               hideTextOnMobile: true
             }
-          ]}        />        {/* Vista Mobile - Card compatte */}
+          ]}
+        />
+
+        {/* Vista Mobile - Card compatte */}
         <div className="md:hidden space-y-4">
           {/* Barra ricerca e filtri mobile */}
           <div className="bg-white rounded-xl border border-gray-200 p-3 space-y-3">
             <input
               type="text"
               placeholder="Cerca transazioni..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              value={filters.search}
+              onChange={(e) => {
+                setFilter('search', e.target.value)
+                setCurrentPage(1)
+              }}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
             <div className="grid grid-cols-2 gap-2">
               <select
-                value={selectedFilter}
-                onChange={(e) => setSelectedFilter(e.target.value)}
+                value={filters.type}
+                onChange={(e) => {
+                  setFilter('type', e.target.value as typeof filters.type)
+                  setCurrentPage(1)
+                }}
                 className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
               >
                 <option value="all">Tutti</option>
@@ -422,8 +328,11 @@ export default function TransactionsPage() {  const { transactions, loading, err
                 <option value="assets">Asset</option>
               </select>
               <select
-                value={selectedDateRange}
-                onChange={(e) => handleDateRangeChange(e.target.value)}
+                value={filters.dateRange}
+                onChange={(e) => {
+                  setFilter('dateRange', e.target.value as typeof filters.dateRange)
+                  setCurrentPage(1)
+                }}
                 className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
               >
                 <option value="all">Tutte le date</option>
@@ -539,35 +448,37 @@ export default function TransactionsPage() {  const { transactions, loading, err
           )}
         </div>
 
-        {/* Tabella con filtri integrati - Solo Desktop */}        <div className="hidden md:block">
+        {/* Tabella con filtri integrati - Solo Desktop */}
+        <div className="hidden md:block">
           <TransactionsTable
-          data={transactions}
-          columns={columns}
-          currentPage={currentPage}
-          itemsPerPage={itemsPerPage}
-          onPageChange={setCurrentPage}
-          onItemsPerPageChange={setItemsPerPage}
-          loading={loading}
-          emptyMessage="Nessuna transazione trovata"
-          emptyIcon={<Calendar className="h-16 w-16 text-gray-400" />}
-          sortBy={sortBy}
-          sortOrder={sortOrder}
-          onSort={handleSort}
-          enableFilters={true}
-          enableSearch={true}
-          searchPlaceholder="Cerca transazioni..."
-          searchFields={['transaction_details', 'account_name', 'categories.name', 'subcategories.name']}
-          searchTerm={searchTerm}
-          onSearchChange={setSearchTerm}
-          selectedFilter={selectedFilter}
-          onFilterChange={setSelectedFilter}
-          selectedCategory={selectedCategory}
-          onCategoryChange={handleCategoryChange}
-          selectedSubcategory={selectedSubcategory}
-          onSubcategoryChange={handleSubcategoryChange}
-          selectedDateRange={selectedDateRange}
-          onDateRangeChange={handleDateRangeChange}
-        />
+            data={filteredTransactions}
+            columns={columns}
+            currentPage={currentPage}
+            itemsPerPage={itemsPerPage}
+            onPageChange={setCurrentPage}
+            onItemsPerPageChange={setItemsPerPage}
+            loading={loading}
+            emptyMessage="Nessuna transazione trovata"
+            emptyIcon={<Calendar className="h-16 w-16 text-gray-400" />}
+            sortBy={sortBy}
+            sortOrder={sortOrder}
+            onSort={handleSort}
+            enableFilters={true}
+            enableSearch={true}
+            searchPlaceholder="Cerca transazioni..."
+            searchTerm={filters.search}
+            onSearchChange={(value) => setFilter('search', value)}
+            selectedFilter={filters.type}
+            onFilterChange={(value) => setFilter('type', value)}
+            selectedCategory={filters.category}
+            onCategoryChange={(value) => setFilter('category', value)}
+            selectedSubcategory={filters.subcategory}
+            onSubcategoryChange={(value) => setFilter('subcategory', value)}
+            selectedDateRange={filters.dateRange}
+            onDateRangeChange={(value) => setFilter('dateRange', value as typeof filters.dateRange)}
+            availableCategories={availableCategories}
+            availableSubcategories={availableSubcategories}
+          />
         </div>
 
         {error && (
