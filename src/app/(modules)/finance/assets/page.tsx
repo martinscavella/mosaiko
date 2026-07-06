@@ -111,12 +111,18 @@ export default function AssetsPage() {
     }
   }, [financeData, assets])
 
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('it-IT', {
+      style: 'currency',
+      currency: 'EUR'
+    }).format(amount)
+  }
+
   // Helper function to get purchase data from transactions
-  // NOTE: deve restare prima dei return condizionali sotto (authLoading/!user):
-  // gli hook non possono essere chiamati dopo un return anticipato (Rules of Hooks).
+  // IMPORTANTE: deve stare prima di qualsiasi return condizionale (Rules of Hooks)
   const getAssetPurchaseData = useCallback((assetId: string) => {
     const assetTransactions = financeData?.transactions?.filter(t => t.asset_id === assetId) || []
-
+    
     if (assetTransactions.length === 0) {
       return {
         totalCost: 0,
@@ -193,13 +199,6 @@ export default function AssetsPage() {
         </div>
       </ModuleLayout>
     )
-  }
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('it-IT', {
-      style: 'currency',
-      currency: 'EUR'
-    }).format(amount)
   }
 
   const calculatePerformance = (currentValue: number, totalCost: number) => {
@@ -312,18 +311,16 @@ export default function AssetsPage() {
         return
       }
       
-      // Aggiorna ogni asset senza ricaricare la cache a ogni iterazione:
-      // un solo refetch() finale invece di uno per ogni asset (N+1 di rete).
+      // Aggiorna ogni asset
       for (const asset of assetsWithSymbol) {
         try {
-          await updateAssetMarketValue(asset.id, { skipRefetch: true })
+          await updateAssetMarketValue(asset.id)
           console.log(`✅ Aggiornato ${asset.name}`)
         } catch (error) {
           console.error(`❌ Errore aggiornamento ${asset.name}:`, error)
         }
       }
-
-      await refetch()
+      
       console.log('✅ Aggiornamento completato')
       
     } catch (error) {
