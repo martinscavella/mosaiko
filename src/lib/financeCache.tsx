@@ -93,6 +93,7 @@ export interface Account {
   initial_balance: number;
   currency: string;
   color: string;
+  is_active: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -548,12 +549,139 @@ export function useFinancialGoals(limit = 10) {
 // Hook per account
 export function useAccounts() {
   const { data, loading, error, refetch } = useFinanceCache();
-  
+
   return {
     accounts: data?.accounts || [],
     loading,
     error,
     refetch
+  }
+}
+
+// Hook per account CRUD operations, attivazione/disattivazione e ricalcolo
+// saldo (usa le funzioni RPC recalculate_current_balance* già presenti sul
+// DB e usate internamente da NewTransactionModal/DeleteTransactionModal).
+export function useAccountOperations() {
+  const { refetch } = useFinanceCache()
+  const { user } = useAuth()
+  const supabase = createClientComponentClient()
+
+  const createAccount = useCallback(async (accountData: {
+    name: string
+    type: string
+    color: string
+    currency: string
+    initial_balance: number
+  }) => {
+    if (!user) throw new Error('User not authenticated')
+
+    const { data, error } = await supabase
+      .from('accounts')
+      .insert([{
+        ...accountData,
+        current_balance: accountData.initial_balance,
+        is_active: true,
+        user_id: user.id
+      }])
+      .select()
+      .single()
+
+    if (error) throw error
+
+    await refetch()
+    return data
+  }, [user, supabase, refetch])
+
+  // Solo i campi anagrafici sono modificabili: current_balance/initial_balance
+  // sono derivati dai movimenti collegati (trigger DB), modificarli a mano
+  // dopo la creazione disallineerebbe il saldo dalla sua fonte canonica.
+  const updateAccount = useCallback(async (id: string, updates: Partial<Pick<Account, 'name' | 'type' | 'color' | 'currency'>>) => {
+    if (!user) throw new Error('User not authenticated')
+
+    const { data, error } = await supabase
+      .from('accounts')
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .select()
+      .single()
+
+    if (error) throw error
+
+    await refetch()
+    return data
+  }, [user, supabase, refetch])
+
+  const setAccountActive = useCallback(async (id: string, isActive: boolean) => {
+    if (!user) throw new Error('User not authenticated')
+
+    const { error } = await supabase
+      .from('accounts')
+      .update({
+        is_active: isActive,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .eq('user_id', user.id)
+
+    if (error) throw error
+
+    await refetch()
+  }, [user, supabase, refetch])
+
+  const deleteAccount = useCallback(async (id: string) => {
+    if (!user) throw new Error('User not authenticated')
+
+    const { error } = await supabase
+      .from('accounts')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id)
+
+    if (error) throw error
+
+    await refetch()
+  }, [user, supabase, refetch])
+
+  // Ricalcola il saldo di un singolo account dai suoi movimenti collegati
+  // (fonte canonica sul DB), utile se si sospetta un disallineamento.
+  const recalculateAccountBalance = useCallback(async (id: string) => {
+    if (!user) throw new Error('User not authenticated')
+
+    const { data, error } = await supabase.rpc('recalculate_current_balance_by_id', {
+      account_id_param: id
+    })
+
+    if (error) throw error
+
+    await refetch()
+    return data as number
+  }, [user, supabase, refetch])
+
+  // Ricalcola il saldo di tutti gli account dell'utente in un colpo solo.
+  // La funzione RPC non filtra per user_id lato SQL, ma la RLS sulla UPDATE
+  // (accounts_update: user_id = auth.uid()) limita comunque l'effetto alle
+  // sole righe dell'utente autenticato.
+  const recalculateAllBalances = useCallback(async () => {
+    if (!user) throw new Error('User not authenticated')
+
+    const { error } = await supabase.rpc('recalculate_current_balance')
+
+    if (error) throw error
+
+    await refetch()
+  }, [user, supabase, refetch])
+
+  return {
+    createAccount,
+    updateAccount,
+    setAccountActive,
+    deleteAccount,
+    recalculateAccountBalance,
+    recalculateAllBalances
   }
 }
 

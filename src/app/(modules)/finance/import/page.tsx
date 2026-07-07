@@ -101,10 +101,13 @@ export default function ImportPage() {
     }
 
     try {
+      // Solo account attivi: l'import crea nuove transazioni, e un account
+      // disattivato non deve riceverne.
       const { data: accounts, error } = await supabase
         .from("accounts")
         .select("id, name, type")
         .eq("user_id", user.id)
+        .eq("is_active", true)
         .order("name");
 
       if (error) {

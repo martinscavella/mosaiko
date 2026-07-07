@@ -1,13 +1,18 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
 import ModuleLayout from '@/components/ModuleLayout'
 import ModuleHeader from '@/components/ui/ModuleHeader'
 import CacheStatus from '@/components/ui/CacheStatus'
+import RowActionsMenu from '@/components/ui/RowActionsMenu'
+import AccountFormModal from '@/components/ui/AccountFormModal'
+import DeleteAccountModal, { type AccountUsage } from '@/components/ui/DeleteAccountModal'
 import { useAuth } from '@/lib/auth'
-import { useAccounts, useFinanceCache } from '@/lib/financeCache'
+import { useAccounts, useFinanceCache, useAccountOperations } from '@/lib/financeCache'
 import type { Account } from '@/lib/financeCache'
-import { CreditCard, Plus, MoreVertical, TrendingUp, TrendingDown, Edit2, Trash2, RefreshCw, Wallet, PiggyBank, Building2, Search, Filter, ArrowUpDown, ArrowUp, ArrowDown, Clock } from 'lucide-react'
+import { getAccountTypeLabel, getAccountTypeBadgeClass, getAccountTypeIcon } from '@/lib/accountTypes'
+import { CreditCard, Plus, TrendingUp, TrendingDown, RefreshCw, Search, Filter, ArrowUpDown, ArrowUp, ArrowDown, Clock, Power, PowerOff, RotateCw } from 'lucide-react'
 
 interface ExtendedAccount extends Account {
   lastTransaction?: {
@@ -19,16 +24,22 @@ interface ExtendedAccount extends Account {
 }
 
 export default function AccountsPage() {
+  const router = useRouter()
   const { user, loading: authLoading } = useAuth()
   const { accounts: cacheAccounts, loading, error, refetch } = useAccounts()
   const { data: financeData, isDataStale } = useFinanceCache()
+  const { setAccountActive, recalculateAccountBalance, recalculateAllBalances } = useAccountOperations()
 
   const [showAddModal, setShowAddModal] = useState(false)
-  const [selectedAccount, setSelectedAccount] = useState<ExtendedAccount | null>(null)
-  
+  const [accountToEdit, setAccountToEdit] = useState<Account | null>(null)
+  const [accountToDelete, setAccountToDelete] = useState<Account | null>(null)
+  const [recalculatingId, setRecalculatingId] = useState<string | null>(null)
+  const [recalculatingAll, setRecalculatingAll] = useState(false)
+
   // Filtri e sorting
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedAccountType, setSelectedAccountType] = useState<string>('all')
+  const [selectedStatus, setSelectedStatus] = useState<'all' | 'active' | 'inactive'>('active')
   const [sortField, setSortField] = useState<'name' | 'type' | 'balance'>('balance')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
 
@@ -37,7 +48,7 @@ export default function AccountsPage() {
     const handleOpenModal = () => {
       setShowAddModal(true);
     };
-    
+
     window.addEventListener('openNewItemModal', handleOpenModal);
     return () => window.removeEventListener('openNewItemModal', handleOpenModal);
   }, []);
@@ -91,6 +102,24 @@ export default function AccountsPage() {
     })
   }, [cacheAccounts, financeData])
 
+  // Storico collegato per account (per bloccare l'eliminazione fisica quando
+  // ci sono dati da preservare). Stessa logica di match usata sopra: per
+  // rimborsi/trasferimenti la cache espone solo account_name, non account_id.
+  const usageByAccountId = useMemo(() => {
+    const map = new Map<string, AccountUsage>()
+    if (!financeData) return map
+
+    for (const account of cacheAccounts) {
+      map.set(account.id, {
+        transactionsCount: financeData.transactions.filter((t) => t.account_id === account.id).length,
+        refundsCount: financeData.refunds.filter((r) => r.account_name === account.name).length,
+        fundsTransferCount: financeData.fundsTransfer.filter((f) => f.account_name === account.name).length,
+        assetsCount: financeData.assets.filter((a) => a.account_id === account.id).length
+      })
+    }
+    return map
+  }, [cacheAccounts, financeData])
+
   const formatCurrency = (amount: number, currency: string = 'EUR') => {
     return new Intl.NumberFormat('it-IT', {
       style: 'currency',
@@ -125,54 +154,6 @@ export default function AccountsPage() {
     }
   }
 
-  const getAccountTypeLabel = (type: string) => {
-    const labels: { [key: string]: string } = {
-      bank_account: 'Conto Bancario',
-      debit_card: 'Carta di Debito',
-      credit_card: 'Carta di Credito',
-      saving_account: 'Conto Risparmio', 
-      foreign_account: 'Conto Estero',
-      investment_account: 'Conto Investimenti',
-      cash: 'Contanti',
-      voucher: 'Voucher',
-      digital_wallet: 'Portafoglio Digitale'
-    }
-    return labels[type] || type
-  }
-
-  const getAccountTypeColor = (type: string) => {
-    const colors: { [key: string]: string } = {
-      bank_account: 'bg-primary-subtle text-primary',
-      debit_card: 'bg-primary-subtle text-primary',
-      credit_card: 'bg-danger-subtle text-danger',
-      saving_account: 'bg-success-subtle text-success-strong',
-      foreign_account: 'bg-module-health-subtle text-module-health',
-      investment_account: 'bg-warning-subtle text-warning',
-      cash: 'bg-warning-subtle text-warning',
-      voucher: 'bg-module-health-subtle text-module-health',
-      digital_wallet: 'bg-module-tasks-subtle text-module-tasks'
-    }
-    return colors[type] || 'bg-inset text-ink'
-  }
-
-  const getAccountIcon = (type: string) => {
-    switch (type) {
-      case 'bank_account':
-        return Building2
-      case 'saving_account':
-        return PiggyBank
-      case 'credit_card':
-      case 'debit_card':
-        return CreditCard
-      case 'investment_account':
-        return TrendingUp
-      case 'digital_wallet':
-        return Wallet
-      default:
-        return CreditCard
-    }
-  }
-
   const getTotalBalance = () => {
     return accounts.reduce((total, account) => total + account.current_balance, 0)
   }
@@ -197,8 +178,8 @@ export default function AccountsPage() {
 
   const getSortIcon = (field: 'name' | 'type' | 'balance') => {
     if (sortField !== field) return <ArrowUpDown className="w-4 h-4 text-ink-muted" />
-    return sortDirection === 'asc' ? 
-      <ArrowUp className="w-4 h-4 text-primary" /> : 
+    return sortDirection === 'asc' ?
+      <ArrowUp className="w-4 h-4 text-primary" /> :
       <ArrowDown className="w-4 h-4 text-primary" />
   }
 
@@ -206,11 +187,14 @@ export default function AccountsPage() {
     .filter(account => {
       const matchesSearch = account.name.toLowerCase().includes(searchTerm.toLowerCase())
       const matchesType = selectedAccountType === 'all' || account.type === selectedAccountType
-      return matchesSearch && matchesType
+      const matchesStatus = selectedStatus === 'all'
+        || (selectedStatus === 'active' && account.is_active)
+        || (selectedStatus === 'inactive' && !account.is_active)
+      return matchesSearch && matchesType && matchesStatus
     })
     .sort((a, b) => {
       let compareValue = 0
-      
+
       switch (sortField) {
         case 'name':
           compareValue = a.name.localeCompare(b.name)
@@ -222,9 +206,42 @@ export default function AccountsPage() {
           compareValue = a.current_balance - b.current_balance
           break
       }
-      
+
       return sortDirection === 'asc' ? compareValue : -compareValue
     })
+
+  const handleToggleActive = async (account: Account) => {
+    try {
+      await setAccountActive(account.id, !account.is_active)
+    } catch (err) {
+      console.error('Errore nel cambiare stato account:', err)
+      alert("Errore durante l'aggiornamento dello stato dell'account")
+    }
+  }
+
+  const handleRecalculate = async (account: Account) => {
+    setRecalculatingId(account.id)
+    try {
+      await recalculateAccountBalance(account.id)
+    } catch (err) {
+      console.error('Errore nel ricalcolo saldo:', err)
+      alert('Errore durante il ricalcolo del saldo')
+    } finally {
+      setRecalculatingId(null)
+    }
+  }
+
+  const handleRecalculateAll = async () => {
+    setRecalculatingAll(true)
+    try {
+      await recalculateAllBalances()
+    } catch (err) {
+      console.error('Errore nel ricalcolo di tutti i saldi:', err)
+      alert('Errore durante il ricalcolo dei saldi')
+    } finally {
+      setRecalculatingAll(false)
+    }
+  }
 
   if (authLoading) {
     return (
@@ -258,7 +275,7 @@ export default function AccountsPage() {
   return (
     <ModuleLayout moduleId="finance">
       <div className="max-w-7xl 3xl:max-w-[1600px] 4xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 3xl:px-10 py-8">
-        
+
         {/* Header utilizzando il componente riutilizzabile */}
         <ModuleHeader
           title="I Miei Account"
@@ -299,6 +316,16 @@ export default function AccountsPage() {
               hideOnMobile: true
             },
             {
+              label: 'Ricalcola saldi',
+              onClick: handleRecalculateAll,
+              icon: <RotateCw className="w-4 h-4" />,
+              color: 'gray',
+              disabled: recalculatingAll,
+              loading: recalculatingAll,
+              hideTextOnMobile: true,
+              hideOnMobile: true
+            },
+            {
               label: 'Aggiorna',
               onClick: () => refetch(),
               icon: <RefreshCw className="w-4 h-4" />,
@@ -328,7 +355,7 @@ export default function AccountsPage() {
                 </div>
               </div>
 
-              {/* Filter */}
+              {/* Filter tipo */}
               <div className="md:w-48">
                 <div className="relative">
                   <select
@@ -349,9 +376,22 @@ export default function AccountsPage() {
                 </div>
               </div>
 
+              {/* Filter stato */}
+              <div className="md:w-40">
+                <select
+                  value={selectedStatus}
+                  onChange={(e) => setSelectedStatus(e.target.value as typeof selectedStatus)}
+                  className="w-full appearance-none pl-4 pr-4 py-2.5 border border-edge rounded-lg focus:ring-2 focus:ring-primary focus:border-primary bg-surface transition-colors text-sm font-medium text-ink-secondary cursor-pointer"
+                >
+                  <option value="all">Tutti gli stati</option>
+                  <option value="active">Solo attivi</option>
+                  <option value="inactive">Solo disattivati</option>
+                </select>
+              </div>
+
               {/* Results and Reset */}
               <div className="flex items-center gap-3">
-                {(searchTerm || selectedAccountType !== 'all') && (
+                {(searchTerm || selectedAccountType !== 'all' || selectedStatus !== 'active') && (
                   <>
                     <span className="text-sm font-medium text-ink-secondary whitespace-nowrap">
                       {filteredAndSortedAccounts.length} risultati
@@ -360,6 +400,7 @@ export default function AccountsPage() {
                       onClick={() => {
                         setSearchTerm('')
                         setSelectedAccountType('all')
+                        setSelectedStatus('active')
                       }}
                       className="px-3 py-1.5 text-xs font-medium text-primary hover:text-primary-hover border border-edge hover:border-edge rounded-lg transition-colors"
                     >
@@ -424,11 +465,16 @@ export default function AccountsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-edge-subtle">
-                  {filteredAndSortedAccounts.map((account) => (
+                  {filteredAndSortedAccounts.map((account) => {
+                    const usage = usageByAccountId.get(account.id) || { transactionsCount: 0, refundsCount: 0, fundsTransferCount: 0, assetsCount: 0 }
+                    const hasHistory = usage.transactionsCount + usage.refundsCount + usage.fundsTransferCount + usage.assetsCount > 0
+
+                    return (
                     <tr
                       key={account.id}
-                      className="hover:bg-canvas transition-colors"
+                      className={`hover:bg-canvas transition-colors cursor-pointer ${!account.is_active ? 'opacity-60' : ''}`}
                       style={{ borderLeft: `4px solid ${account.color}` }}
+                      onClick={() => router.push(`/finance/accounts/${account.id}`)}
                     >
                       <td className="px-6 py-4">
                         <div className="flex items-center space-x-3">
@@ -446,7 +492,7 @@ export default function AccountsPage() {
                             }}
                           >
                             {(() => {
-                              const IconComponent = getAccountIcon(account.type)
+                              const IconComponent = getAccountTypeIcon(account.type)
                               const hex = account.color.replace('#', '')
                               const r = Math.max(0, parseInt(hex.substr(0, 2), 16) - 40)
                               const g = Math.max(0, parseInt(hex.substr(2, 2), 16) - 40)
@@ -456,7 +502,14 @@ export default function AccountsPage() {
                             })()}
                           </div>
                           <div>
-                            <div className="font-semibold text-ink">{account.name}</div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-ink">{account.name}</span>
+                              {!account.is_active && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-inset text-ink-muted">
+                                  Non attivo
+                                </span>
+                              )}
+                            </div>
                             <div className="text-sm text-ink-muted md:hidden">
                               {getAccountTypeLabel(account.type)}
                             </div>
@@ -470,7 +523,7 @@ export default function AccountsPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4 hidden md:table-cell">
-                        <span className={`inline-flex px-3 py-1 text-xs font-medium rounded-full border ${getAccountTypeColor(account.type)}`}>
+                        <span className={`inline-flex px-3 py-1 text-xs font-medium rounded-full border ${getAccountTypeBadgeClass(account.type)}`}>
                           {getAccountTypeLabel(account.type)}
                         </span>
                       </td>
@@ -496,30 +549,30 @@ export default function AccountsPage() {
                           </span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-center">
-                        <div className="relative">
-                          <button
-                            onClick={() => setSelectedAccount(selectedAccount?.id === account.id ? null : account)}
-                            className="p-2 rounded-full text-ink-muted hover:text-ink-secondary hover:bg-inset transition-colors"
-                          >
-                            <MoreVertical className="w-4 h-4" />
-                          </button>
-                          {selectedAccount?.id === account.id && (
-                            <div className="absolute right-0 top-10 bg-surface border border-edge rounded-lg shadow-elevated py-2 z-20 min-w-[140px]">
-                              <button className="flex items-center w-full px-4 py-2 text-sm text-ink-secondary hover:bg-canvas transition-colors">
-                                <Edit2 className="w-4 h-4 mr-3" />
-                                Modifica
-                              </button>
-                              <button className="flex items-center w-full px-4 py-2 text-sm text-danger hover:bg-danger-subtle transition-colors">
-                                <Trash2 className="w-4 h-4 mr-3" />
-                                Elimina
-                              </button>
-                            </div>
-                          )}
-                        </div>
+                      <td className="px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
+                        <RowActionsMenu
+                          onDetails={() => router.push(`/finance/accounts/${account.id}`)}
+                          onEdit={() => setAccountToEdit(account)}
+                          onDelete={() => setAccountToDelete(account)}
+                          deleteDisabled={hasHistory}
+                          deleteDisabledReason={hasHistory ? 'Account con storico collegato: disattiva invece di eliminare' : undefined}
+                          extraActions={[
+                            {
+                              label: recalculatingId === account.id ? 'Ricalcolo...' : 'Ricalcola saldo',
+                              icon: RefreshCw,
+                              onClick: () => handleRecalculate(account),
+                              disabled: recalculatingId === account.id
+                            },
+                            {
+                              label: account.is_active ? 'Disattiva' : 'Riattiva',
+                              icon: account.is_active ? PowerOff : Power,
+                              onClick: () => handleToggleActive(account)
+                            }
+                          ]}
+                        />
                       </td>
                     </tr>
-                  ))}
+                  )})}
                 </tbody>
               </table>
             </div>
@@ -536,6 +589,7 @@ export default function AccountsPage() {
                   onClick={() => {
                     setSearchTerm('')
                     setSelectedAccountType('all')
+                    setSelectedStatus('all')
                   }}
                   className="inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-lg text-white bg-primary hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors shadow-card"
                 >
@@ -547,88 +601,27 @@ export default function AccountsPage() {
           </div>
         )}
 
-        {/* Add Account Modal */}
-        {showAddModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-surface rounded-lg max-w-md w-full p-6">
-              <h3 className="text-lg font-semibold mb-4">Aggiungi Nuovo Account</h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-ink-secondary mb-1">
-                    Nome Account
-                  </label>
-                  <input
-                    type="text"
-                    className="w-full border border-edge rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-                    placeholder="Es. Conto Corrente Principale"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-ink-secondary mb-1">
-                    Tipo Account
-                  </label>
-                  <select className="w-full border border-edge rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary">
-                    <option value="bank_account">Conto Bancario</option>
-                    <option value="debit_card">Carta di Debito</option>
-                    <option value="credit_card">Carta di Credito</option>
-                    <option value="saving_account">Conto Risparmio</option>
-                    <option value="foreign_account">Conto Estero</option>
-                    <option value="investment_account">Conto Investimenti</option>
-                    <option value="cash">Contanti</option>
-                    <option value="voucher">Voucher</option>
-                    <option value="digital_wallet">Portafoglio Digitale</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-ink-secondary mb-1">
-                    Colore
-                  </label>
-                  <input
-                    type="color"
-                    className="w-full border border-edge rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-                    defaultValue="#1D4ED8"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-ink-secondary mb-1">
-                    Saldo Iniziale
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    className="w-full border border-edge rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-                    placeholder="0.00"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-ink-secondary mb-1">
-                    Valuta
-                  </label>
-                  <select className="w-full border border-edge rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary">
-                    <option value="EUR">EUR - Euro</option>
-                    <option value="USD">USD - Dollaro</option>
-                    <option value="GBP">GBP - Sterlina</option>
-                    <option value="CHF">CHF - Franco Svizzero</option>
-                  </select>
-                </div>
-              </div>
-              <div className="flex justify-end space-x-3 mt-6">
-                <button
-                  onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 text-ink-secondary border border-edge rounded-md hover:bg-canvas"
-                >
-                  Annulla
-                </button>
-                <button
-                  onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-hover"
-                >
-                  Aggiungi
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Modale Aggiungi Account */}
+        <AccountFormModal
+          isOpen={showAddModal}
+          onClose={() => setShowAddModal(false)}
+        />
+
+        {/* Modale Modifica Account */}
+        <AccountFormModal
+          isOpen={!!accountToEdit}
+          onClose={() => setAccountToEdit(null)}
+          account={accountToEdit}
+        />
+
+        {/* Modale Elimina/Disattiva Account */}
+        <DeleteAccountModal
+          isOpen={!!accountToDelete}
+          onClose={() => setAccountToDelete(null)}
+          account={accountToDelete}
+          usage={accountToDelete ? (usageByAccountId.get(accountToDelete.id) || { transactionsCount: 0, refundsCount: 0, fundsTransferCount: 0, assetsCount: 0 }) : { transactionsCount: 0, refundsCount: 0, fundsTransferCount: 0, assetsCount: 0 }}
+          onDeactivate={(acc) => handleToggleActive(acc)}
+        />
       </div>
     </ModuleLayout>
   )

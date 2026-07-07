@@ -12,12 +12,10 @@ import RowActionsMenu from '@/components/ui/RowActionsMenu'
 import { useAllTransactions, useFinanceCache, type Transaction } from '@/lib/financeCache'
 import { useAuth } from '@/lib/auth'
 import { useTransactionFilters } from '@/hooks/useTransactionFilters'
+import { formatTransactionDate, getTransactionIcon, getTransactionColor } from '@/lib/helpers/transactionDisplay'
 import {
-  ArrowUpRight,
-  ArrowDownLeft,
   Calendar,
   Plus,
-  TrendingUp,
   RefreshCw
 } from 'lucide-react'
 
@@ -80,18 +78,8 @@ export default function TransactionsPage() {
     expenses: Math.abs(filteredTransactions.filter((t: Transaction) => t.current_amount < 0).reduce((sum: number, t: Transaction) => sum + t.current_amount, 0))
   }
 
-  // Funzioni utili
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    return date.toLocaleDateString('it-IT', {
-      day: 'numeric',
-      month: 'short',
-      year: date.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined,
-      weekday: 'short'
-    })
-  }
+  // Mostra "Rimborsato" solo se l'importo corrente è 0 (rimborso totale)
   const formatAmount = (amount: number, isRefunded: boolean = false) => {
-    // Mostra "Rimborsato" solo se l'importo corrente è 0 (rimborso totale)
     if (amount === 0 && isRefunded) {
       return (
         <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-success-subtle text-success-strong">
@@ -99,33 +87,10 @@ export default function TransactionsPage() {
         </span>
       )
     }
-    // Altrimenti mostra sempre l'importo corrente
     return new Intl.NumberFormat('it-IT', {
       style: 'currency',
       currency: 'EUR'
     }).format(amount)
-  }
-
-  const getTransactionIcon = (transaction: Transaction) => {
-    if (transaction.current_amount > 0) {
-      return <ArrowDownLeft className="h-4 w-4 text-success-strong" />
-    } else if (transaction.transaction_type === 'investment') {
-      return <TrendingUp className="h-4 w-4 text-primary" />
-    } else {
-      return <ArrowUpRight className="h-4 w-4 text-danger" />
-    }
-  }
-  const getTransactionColor = (transaction: Transaction) => {
-    // Verde solo se è completamente rimborsato (importo corrente = 0 e flag rimborso attivo)
-    if (transaction.current_amount === 0 && transaction.is_refunded) {
-      return 'text-success-strong'
-    } else if (transaction.current_amount > 0) {
-      return 'text-success-strong'
-    } else if (transaction.transaction_type === 'investment') {
-      return 'text-primary'
-    } else {
-      return 'text-danger'
-    }
   }
 
   // Paginazione (condivisa tra vista mobile e desktop, sugli stessi dati filtrati+ordinati)
@@ -144,7 +109,7 @@ export default function TransactionsPage() {
       render: (transaction: Transaction) => (
         <div className="flex flex-col">
           <span className="font-medium text-ink text-sm">
-            {formatDate(transaction.transaction_date)}
+            {formatTransactionDate(transaction.transaction_date)}
           </span>
         </div>
       )
@@ -415,7 +380,7 @@ export default function TransactionsPage() {
                           </p>
                           <div className="flex flex-wrap items-center gap-2 mb-2">
                             <span className="text-xs text-ink-muted">
-                              {formatDate(transaction.transaction_date)}
+                              {formatTransactionDate(transaction.transaction_date)}
                             </span>
                             {transaction.account_name && (
                               <>

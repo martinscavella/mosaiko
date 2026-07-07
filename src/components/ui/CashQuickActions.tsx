@@ -13,6 +13,7 @@ interface Account {
   name: string
   type: string
   current_balance: number
+  is_active: boolean
 }
 
 interface Category {
@@ -91,25 +92,29 @@ export default function CashQuickActions() {
   const supabase = createClientComponentClient()
 
   useEffect(() => {
-    // Trova l'account contanti con logica migliorata
-    if (accounts.length > 0) {
-      let cash = accounts.find((account: Account) => account.type === 'cash')
-      
+    // Trova l'account contanti con logica migliorata, solo tra quelli attivi
+    // (un account disattivato non deve ricevere nuove transazioni)
+    const activeAccounts = accounts.filter((account: Account) => account.is_active)
+    if (activeAccounts.length > 0) {
+      let cash = activeAccounts.find((account: Account) => account.type === 'cash')
+
       if (!cash) {
         // Se non trova account di tipo 'cash', cerca per nome
-        cash = accounts.find((account: Account) => 
+        cash = activeAccounts.find((account: Account) =>
           account.name.toLowerCase().includes('contanti') ||
           account.name.toLowerCase().includes('cash') ||
           account.name.toLowerCase().includes('contante')
         )
       }
-      
+
       if (!cash) {
-        // Come fallback, prende il primo account disponibile
-        cash = accounts[0]
+        // Come fallback, prende il primo account attivo disponibile
+        cash = activeAccounts[0]
       }
-      
+
       setCashAccount(cash || null)
+    } else {
+      setCashAccount(null)
     }
   }, [accounts])
 

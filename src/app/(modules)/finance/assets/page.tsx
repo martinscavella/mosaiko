@@ -346,7 +346,8 @@ function AssetFormModal({ mode, formData, onFormDataChange, accounts, onSubmit, 
               className="w-full px-3 py-2 border border-edge rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
             >
               <option value="">Nessun account</option>
-              {accounts.map((account) => (
+              {/* Account disattivati esclusi, tranne quello già associato all'asset in modifica */}
+              {accounts.filter((account) => account.is_active || account.id === formData.accountId).map((account) => (
                 <option key={account.id} value={account.id}>
                   {account.name} ({account.type})
                 </option>

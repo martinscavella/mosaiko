@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { Tooltip, ResponsiveContainer, Area, AreaChart, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { clsx } from 'clsx';
 import { TrendingUp } from 'lucide-react';
@@ -30,6 +30,9 @@ interface TotalBalanceChartProps {
     assets: Asset[];
   } | null;
   className?: string;
+  title?: string;
+  emptyLabel?: string;
+  icon?: ReactNode;
 }
 
 interface BalancePoint {
@@ -109,7 +112,7 @@ const compactCurrency = (value: number) =>
     ? `€${(value / 1000).toLocaleString('it-IT', { maximumFractionDigits: 1 })}k`
     : `€${value.toLocaleString('it-IT', { maximumFractionDigits: 0 })}`;
 
-export default function TotalBalanceChart({ data, className = '' }: TotalBalanceChartProps) {
+export default function TotalBalanceChart({ data, className = '', title = 'Patrimonio', emptyLabel = 'Andamento del tuo patrimonio', icon }: TotalBalanceChartProps) {
   const [range, setRange] = useState<Range>('1A');
 
   const dailyHistory = useMemo(() => {
@@ -156,10 +159,10 @@ export default function TotalBalanceChart({ data, className = '' }: TotalBalance
       <div className="flex flex-wrap items-start justify-between gap-3 mb-2">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-primary-subtle text-primary">
-            <TrendingUp className="h-5 w-5" />
+            {icon ?? <TrendingUp className="h-5 w-5" />}
           </div>
           <div>
-            <h3 className="text-base font-semibold text-ink">Patrimonio</h3>
+            <h3 className="text-base font-semibold text-ink">{title}</h3>
             {periodDelta ? (
               <p className="text-sm">
                 <span className="font-amount font-semibold text-ink">{formatCurrency(periodDelta.last)}</span>{' '}
@@ -172,7 +175,7 @@ export default function TotalBalanceChart({ data, className = '' }: TotalBalance
                 </span>
               </p>
             ) : (
-              <p className="text-sm text-ink-muted">Andamento del tuo patrimonio</p>
+              <p className="text-sm text-ink-muted">{emptyLabel}</p>
             )}
           </div>
         </div>

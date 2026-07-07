@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import ModuleLayout from "@/components/ModuleLayout";
 import ModuleHeader from "@/components/ui/ModuleHeader";
 import CacheStatus from "@/components/ui/CacheStatus";
@@ -108,6 +108,18 @@ export default function RefundsPage() {
     account_id: "",
     refund_code: "",
   });
+
+  // Account disattivati non selezionabili per nuovi rimborsi; in modifica
+  // resta visibile anche quello già assegnato, se nel frattempo disattivato.
+  const selectableAccountsForAdd = useMemo(
+    () => accounts.filter((account) => account.is_active),
+    [accounts]
+  );
+  const selectableAccountsForEdit = useMemo(
+    () => accounts.filter((account) => account.is_active || account.id === formData.account_id),
+    [accounts, formData.account_id]
+  );
+
   // Filtri e sorting
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedAccountId, setSelectedAccountId] = useState<string>("all");
@@ -1169,7 +1181,7 @@ export default function RefundsPage() {
                     className="w-full px-3 py-2 border border-edge rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                   >
                     <option value="">Nessun account</option>
-                    {accounts.map((account) => (
+                    {selectableAccountsForAdd.map((account) => (
                       <option key={account.id} value={account.id}>
                         {account.name} ({account.type})
                       </option>
@@ -1299,7 +1311,7 @@ export default function RefundsPage() {
                     className="w-full px-3 py-2 border border-edge rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                   >
                     <option value="">Nessun account</option>
-                    {accounts.map((account) => (
+                    {selectableAccountsForEdit.map((account) => (
                       <option key={account.id} value={account.id}>
                         {account.name} ({account.type})
                       </option>

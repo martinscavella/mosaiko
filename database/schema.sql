@@ -49,6 +49,10 @@ CREATE TABLE public.accounts (
     current_balance numeric(15,2) NOT NULL,
     currency character varying(3) NOT NULL DEFAULT 'EUR',
     color character varying(7) NOT NULL CHECK (color ~ '^#[0-9A-Fa-f]{6}$'),
+    -- Aggiunta via database/add_account_is_active.sql (2026-07-07): account
+    -- disattivati restano per storicità ma spariscono dalle picklist di
+    -- scelta account in creazione/modifica movimenti.
+    is_active boolean NOT NULL DEFAULT true,
     created_at timestamp without time zone DEFAULT now(),
     updated_at timestamp without time zone DEFAULT now()
 );

@@ -13,6 +13,7 @@ interface Account {
   name: string
   type: string
   current_balance: number
+  is_active: boolean
 }
 
 interface Category {
@@ -90,7 +91,7 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, editTr
       // Carica accounts
       const { data: accountsData } = await supabase
         .from('accounts')
-        .select('id, name, type, current_balance')
+        .select('id, name, type, current_balance, is_active')
         .eq('user_id', user.id)
         .order('name')
 
@@ -112,10 +113,12 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, editTr
         .eq('user_id', user.id)
         .order('name')
 
-      // In modifica servono tutti gli account (quello della transazione può avere saldo 0)
+      // In modifica servono tutti gli account attivi + quello già assegnato alla
+      // transazione (può avere saldo 0 o essere nel frattempo stato disattivato).
+      // In creazione, gli account disattivati non sono selezionabili.
       const usableAccounts = isEditMode
-        ? accountsData || []
-        : accountsData?.filter(account => account.current_balance > 0) || []
+        ? (accountsData || []).filter(account => account.is_active || account.id === editTransaction?.account_id)
+        : (accountsData || []).filter(account => account.is_active && account.current_balance > 0)
       setAccounts(usableAccounts.sort((a, b) => b.current_balance - a.current_balance))
       
       // Ordina le categorie per numero di utilizzi (più utilizzate prima), poi per nome
@@ -135,7 +138,7 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, editTr
     } catch (error) {
       console.error('Error loading initial data:', error)
     }
-  }, [user, isEditMode])
+  }, [user, isEditMode, editTransaction?.account_id])
 
   useEffect(() => {
     if (isOpen && user) {
