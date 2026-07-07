@@ -236,14 +236,14 @@ export default function CashQuickActions() {
   // Account non trovato
   if (!cashAccount) {
     return (
-      <div className="bg-amber-50 border border-amber-200 rounded-xl shadow-sm p-5">
+      <div className="bg-warning-subtle border border-warning-subtle rounded-lg shadow-card p-5">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-amber-100 text-amber-600">
+          <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-warning-subtle text-warning">
             <Wallet className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="text-base font-semibold text-amber-900">Account Contanti Non Trovato</h3>
-            <p className="text-sm text-amber-700">Crea un account di tipo "Contanti"</p>
+            <h3 className="text-base font-semibold text-warning">Account Contanti Non Trovato</h3>
+            <p className="text-sm text-warning">Crea un account di tipo "Contanti"</p>
           </div>
         </div>
       </div>
@@ -252,23 +252,23 @@ export default function CashQuickActions() {
 
   return (
     <>
-      <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-5">
+      <div className="bg-surface border border-edge rounded-lg shadow-card p-5">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-green-100 text-green-600">
+            <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-success-subtle text-success-strong">
               <Wallet className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-semibold text-gray-900">Quick Actions</h3>
-              <p className="text-sm text-gray-500">Registra spese contanti</p>
+              <h3 className="text-base font-semibold text-ink">Quick Actions</h3>
+              <p className="text-sm text-ink-muted">Registra spese contanti</p>
             </div>
           </div>
           <div className="text-right">
-            <p className="text-xs text-gray-500">Saldo</p>
+            <p className="text-xs text-ink-muted">Saldo</p>
             <p className={clsx(
-              'text-lg font-semibold tabular-nums',
-              cashAccount.current_balance >= 0 ? 'text-green-600' : 'text-red-600'
+              'text-lg font-semibold font-amount',
+              cashAccount.current_balance >= 0 ? 'text-success-strong' : 'text-danger'
             )}>
               €{cashAccount.current_balance.toFixed(2)}
             </p>
@@ -282,21 +282,21 @@ export default function CashQuickActions() {
               key={action.id}
               onClick={() => handleQuickAction(action)}
               disabled={isLoading}
-              className="flex flex-col items-center gap-2 p-4 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 hover:border-gray-300 transition-all duration-150 disabled:opacity-50 active:scale-95"
+              className="flex flex-col items-center gap-2 p-4 rounded-lg bg-canvas hover:bg-inset border border-edge hover:border-edge transition-all duration-150 disabled:opacity-50 active:scale-95"
             >
-              <action.icon className="w-6 h-6 text-gray-600" />
-              <span className="text-sm font-medium text-gray-700">{action.label}</span>
+              <action.icon className="w-6 h-6 text-ink-secondary" />
+              <span className="text-sm font-medium text-ink-secondary">{action.label}</span>
               {action.typical_amount && (
-                <span className="text-xs text-gray-500">{action.typical_amount}€</span>
+                <span className="text-xs text-ink-muted">{action.typical_amount}€</span>
               )}
             </button>
           ))}
         </div>
 
         {/* Footer */}
-        <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
+        <div className="mt-4 pt-3 border-t border-edge-subtle flex items-center justify-between text-xs text-ink-muted">
           <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-green-500 rounded-full" />
+            <div className="w-2 h-2 bg-success rounded-full" />
             <span>{cashAccount.name}</span>
           </div>
           <span>{isLoading ? 'Caricamento...' : 'Tap per registrare'}</span>

@@ -36,14 +36,14 @@ import {
 import type { HeaderAction, HeaderStat } from '@/components/ui/ModuleHeader'
 
 const ASSET_TYPES: Record<string, { label: string; icon: React.ComponentType<{ className?: string }>; color: string }> = {
-  real_estate: { label: 'Immobili', icon: Home, color: 'text-blue-600 bg-blue-100' },
-  vehicle: { label: 'Veicoli', icon: Car, color: 'text-red-600 bg-red-100' },
-  investment: { label: 'Investimenti', icon: TrendingUp, color: 'text-green-600 bg-green-100' },
-  crypto: { label: 'Criptovalute', icon: Coins, color: 'text-yellow-600 bg-yellow-100' },
-  commodity: { label: 'Materie Prime', icon: Package, color: 'text-orange-600 bg-orange-100' },
-  electronics: { label: 'Elettronica', icon: Smartphone, color: 'text-purple-600 bg-purple-100' },
-  art: { label: 'Arte & Collezionismo', icon: Briefcase, color: 'text-pink-600 bg-pink-100' },
-  other: { label: 'Altri', icon: DollarSign, color: 'text-gray-600 bg-gray-100' }
+  real_estate: { label: 'Immobili', icon: Home, color: 'text-primary bg-primary-subtle' },
+  vehicle: { label: 'Veicoli', icon: Car, color: 'text-danger bg-danger-subtle' },
+  investment: { label: 'Investimenti', icon: TrendingUp, color: 'text-success-strong bg-success-subtle' },
+  crypto: { label: 'Criptovalute', icon: Coins, color: 'text-warning bg-warning-subtle' },
+  commodity: { label: 'Materie Prime', icon: Package, color: 'text-warning bg-warning-subtle' },
+  electronics: { label: 'Elettronica', icon: Smartphone, color: 'text-module-health bg-module-health-subtle' },
+  art: { label: 'Arte & Collezionismo', icon: Briefcase, color: 'text-module-tasks bg-module-tasks-subtle' },
+  other: { label: 'Altri', icon: DollarSign, color: 'text-ink-secondary bg-inset' }
 }
 
 interface AssetTransactionsContentProps {
@@ -62,32 +62,32 @@ function AssetTransactionsContent({ assetId, formatCurrency, onDataChanged }: As
   const { linkAssetToTransaction, unlinkAssetFromTransaction } = useAssetOperations()
   const { unlinkedTransactions, refetch: refetchUnlinkedTransactions } = useUnlinkedAssetTransactions()
   const [showLinkForm, setShowLinkForm] = useState(false)
-  const [selectedTransactionId, setSelectedTransactionId] = useState('')
-  const [linkingTransaction, setLinkingTransaction] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [linkingTransactionId, setLinkingTransactionId] = useState<string | null>(null)
   const [unlinkingTransaction, setUnlinkingTransaction] = useState<string | null>(null)
 
-  const handleLinkTransaction = async () => {
-    if (!selectedTransactionId) return
-
-    setLinkingTransaction(true)
+  // Un click sulla riga collega direttamente: niente più selezione + bottone
+  // di conferma separati, un solo passaggio.
+  const handleLinkTransaction = async (transactionId: string) => {
+    setLinkingTransactionId(transactionId)
     try {
-      await linkAssetToTransaction(assetId, selectedTransactionId)
+      await linkAssetToTransaction(assetId, transactionId)
       setShowLinkForm(false)
-      setSelectedTransactionId('')
+      setSearchQuery('')
       await refetchAssetTransactions()
       await refetchUnlinkedTransactions()
       await onDataChanged()
     } catch (error) {
       console.error('Errore nel collegare la transazione:', error)
     } finally {
-      setLinkingTransaction(false)
+      setLinkingTransactionId(null)
     }
   }
 
   const handleUnlinkTransaction = async (transactionId: string) => {
     setUnlinkingTransaction(transactionId)
     try {
-      await unlinkAssetFromTransaction(transactionId)
+      await unlinkAssetFromTransaction(assetId, transactionId)
       await refetchAssetTransactions()
       await refetchUnlinkedTransactions()
       await onDataChanged()
@@ -102,96 +102,80 @@ function AssetTransactionsContent({ assetId, formatCurrency, onDataChanged }: As
     return <div className="text-center py-8">Caricamento transazioni...</div>
   }
 
+  const filteredUnlinked = unlinkedTransactions.filter((transaction) =>
+    transaction.transaction_details.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
   // Estratto una volta sola: prima era duplicato identico sia per lo stato
   // "nessuna transazione" che per quello con transazioni gia' collegate.
   const linkForm = showLinkForm && (
-    <div className="border border-gray-200 rounded-lg p-4 mt-4">
-      <h4 className="font-medium text-gray-900 mb-3">Collega transazione esistente</h4>
+    <div className="border border-edge rounded-lg p-4 mt-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <h4 className="font-medium text-ink">Collega transazione esistente</h4>
+        <button
+          onClick={() => { setShowLinkForm(false); setSearchQuery('') }}
+          className="p-1 hover:bg-inset rounded"
+        >
+          <X className="w-4 h-4 text-ink-muted" />
+        </button>
+      </div>
       {unlinkedTransactions.length === 0 ? (
         <div className="text-center py-4">
-          <p className="text-gray-500">
+          <p className="text-ink-muted">
             Non ci sono transazioni disponibili per il collegamento.
           </p>
-          <p className="text-sm text-gray-400 mt-1">
+          <p className="text-sm text-ink-muted mt-1">
             Le transazioni devono avere categoria "ASSET & INVESTIMENTI" e non essere già collegate ad altri asset.
           </p>
         </div>
       ) : (
-        <div className="space-y-3">
-          <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-lg">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 sticky top-0">
-                <tr>
-                  <th className="text-left p-3 font-medium text-gray-700">Seleziona</th>
-                  <th className="text-left p-3 font-medium text-gray-700">Data</th>
-                  <th className="text-left p-3 font-medium text-gray-700">Descrizione</th>
-                  <th className="text-right p-3 font-medium text-gray-700">Importo</th>
-                </tr>
-              </thead>
-              <tbody>
-                {unlinkedTransactions.map((transaction) => (
-                  <tr
-                    key={transaction.id}
-                    className={`border-t border-gray-200 hover:bg-blue-50 cursor-pointer transition-colors ${
-                      selectedTransactionId === transaction.id ? 'bg-blue-100' : ''
-                    }`}
-                    onClick={() => setSelectedTransactionId(
-                      selectedTransactionId === transaction.id ? '' : transaction.id
+        <>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted w-4 h-4" />
+            <input
+              type="text"
+              placeholder="Cerca per descrizione..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              autoFocus
+              className="w-full pl-9 pr-3 py-2 border border-edge rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+            />
+          </div>
+          <div className="max-h-72 overflow-y-auto space-y-1.5">
+            {filteredUnlinked.length === 0 ? (
+              <p className="text-sm text-ink-muted text-center py-4">Nessun risultato per &quot;{searchQuery}&quot;</p>
+            ) : (
+              filteredUnlinked.map((transaction) => (
+                <button
+                  key={transaction.id}
+                  type="button"
+                  onClick={() => handleLinkTransaction(transaction.id)}
+                  disabled={linkingTransactionId !== null}
+                  className="w-full flex items-center justify-between gap-3 p-3 bg-canvas hover:bg-primary-subtle rounded-lg transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-ink truncate">{transaction.transaction_details}</p>
+                    <p className="text-xs text-ink-muted">
+                      {new Date(transaction.transaction_date).toLocaleDateString('it-IT')} • {transaction.transaction_type}
+                    </p>
+                  </div>
+                  <span className={`font-semibold flex-shrink-0 ${
+                    transaction.current_amount >= 0 ? 'text-success-strong' : 'text-danger'
+                  }`}>
+                    {transaction.current_amount >= 0 ? '+' : ''}{formatCurrency(transaction.current_amount)}
+                  </span>
+                  <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full bg-primary-subtle text-primary">
+                    {linkingTransactionId === transaction.id ? (
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Plus className="w-3.5 h-3.5" />
                     )}
-                  >
-                    <td className="p-3">
-                      <input
-                        type="radio"
-                        name="selectedTransaction"
-                        checked={selectedTransactionId === transaction.id}
-                        onChange={() => setSelectedTransactionId(transaction.id)}
-                        className="text-blue-600 focus:ring-blue-500"
-                      />
-                    </td>
-                    <td className="p-3 text-gray-700">
-                      {new Date(transaction.transaction_date).toLocaleDateString('it-IT')}
-                    </td>
-                    <td className="p-3">
-                      <div>
-                        <p className="font-medium text-gray-900 truncate">
-                          {transaction.transaction_details}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {transaction.transaction_type}
-                        </p>
-                      </div>
-                    </td>
-                    <td className="p-3 text-right">
-                      <span className={`font-semibold ${
-                        transaction.current_amount >= 0 ? 'text-green-600' : 'text-red-600'
-                      }`}>
-                        {transaction.current_amount >= 0 ? '+' : ''}{formatCurrency(transaction.current_amount)}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                  </span>
+                </button>
+              ))
+            )}
           </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => {
-                setShowLinkForm(false)
-                setSelectedTransactionId('')
-              }}
-              className="px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              Annulla
-            </button>
-            <button
-              onClick={handleLinkTransaction}
-              disabled={!selectedTransactionId || linkingTransaction}
-              className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {linkingTransaction ? 'Collegando...' : 'Collega Transazione Selezionata'}
-            </button>
-          </div>
-        </div>
+        </>
       )}
     </div>
   )
@@ -200,14 +184,14 @@ function AssetTransactionsContent({ assetId, formatCurrency, onDataChanged }: As
     return (
       <div className="space-y-6">
         <div className="text-center py-8">
-          <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Nessuna transazione collegata</h3>
-          <p className="text-gray-500 mb-4">
+          <FileText className="w-12 h-12 text-ink-muted mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-ink mb-2">Nessuna transazione collegata</h3>
+          <p className="text-ink-muted mb-4">
             Non ci sono transazioni collegate a questo asset.
           </p>
           <button
             onClick={() => setShowLinkForm(true)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors"
           >
             Collega transazione esistente
           </button>
@@ -221,52 +205,52 @@ function AssetTransactionsContent({ assetId, formatCurrency, onDataChanged }: As
     <div className="space-y-6">
       {/* Statistiche */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-red-50 p-4 rounded-lg">
-          <p className="text-sm font-medium text-red-600">Totale Speso</p>
-          <p className="text-xl font-bold text-red-700">{formatCurrency(totalSpentOnAsset)}</p>
+        <div className="bg-danger-subtle p-4 rounded-lg">
+          <p className="text-sm font-medium text-danger">Totale Speso</p>
+          <p className="text-xl font-bold text-danger">{formatCurrency(totalSpentOnAsset)}</p>
         </div>
-        <div className="bg-green-50 p-4 rounded-lg">
-          <p className="text-sm font-medium text-green-600">Totale Ricevuto</p>
-          <p className="text-xl font-bold text-green-700">{formatCurrency(totalReceivedFromAsset)}</p>
+        <div className="bg-success-subtle p-4 rounded-lg">
+          <p className="text-sm font-medium text-success-strong">Totale Ricevuto</p>
+          <p className="text-xl font-bold text-success-strong">{formatCurrency(totalReceivedFromAsset)}</p>
         </div>
-        <div className="bg-blue-50 p-4 rounded-lg">
-          <p className="text-sm font-medium text-blue-600">N° Transazioni</p>
-          <p className="text-xl font-bold text-blue-700">{transactionCount}</p>
+        <div className="bg-primary-subtle p-4 rounded-lg">
+          <p className="text-sm font-medium text-primary">N° Transazioni</p>
+          <p className="text-xl font-bold text-primary-hover">{transactionCount}</p>
         </div>
       </div>
 
       {/* Lista Transazioni */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h4 className="font-medium text-gray-900">Transazioni Correlate</h4>
+          <h4 className="font-medium text-ink">Transazioni Correlate</h4>
           <button
             onClick={() => setShowLinkForm(true)}
-            className="px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+            className="px-3 py-1 text-sm bg-primary text-white rounded-md hover:bg-primary-hover transition-colors"
           >
             + Collega altra transazione
           </button>
         </div>
         <div className="space-y-2">
           {assetTransactions.map((transaction) => (
-            <div key={transaction.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+            <div key={transaction.id} className="flex items-center justify-between p-4 bg-canvas rounded-lg">
               <div className="flex-1">
-                <p className="font-medium text-gray-900">{transaction.transaction_details}</p>
-                <p className="text-sm text-gray-500">
+                <p className="font-medium text-ink">{transaction.transaction_details}</p>
+                <p className="text-sm text-ink-muted">
                   {new Date(transaction.transaction_date).toLocaleDateString('it-IT')}
                   {transaction.categories?.name && ` • ${transaction.categories.name}`}
                 </p>
               </div>
               <div className="flex items-center gap-3">
                 <div className="text-right">
-                  <p className={`font-semibold ${transaction.current_amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  <p className={`font-semibold ${transaction.current_amount >= 0 ? 'text-success-strong' : 'text-danger'}`}>
                     {transaction.current_amount >= 0 ? '+' : ''}{formatCurrency(transaction.current_amount)}
                   </p>
-                  <p className="text-xs text-gray-500">{transaction.transaction_type}</p>
+                  <p className="text-xs text-ink-muted">{transaction.transaction_type}</p>
                 </div>
                 <button
                   onClick={() => handleUnlinkTransaction(transaction.id)}
                   disabled={unlinkingTransaction === transaction.id}
-                  className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
+                  className="p-1 text-danger hover:bg-danger-subtle rounded transition-colors disabled:opacity-50"
                   title="Scollega transazione"
                 >
                   {unlinkingTransaction === transaction.id ? (
@@ -301,47 +285,49 @@ interface AssetFormModalProps {
   accounts: Account[]
   onSubmit: () => void
   onClose: () => void
+  purchaseData?: AssetPurchaseData
 }
 
 // Modal condiviso per Aggiungi/Modifica Asset: prima erano due blocchi JSX
 // quasi identici (~130 righe ciascuno), che sarebbero divergiuti nel tempo
 // ad ogni piccola modifica fatta in uno solo dei due.
-function AssetFormModal({ mode, formData, onFormDataChange, accounts, onSubmit, onClose }: AssetFormModalProps) {
+function AssetFormModal({ mode, formData, onFormDataChange, accounts, onSubmit, onClose, purchaseData }: AssetFormModalProps) {
   const isEdit = mode === 'edit'
+  const isQuantityLocked = isEdit && !!purchaseData?.hasTransactions
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+      <div className="bg-surface rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-lg font-semibold">{isEdit ? 'Modifica Asset' : 'Aggiungi Nuovo Asset'}</h3>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
+          <button onClick={onClose} className="p-1 hover:bg-inset rounded">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <form onSubmit={(e) => { e.preventDefault(); onSubmit(); }} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-ink-secondary mb-1">
               Nome Asset *
             </label>
             <input
               type="text"
               value={formData.name}
               onChange={(e) => onFormDataChange({ ...formData, name: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-edge rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
               placeholder="Es. Appartamento Milano"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-ink-secondary mb-1">
               Tipo Asset *
             </label>
             <select
               value={formData.type}
               onChange={(e) => onFormDataChange({ ...formData, type: e.target.value as Asset['type'] })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-edge rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
               required
             >
               {Object.entries(ASSET_TYPES).map(([key, type]) => (
@@ -351,13 +337,13 @@ function AssetFormModal({ mode, formData, onFormDataChange, accounts, onSubmit, 
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-ink-secondary mb-1">
               Account Associato
             </label>
             <select
               value={formData.accountId}
               onChange={(e) => onFormDataChange({ ...formData, accountId: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-edge rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
             >
               <option value="">Nessun account</option>
               {accounts.map((account) => (
@@ -366,47 +352,50 @@ function AssetFormModal({ mode, formData, onFormDataChange, accounts, onSubmit, 
                 </option>
               ))}
             </select>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-ink-muted mt-1">
               Associa questo asset a un account specifico (opzionale)
             </p>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-ink-secondary mb-1">
               Quantità *
             </label>
             <input
               type="number"
               step="0.01"
-              value={formData.quantity}
+              value={isQuantityLocked ? purchaseData!.totalQuantity : formData.quantity}
               onChange={(e) => onFormDataChange({ ...formData, quantity: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-edge rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-inset disabled:text-ink-muted disabled:cursor-not-allowed"
               placeholder="1.00"
               required
+              disabled={isQuantityLocked}
             />
-            <p className="text-xs text-gray-500 mt-1">
-              Quantità di asset posseduti (es. 1 per immobile, 100 per azioni)
+            <p className="text-xs text-ink-muted mt-1">
+              {isQuantityLocked
+                ? 'Calcolata automaticamente dalle transazioni collegate — modifica dal pannello "Transazioni Correlate".'
+                : 'Quantità di asset posseduti (es. 1 per immobile, 100 per azioni)'}
             </p>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-ink-secondary mb-1">
               Simbolo/Ticker
             </label>
             <input
               type="text"
               value={formData.symbol}
               onChange={(e) => onFormDataChange({ ...formData, symbol: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-edge rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
               placeholder="Es. AAPL, BTC, IWDA.MI"
             />
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-ink-muted mt-1">
               Simbolo di trading per recuperare quotazioni automatiche (opzionale)
             </p>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-ink-secondary mb-1">
               Valore Attuale (€) *
             </label>
             <input
@@ -414,11 +403,11 @@ function AssetFormModal({ mode, formData, onFormDataChange, accounts, onSubmit, 
               step="0.01"
               value={formData.value}
               onChange={(e) => onFormDataChange({ ...formData, value: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-edge rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
               placeholder="0.00"
               required
             />
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-ink-muted mt-1">
               Valore attuale dell&apos;asset. Per dati di acquisto, {isEdit ? 'modifica le transazioni collegate' : 'crea una transazione collegata'}.
             </p>
           </div>
@@ -427,13 +416,13 @@ function AssetFormModal({ mode, formData, onFormDataChange, accounts, onSubmit, 
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              className="flex-1 px-4 py-2 border border-edge text-ink-secondary rounded-lg hover:bg-canvas transition-colors"
             >
               Annulla
             </button>
             <button
               type="submit"
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors"
             >
               {isEdit ? 'Salva Modifiche' : 'Aggiungi Asset'}
             </button>
@@ -450,7 +439,7 @@ export default function AssetsPage() {
   const { assets } = useAssets()
   const { accounts } = useAccounts()
   const { totalValue, totalPerformance } = useAssetStats()
-  const { createAsset, updateAsset, deleteAsset, updateAssetMarketValue } = useAssetOperations()
+  const { createAsset, updateAsset, deleteAsset, updateAssetMarketValue, recalcAssetQuantity } = useAssetOperations()
   
   const [showAddModal, setShowAddModal] = useState(false)
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null)
@@ -497,6 +486,12 @@ export default function AssetsPage() {
       style: 'currency',
       currency: 'EUR'
     }).format(amount)
+  }
+
+  // Evita numeri con troppi decimali (es. quantità ricalcolate da transazioni)
+  // che sforerebbero lo spazio disponibile nella card.
+  const formatQuantity = (quantity: number) => {
+    return new Intl.NumberFormat('it-IT', { maximumFractionDigits: 4 }).format(quantity)
   }
 
   // Costo/quantità/performance per asset, calcolati UNA SOLA VOLTA per ogni
@@ -692,7 +687,8 @@ export default function AssetsPage() {
       return
     }
 
-    try {      const assetData = {
+    try {
+      const assetData = {
         name: formData.name,
         type: formData.type,
         quantity: parseFloat(formData.quantity),
@@ -703,7 +699,26 @@ export default function AssetsPage() {
       }
 
       if (assetToEdit) {
-        await updateAsset(assetToEdit.id, assetData)
+        const isQuantityLocked = getAssetPurchaseData(assetToEdit.id).hasTransactions
+        // Quantità derivata da transazioni collegate: non sovrascriverla con il
+        // form (che la mostra sola lettura), lascia il valore già persistito.
+        const updatePayload = isQuantityLocked
+          ? {
+              name: assetData.name,
+              type: assetData.type,
+              value: assetData.value,
+              currency: assetData.currency,
+              symbol: assetData.symbol,
+              account_id: assetData.account_id
+            }
+          : assetData
+        await updateAsset(assetToEdit.id, updatePayload)
+        // Rete di sicurezza: ricalcola dal DB fresco per evitare disallineamenti
+        // con altre tab che potrebbero aver collegato/scollegato transazioni.
+        // updateAsset ha già fatto il suo refetch interno PRIMA di questa
+        // scrittura: serve un refetch esplicito per riflettere il ricalcolo.
+        await recalcAssetQuantity(assetToEdit.id)
+        await refetch()
       } else {
         await createAsset(assetData)
       }
@@ -772,23 +787,23 @@ export default function AssetsPage() {
           <div className="flex flex-col sm:flex-row gap-4 flex-1">
             {/* Barra di ricerca */}
             <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-ink-muted w-4 h-4" />
               <input
                 type="text"
                 placeholder="Cerca asset..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 border border-edge rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
               />
             </div>
 
             {/* Filtro per tipo */}
             <div className="relative">
-              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-ink-muted w-4 h-4" />
               <select
                 value={selectedAssetType}
                 onChange={(e) => setSelectedAssetType(e.target.value)}
-                className="pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white min-w-[150px]"
+                className="pl-10 pr-8 py-2 border border-edge rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent appearance-none bg-surface min-w-[150px]"
               >
                 <option value="all">Tutti i tipi</option>
                 {Object.entries(ASSET_TYPES).map(([key, type]) => (
@@ -799,11 +814,11 @@ export default function AssetsPage() {
 
             {/* Filtro per account */}
             <div className="relative">
-              <Building2 className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Building2 className="absolute left-3 top-1/2 transform -translate-y-1/2 text-ink-muted w-4 h-4" />
               <select
                 value={selectedAccountId}
                 onChange={(e) => setSelectedAccountId(e.target.value)}
-                className="pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white min-w-[150px]"
+                className="pl-10 pr-8 py-2 border border-edge rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent appearance-none bg-surface min-w-[150px]"
               >
                 <option value="all">Tutti gli account</option>
                 <option value="none">Nessun account</option>
@@ -823,7 +838,7 @@ export default function AssetsPage() {
                 setSelectedAssetType('all')
                 setSelectedAccountId('all')
               }}
-              className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm"
+              className="px-3 py-2 border border-edge rounded-lg hover:bg-canvas transition-colors text-sm"
             >
               Pulisci
             </button>
@@ -835,7 +850,7 @@ export default function AssetsPage() {
           <button
             onClick={() => handleSort('name')}
             className={`flex items-center gap-2 px-3 py-2 text-sm border rounded-lg transition-colors ${
-              sortField === 'name' ? 'bg-blue-100 border-blue-300 text-blue-700' : 'border-gray-300 hover:bg-gray-50'
+              sortField === 'name' ? 'bg-primary-subtle border-primary-subtle text-primary-hover' : 'border-edge hover:bg-canvas'
             }`}
           >
             Nome {getSortIcon('name')}
@@ -843,7 +858,7 @@ export default function AssetsPage() {
           <button
             onClick={() => handleSort('type')}
             className={`flex items-center gap-2 px-3 py-2 text-sm border rounded-lg transition-colors ${
-              sortField === 'type' ? 'bg-blue-100 border-blue-300 text-blue-700' : 'border-gray-300 hover:bg-gray-50'
+              sortField === 'type' ? 'bg-primary-subtle border-primary-subtle text-primary-hover' : 'border-edge hover:bg-canvas'
             }`}
           >
             Tipo {getSortIcon('type')}
@@ -851,7 +866,7 @@ export default function AssetsPage() {
           <button
             onClick={() => handleSort('value')}
             className={`flex items-center gap-2 px-3 py-2 text-sm border rounded-lg transition-colors ${
-              sortField === 'value' ? 'bg-blue-100 border-blue-300 text-blue-700' : 'border-gray-300 hover:bg-gray-50'
+              sortField === 'value' ? 'bg-primary-subtle border-primary-subtle text-primary-hover' : 'border-edge hover:bg-canvas'
             }`}
           >
             Valore {getSortIcon('value')}
@@ -859,7 +874,7 @@ export default function AssetsPage() {
           <button
             onClick={() => handleSort('performance')}
             className={`flex items-center gap-2 px-3 py-2 text-sm border rounded-lg transition-colors ${
-              sortField === 'performance' ? 'bg-blue-100 border-blue-300 text-blue-700' : 'border-gray-300 hover:bg-gray-50'
+              sortField === 'performance' ? 'bg-primary-subtle border-primary-subtle text-primary-hover' : 'border-edge hover:bg-canvas'
             }`}
           >
             Performance {getSortIcon('performance')}
@@ -869,41 +884,41 @@ export default function AssetsPage() {
         {/* Lista Asset */}
         <div className="mt-8">
           {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[...Array(8)].map((_, i) => (
-                <div key={i} className="bg-white rounded-lg border border-gray-200 p-6 animate-pulse">
-                  <div className="h-4 bg-gray-200 rounded w-3/4 mb-3"></div>
-                  <div className="h-3 bg-gray-200 rounded w-1/2 mb-4"></div>
-                  <div className="h-6 bg-gray-200 rounded w-2/3 mb-2"></div>
-                  <div className="h-4 bg-gray-200 rounded w-1/3"></div>
+                <div key={i} className="bg-surface rounded-lg border border-edge p-6 animate-pulse">
+                  <div className="h-4 bg-inset rounded w-3/4 mb-3"></div>
+                  <div className="h-3 bg-inset rounded w-1/2 mb-4"></div>
+                  <div className="h-6 bg-inset rounded w-2/3 mb-2"></div>
+                  <div className="h-4 bg-inset rounded w-1/3"></div>
                 </div>
               ))}
             </div>
           ) : filteredAndSortedAssets.length === 0 ? (
             <div className="text-center py-12">
-              <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Nessun asset trovato</h3>
-              <p className="text-gray-500 mb-6">
+              <Package className="w-12 h-12 text-ink-muted mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-ink mb-2">Nessun asset trovato</h3>
+              <p className="text-ink-muted mb-6">
                 {searchTerm || selectedAssetType !== 'all' || selectedAccountId !== 'all'
                   ? 'Prova a modificare i filtri di ricerca'
                   : 'Inizia aggiungendo il tuo primo asset'}
               </p>
               <button
                 onClick={() => setShowAddModal(true)}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors"
               >
                 <Plus className="w-4 h-4" />
                 Aggiungi Asset
               </button>
             </div>
-          ) : (            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          ) : (            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredAndSortedAssets.map((asset) => {
                 const AssetIcon = ASSET_TYPES[asset.type]?.icon || ASSET_TYPES.other.icon
                 const purchaseData = getAssetPurchaseData(asset.id)
                 const performance = calculatePerformance(asset.value, purchaseData.totalCost)
                 
                 return (
-                  <div key={asset.id} className="bg-white rounded-lg border border-gray-200 hover:shadow-md transition-shadow">
+                  <div key={asset.id} className="bg-surface rounded-lg border border-edge hover:shadow-elevated transition-shadow">
                     <div className="p-6">
                       {/* Header della card - Struttura ben definita */}
                       <div className="flex items-start justify-between mb-6">
@@ -913,17 +928,17 @@ export default function AssetsPage() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-2">
-                              <h3 className="font-semibold text-gray-900 text-base leading-tight truncate">{asset.name}</h3>
+                              <h3 className="font-semibold text-ink text-base leading-tight truncate">{asset.name}</h3>
                               {purchaseData.hasTransactions && (
-                                <div className="flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full flex-shrink-0">
+                                <div className="flex items-center gap-1 px-2 py-1 bg-success-subtle text-success-strong text-xs rounded-full flex-shrink-0">
                                   <FileText className="w-3 h-3" />
                                   <span>Tracked</span>
                                 </div>
                               )}
                             </div>
-                            <p className="text-sm text-gray-500 mb-2">{ASSET_TYPES[asset.type]?.label || 'Altri'}</p>
+                            <p className="text-sm text-ink-muted mb-2">{ASSET_TYPES[asset.type]?.label || 'Altri'}</p>
                             {asset.account_id && (
-                              <p className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-full inline-block truncate max-w-full">
+                              <p className="text-xs text-primary bg-primary-subtle px-2 py-1 rounded-full inline-block truncate max-w-full">
                                 {accounts.find(acc => acc.id === asset.account_id)?.name || 'Account sconosciuto'}
                               </p>
                             )}
@@ -932,21 +947,21 @@ export default function AssetsPage() {
                         <div className="relative flex-shrink-0 ml-2">
                           <button 
                             onClick={() => setSelectedAsset(selectedAsset?.id === asset.id ? null : asset)}
-                            className="p-1 hover:bg-gray-100 rounded"
+                            className="p-1 hover:bg-inset rounded"
                           >
-                            <MoreVertical className="w-4 h-4 text-gray-400" />
+                            <MoreVertical className="w-4 h-4 text-ink-muted" />
                           </button>
                           
                           {/* Dropdown Menu */}
                           {selectedAsset?.id === asset.id && (
-                            <div className="absolute right-0 top-8 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
+                            <div className="absolute right-0 top-8 mt-1 w-48 bg-surface rounded-lg shadow-elevated border border-edge z-10">
                               <div className="py-1">
                                 <button
                                   onClick={() => {
                                     handleShowChart(asset)
                                     setSelectedAsset(null)
                                   }}
-                                  className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                  className="flex items-center gap-2 w-full px-4 py-2 text-sm text-ink-secondary hover:bg-inset"
                                 >
                                   <BarChart3 className="w-4 h-4" />
                                   Grafico Performance
@@ -955,7 +970,7 @@ export default function AssetsPage() {
                                     handleShowTransactions(asset)
                                     setSelectedAsset(null)
                                   }}
-                                  className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                  className="flex items-center gap-2 w-full px-4 py-2 text-sm text-ink-secondary hover:bg-inset"
                                 >
                                   <FileText className="w-4 h-4" />
                                   Transazioni Correlate
@@ -965,7 +980,7 @@ export default function AssetsPage() {
                                     handleEditAsset(asset)
                                     setSelectedAsset(null)
                                   }}
-                                  className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                  className="flex items-center gap-2 w-full px-4 py-2 text-sm text-ink-secondary hover:bg-inset"
                                 >
                                   <Edit2 className="w-4 h-4" />
                                   Modifica
@@ -975,7 +990,7 @@ export default function AssetsPage() {
                                     handleDeleteAsset(asset)
                                     setSelectedAsset(null)
                                   }}
-                                  className="flex items-center gap-2 w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                                  className="flex items-center gap-2 w-full px-4 py-2 text-sm text-danger hover:bg-danger-subtle"
                                 >
                                   <Trash2 className="w-4 h-4" />
                                   Elimina
@@ -986,67 +1001,49 @@ export default function AssetsPage() {
                         </div>
                       </div>
 
-                      {/* Contenuto principale - Griglia strutturata */}
-                      <div className="space-y-4">
-                        {/* Prima sezione: Metriche principali */}
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-1">
-                            <span className="text-xs text-gray-500 uppercase tracking-wide">Valore Attuale</span>
-                            <p className="text-lg font-semibold text-gray-900">
-                              {formatCurrency(asset.value)}
-                            </p>
+                      {/* Valore e performance, impilati per non stringere lo spazio orizzontale */}
+                      <div className="space-y-1.5">
+                        <span className="text-xs text-ink-muted uppercase tracking-wide">Valore Attuale</span>
+                        <p className="text-2xl font-semibold font-amount text-ink">
+                          {formatCurrency(asset.value)}
+                        </p>
+                        {purchaseData.hasTransactions && (
+                          <div className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-sm font-semibold ${
+                            performance >= 0 ? 'bg-success-subtle text-success-strong' : 'bg-danger-subtle text-danger'
+                          }`}>
+                            {performance >= 0 ? (
+                              <TrendingUp className="w-3.5 h-3.5" />
+                            ) : (
+                              <TrendingDown className="w-3.5 h-3.5" />
+                            )}
+                            {performance >= 0 ? '+' : ''}{performance.toFixed(2)}%
                           </div>
-                          <div className="space-y-1">
-                            <span className="text-xs text-gray-500 uppercase tracking-wide">Quantità</span>
-                            <p className="text-lg font-semibold text-gray-900">
-                              {asset.quantity}
-                            </p>
-                          </div>
-                        </div>
+                        )}
+                      </div>
 
-                        {/* Seconda sezione: Metriche di performance (sempre mostrate per uniformità) */}
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-1">
-                            <span className="text-xs text-gray-500 uppercase tracking-wide">Capitale Investito</span>
-                            <p className="text-sm font-medium text-gray-700">
-                              {purchaseData.hasTransactions ? formatCurrency(purchaseData.totalCost) : '—'}
-                            </p>
-                          </div>
-                          <div className="space-y-1">
-                            <span className="text-xs text-gray-500 uppercase tracking-wide">Prezzo Medio</span>
-                            <p className="text-sm font-medium text-gray-700">
-                              {purchaseData.hasTransactions ? formatCurrency(purchaseData.avgPurchasePrice) : '—'}
-                            </p>
-                          </div>
+                      {/* Metriche secondarie: righe etichetta/valore, spazio pieno per i numeri */}
+                      <div className="mt-4 space-y-2 pt-3 border-t border-edge-subtle">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-xs text-ink-muted">Quantità</span>
+                          <span className="text-sm font-medium text-ink font-amount">{formatQuantity(asset.quantity)}</span>
                         </div>
-
-                        {/* Terza sezione: Performance */}
-                        <div className="pt-2 border-t border-gray-100">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-gray-500 uppercase tracking-wide">Performance</span>
-                            <div className="flex items-center gap-2">
-                              {purchaseData.hasTransactions ? (
-                                <>
-                                  {performance >= 0 ? (
-                                    <TrendingUp className="w-4 h-4 text-green-600" />
-                                  ) : (
-                                    <TrendingDown className="w-4 h-4 text-red-600" />
-                                  )}
-                                  <span className={`text-sm font-semibold ${performance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                    {performance >= 0 ? '+' : ''}{performance.toFixed(2)}%
-                                  </span>
-                                </>
-                              ) : (
-                                <span className="text-sm text-gray-400">—</span>
-                              )}
-                            </div>
-                          </div>
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-xs text-ink-muted">Capitale Investito</span>
+                          <span className="text-sm font-medium text-ink-secondary font-amount">
+                            {purchaseData.hasTransactions ? formatCurrency(purchaseData.totalCost) : '—'}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-xs text-ink-muted">Prezzo Medio</span>
+                          <span className="text-sm font-medium text-ink-secondary font-amount">
+                            {purchaseData.hasTransactions ? formatCurrency(purchaseData.avgPurchasePrice) : '—'}
+                          </span>
                         </div>
                       </div>
 
                       {/* Footer della card - Informazioni aggiuntive */}
-                      <div className="mt-6 pt-4 border-t border-gray-100">
-                        <p className="text-xs text-gray-400 line-clamp-1">
+                      <div className="mt-4 pt-3 border-t border-edge-subtle">
+                        <p className="text-xs text-ink-muted line-clamp-1">
                           {purchaseData.firstPurchaseDate && `Acquistato il ${new Date(purchaseData.firstPurchaseDate).toLocaleDateString('it-IT')} • `}
                           Aggiornato il {new Date(asset.updated_at).toLocaleDateString('it-IT')}
                         </p>
@@ -1071,7 +1068,7 @@ export default function AssetsPage() {
           />
         )}
 
-        {showEditModal && (
+        {showEditModal && assetToEdit && (
           <AssetFormModal
             mode="edit"
             formData={formData}
@@ -1079,6 +1076,7 @@ export default function AssetsPage() {
             accounts={accounts}
             onSubmit={saveAsset}
             onClose={() => setShowEditModal(false)}
+            purchaseData={getAssetPurchaseData(assetToEdit.id)}
           />
         )}
 
@@ -1086,29 +1084,29 @@ export default function AssetsPage() {
         {/* Modal per Conferma Eliminazione */}
         {showDeleteModal && assetToDelete && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <div className="bg-surface rounded-lg p-6 w-full max-w-md">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold text-red-600">Elimina Asset</h3>
+                <h3 className="text-lg font-semibold text-danger">Elimina Asset</h3>
                 <button
                   onClick={() => setShowDeleteModal(false)}
-                  className="p-1 hover:bg-gray-100 rounded"
+                  className="p-1 hover:bg-inset rounded"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
               <div className="mb-6">
-                <p className="text-gray-700 mb-2">
+                <p className="text-ink-secondary mb-2">
                   Sei sicuro di voler eliminare questo asset?
                 </p>
-                <div className="bg-gray-50 p-3 rounded-lg">
+                <div className="bg-canvas p-3 rounded-lg">
                   <p className="font-medium">{assetToDelete.name}</p>
-                  <p className="text-sm text-gray-600">{ASSET_TYPES[assetToDelete.type]?.label || 'Altri'}</p>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-ink-secondary">{ASSET_TYPES[assetToDelete.type]?.label || 'Altri'}</p>
+                  <p className="text-sm text-ink-secondary">
                     Valore: {formatCurrency(assetToDelete.value)}
                   </p>
                 </div>
-                <p className="text-sm text-red-600 mt-2">
+                <p className="text-sm text-danger mt-2">
                   Questa azione non può essere annullata.
                 </p>
               </div>
@@ -1116,13 +1114,13 @@ export default function AssetsPage() {
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowDeleteModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="flex-1 px-4 py-2 border border-edge text-ink-secondary rounded-lg hover:bg-canvas transition-colors"
                 >
                   Annulla
                 </button>
                 <button
                   onClick={confirmDelete}
-                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                  className="flex-1 px-4 py-2 bg-danger text-white rounded-lg hover:bg-danger transition-colors"
                 >
                   Elimina
                 </button>
@@ -1134,7 +1132,7 @@ export default function AssetsPage() {
         {/* Modal per Grafico Performance */}
         {showChartModal && selectedChartAsset && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">              <div className="flex items-center justify-between mb-6">
+            <div className="bg-surface rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">              <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-semibold">
                   Performance - {selectedChartAsset.name}
                 </h3>
@@ -1143,7 +1141,7 @@ export default function AssetsPage() {
                     setShowChartModal(false)
                     setSelectedChartAsset(null)
                   }}
-                  className="p-1 hover:bg-gray-100 rounded"
+                  className="p-1 hover:bg-inset rounded"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -1162,7 +1160,7 @@ export default function AssetsPage() {
                     setShowChartModal(false)
                     setSelectedChartAsset(null)
                   }}
-                  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                  className="px-4 py-2 bg-ink-secondary text-white rounded-lg hover:bg-ink-secondary transition-colors"
                 >
                   Chiudi
                 </button>
@@ -1174,7 +1172,7 @@ export default function AssetsPage() {
         {/* Modal per Transazioni Correlate */}
         {showTransactionsModal && selectedAssetForTransactions && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="bg-surface rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-semibold">
                   Transazioni - {selectedAssetForTransactions.name}
@@ -1184,7 +1182,7 @@ export default function AssetsPage() {
                     setShowTransactionsModal(false)
                     setSelectedAssetForTransactions(null)
                   }}
-                  className="p-1 hover:bg-gray-100 rounded"
+                  className="p-1 hover:bg-inset rounded"
                 >
                   <X className="w-5 h-5" />
                 </button>

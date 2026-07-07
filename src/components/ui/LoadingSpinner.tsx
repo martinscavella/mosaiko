@@ -13,7 +13,7 @@ export default function LoadingSpinner({ size = 32, className = '' }: LoadingSpi
   return (
     <div className={clsx('flex items-center justify-center', className)}>
       <div
-        className="animate-spin rounded-full border-2 border-gray-200 border-t-blue-600"
+        className="animate-spin rounded-full border-2 border-edge border-t-blue-600"
         style={{ width: size, height: size }}
       />
     </div>

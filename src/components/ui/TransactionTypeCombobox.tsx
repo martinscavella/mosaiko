@@ -74,16 +74,16 @@ export function TransactionTypeCombobox({
         {({ open }) => (
           <>
             <div className="relative w-full">
-              <div className="relative w-full cursor-default overflow-hidden rounded-lg bg-white text-left border border-gray-300 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 shadow-sm">
+              <div className="relative w-full cursor-default overflow-hidden rounded-lg bg-surface text-left border border-edge focus-within:ring-2 focus-within:ring-primary focus-within:border-primary shadow-card">
                 <Combobox.Input
-                  className="w-full border-none py-2.5 pl-3 pr-12 text-sm leading-6 text-gray-900 focus:ring-0 focus:outline-none"
+                  className="w-full border-none py-2.5 pl-3 pr-12 text-sm leading-6 text-ink focus:ring-0 focus:outline-none"
                   displayValue={(transactionType: string) => transactionType}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Seleziona tipo di transazione..."
                 />
                 <Combobox.Button className="absolute inset-y-0 right-0 flex items-center pr-3">
                   <ChevronsUpDown
-                    className="h-5 w-5 text-gray-400"
+                    className="h-5 w-5 text-ink-muted"
                     aria-hidden="true"
                   />
                 </Combobox.Button>
@@ -97,9 +97,9 @@ export function TransactionTypeCombobox({
               leaveFrom="opacity-100"
               leaveTo="opacity-0"
             >
-              <Combobox.Options className="absolute z-50 mt-1 w-[360px] max-h-60 overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+              <Combobox.Options className="absolute z-50 mt-1 w-[360px] max-h-60 overflow-auto rounded-md bg-surface py-1 text-base shadow-elevated ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
                 {filteredTypes.length === 0 && query !== "" ? (
-                  <div className="relative cursor-default select-none py-2 px-4 text-gray-700">
+                  <div className="relative cursor-default select-none py-2 px-4 text-ink-secondary">
                     Nessun tipo trovato.
                   </div>
                 ) : (
@@ -108,7 +108,7 @@ export function TransactionTypeCombobox({
                       key={type}
                       className={({ active }) =>
                         `relative cursor-pointer select-none py-2 pl-10 pr-4 ${
-                          active ? "bg-blue-600 text-white" : "text-gray-900"
+                          active ? "bg-primary text-white" : "text-ink"
                         }`
                       }
                       value={type}
@@ -125,7 +125,7 @@ export function TransactionTypeCombobox({
                           {selected ? (
                             <span
                               className={`absolute inset-y-0 left-0 flex items-center pl-3 ${
-                                active ? "text-white" : "text-blue-600"
+                                active ? "text-white" : "text-primary"
                               }`}
                             >
                               <Check className="h-4 w-4" aria-hidden="true" />

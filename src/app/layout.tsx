@@ -1,28 +1,31 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, EB_Garamond } from "next/font/google";
+import { Inter, Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import { AuthProvider } from "@/lib/auth";
 import { FinanceCacheProvider } from "@/lib/financeCache";
+import { ThemeProvider, themeInitScript } from "@/lib/theme";
 import "./globals.css";
 import { Sidebar } from "@/components/ui/Sidebar";
 import { BottomMenu } from "@/components/ui/BottomMenu";
 import PWAManager from "@/components/PWAManager";
 import { IOSPWASetup } from "@/components/IOSPWASetup";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// Font del design system (designtoken.md): Inter per il testo,
+// Space Grotesk per i titoli, JetBrains Mono per importi/numeri
+const inter = Inter({
+  variable: "--font-body",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const spaceGrotesk = Space_Grotesk({
+  variable: "--font-heading",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
 });
 
-// EB Garamond font configuration
-const ebGaramond = EB_Garamond({
-  variable: "--font-debbie-bc",
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-mono",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
+  weight: ["400", "500", "600", "700"],
 });
 
 export const metadata: Metadata = {
@@ -92,8 +95,8 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#1E90FF" },
-    { media: "(prefers-color-scheme: dark)", color: "#1E90FF" }
+    { media: "(prefers-color-scheme: light)", color: "#1D4ED8" },
+    { media: "(prefers-color-scheme: dark)", color: "#0B1220" }
   ],
   viewportFit: "cover",
   interactiveWidget: "resizes-content"
@@ -105,8 +108,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="it" className="scroll-smooth">
+    <html lang="it" className="scroll-smooth" suppressHydrationWarning>
       <head>
+        {/* Applica il tema salvato prima dell'hydration per evitare flash */}
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+
         {/* Additional iOS and PWA meta tags */}
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -121,10 +127,6 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-orientations" content="portrait" />
         <meta name="mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="viewport-fit" content="cover" />
-        
-        {/* Preconnect to external domains */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         
         {/* Additional Apple Touch Icons */}
         <link rel="apple-touch-icon" sizes="57x57" href="/icons/apple-touch-icon-57x57.png" />
@@ -151,10 +153,11 @@ export default function RootLayout({
               media="screen and (device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" 
               href="/icons/apple-touch-startup-image-750x1334.png" />
       </head>
-      <body className={`${geistSans.variable} ${geistMono.variable} ${ebGaramond.variable} antialiased`}>
+      <body className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} antialiased`}>
+        <ThemeProvider>
         <AuthProvider>
           <FinanceCacheProvider>
-            <div className="flex h-screen bg-gray-50 safe-area-container">
+            <div className="flex h-screen bg-canvas safe-area-container">
               {/* Desktop Sidebar - hidden on mobile */}
               <div className="hidden md:block flex-shrink-0">
                 <Sidebar />
@@ -178,6 +181,7 @@ export default function RootLayout({
             <IOSPWASetup />
           </FinanceCacheProvider>
         </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

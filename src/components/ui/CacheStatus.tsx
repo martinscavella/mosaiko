@@ -8,12 +8,12 @@ export default function CacheStatus() {
 
   if (loading) {
     return (
-      <div className="flex items-center space-x-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-full">
+      <div className="flex items-center space-x-2 px-3 py-1.5 bg-primary-subtle border border-primary-subtle rounded-full">
         <div className="relative">
-          <Database className="h-3.5 w-3.5 text-blue-600" />
-          <div className="absolute inset-0 bg-blue-400 rounded-full animate-ping opacity-75 scale-150"></div>
+          <Database className="h-3.5 w-3.5 text-primary" />
+          <div className="absolute inset-0 bg-primary rounded-full animate-ping opacity-75 scale-150"></div>
         </div>
-        <span className="text-xs font-medium text-blue-700">
+        <span className="text-xs font-medium text-primary-hover">
           Sincronizzazione...
         </span>
       </div>
@@ -22,9 +22,9 @@ export default function CacheStatus() {
 
   if (!data) {
     return (
-      <div className="flex items-center space-x-2 px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-full">
-        <Database className="h-3.5 w-3.5 text-gray-500" />
-        <span className="text-xs font-medium text-gray-600">
+      <div className="flex items-center space-x-2 px-3 py-1.5 bg-canvas border border-edge rounded-full">
+        <Database className="h-3.5 w-3.5 text-ink-muted" />
+        <span className="text-xs font-medium text-ink-secondary">
           Nessun dato
         </span>
       </div>
@@ -44,12 +44,12 @@ export default function CacheStatus() {
 
   if (isDataStale) {
     return (
-      <div className="flex items-center space-x-2 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-full">
+      <div className="flex items-center space-x-2 px-3 py-1.5 bg-warning-subtle border border-warning-subtle rounded-full">
         <div className="relative">
-          <AlertCircle className="h-3.5 w-3.5 text-amber-600" />
-          <div className="absolute -top-0.5 -right-0.5 h-2 w-2 bg-amber-400 rounded-full animate-pulse"></div>
+          <AlertCircle className="h-3.5 w-3.5 text-warning" />
+          <div className="absolute -top-0.5 -right-0.5 h-2 w-2 bg-warning rounded-full animate-pulse"></div>
         </div>
-        <span className="text-xs font-medium text-amber-700">
+        <span className="text-xs font-medium text-warning">
           {getTimeString()}
         </span>
       </div>
@@ -57,12 +57,12 @@ export default function CacheStatus() {
   }
 
   return (
-    <div className="flex items-center space-x-2 px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-full">
+    <div className="flex items-center space-x-2 px-3 py-1.5 bg-success-subtle border border-success-subtle rounded-full">
       <div className="relative">
-        <Wifi className="h-3.5 w-3.5 text-emerald-600" />
-        <div className="absolute -top-0.5 -right-0.5 h-1.5 w-1.5 bg-emerald-400 rounded-full"></div>
+        <Wifi className="h-3.5 w-3.5 text-success-strong" />
+        <div className="absolute -top-0.5 -right-0.5 h-1.5 w-1.5 bg-success rounded-full"></div>
       </div>
-      <span className="text-xs font-medium text-emerald-700">
+      <span className="text-xs font-medium text-success-strong">
         {getTimeString()}
       </span>
     </div>

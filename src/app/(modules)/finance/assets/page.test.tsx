@@ -25,6 +25,7 @@ vi.mock('@/lib/financeCache', () => ({
     updateAssetMarketValue: vi.fn(),
     linkAssetToTransaction: vi.fn(),
     unlinkAssetFromTransaction: vi.fn(),
+    recalcAssetQuantity: vi.fn(),
   }),
   useAccounts: () => ({ accounts: [] }),
   useAssetTransactions: () => ({

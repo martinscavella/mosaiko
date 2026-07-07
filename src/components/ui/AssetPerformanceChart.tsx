@@ -5,6 +5,7 @@ import { TrendingUp, TrendingDown, BarChart3, RefreshCw, AlertTriangle } from 'l
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceLine } from 'recharts'
 import { formatCurrency } from '@/lib/helpers/format'
 import { aggregateAssetPurchaseData } from '@/lib/helpers/assetPurchaseData'
+import { chartColors, chartAxisTick } from '@/lib/chartTheme'
 
 interface PerformanceDataPoint {
   date: string
@@ -354,23 +355,23 @@ export default function AssetPerformanceChart({
   const performance = calculatePerformance()
 
   return (
-    <div className={`bg-white rounded-lg border border-gray-200 p-6 ${className}`}>      <div className="flex items-center justify-between mb-4">
+    <div className={`bg-surface rounded-lg border border-edge p-6 ${className}`}>      <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">{asset.name}</h3>
+          <h3 className="text-lg font-semibold text-ink">{asset.name}</h3>
           <div className="flex items-center gap-2 mt-1">
             {performance.isPositive ? (
-              <TrendingUp className="w-4 h-4 text-green-600" />
+              <TrendingUp className="w-4 h-4 text-success-strong" />
             ) : (
-              <TrendingDown className="w-4 h-4 text-red-600" />
+              <TrendingDown className="w-4 h-4 text-danger" />
             )}
-            <span className={`text-sm font-medium ${performance.isPositive ? 'text-green-600' : 'text-red-600'}`}>
+            <span className={`text-sm font-medium ${performance.isPositive ? 'text-success-strong' : 'text-danger'}`}>
               {performance.percentage > 0 ? '+' : ''}{performance.percentage.toFixed(2)}%
             </span>
-            <span className="text-sm text-gray-500">
+            <span className="text-sm text-ink-muted">
               ({timeRange})
             </span>
             {lastUpdated && (
-              <span className="text-xs text-gray-400">
+              <span className="text-xs text-ink-muted">
                 Aggiornato: {new Date(lastUpdated).toLocaleTimeString('it-IT')}
               </span>
             )}
@@ -383,8 +384,8 @@ export default function AssetPerformanceChart({
             disabled={refreshing}
             className={`p-2 rounded-lg transition-colors ${
               refreshing 
-                ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
+                ? 'bg-inset text-ink-muted cursor-not-allowed' 
+                : 'bg-primary-subtle text-primary hover:bg-primary-subtle'
             }`}
             title="Aggiorna dati"
           >
@@ -397,8 +398,8 @@ export default function AssetPerformanceChart({
                 onClick={() => setTimeRange(range)}
                 className={`px-2 py-1 text-xs rounded transition-colors ${
                   timeRange === range 
-                    ? 'bg-blue-100 text-blue-700' 
-                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                    ? 'bg-primary-subtle text-primary-hover' 
+                    : 'text-ink-muted hover:text-ink-secondary hover:bg-inset'
                 }`}
               >
                 {range}
@@ -410,10 +411,10 @@ export default function AssetPerformanceChart({
 
       {loading ? (
         <div className="h-48 flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
       ) : performanceData.length === 0 ? (
-        <div className="h-48 flex items-center justify-center text-gray-500">
+        <div className="h-48 flex items-center justify-center text-ink-muted">
           <div className="text-center">
             <BarChart3 className="w-8 h-8 mx-auto mb-2" />
             <p>Nessun dato disponibile</p>
@@ -436,13 +437,13 @@ export default function AssetPerformanceChart({
                 dataKey="formattedDate" 
                 axisLine={false}
                 tickLine={false}
-                tick={{ fontSize: 12, fill: '#9CA3AF' }}
+                tick={chartAxisTick}
                 interval="preserveStartEnd"
               />
               <YAxis 
                 axisLine={false}
                 tickLine={false}
-                tick={{ fontSize: 12, fill: '#9CA3AF' }}
+                tick={chartAxisTick}
                 tickFormatter={(value) => formatCurrency(value)}
                 domain={['dataMin - 100', 'dataMax + 100']}
               />
@@ -450,10 +451,10 @@ export default function AssetPerformanceChart({
                 content={({ active, payload, label }) => {
                   if (active && payload && payload.length) {
                     return (
-                      <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-                        <p className="text-sm text-gray-600">{label}</p>
+                      <div className="bg-surface p-3 border border-edge rounded-lg shadow-elevated">
+                        <p className="text-sm text-ink-secondary">{label}</p>
                         <p className="text-sm font-semibold">
-                          <span className={performance.isPositive ? 'text-green-600' : 'text-red-600'}>
+                          <span className={performance.isPositive ? 'text-success-strong' : 'text-danger'}>
                             {formatCurrency(payload[0].value as number)}
                           </span>
                         </p>
@@ -466,21 +467,21 @@ export default function AssetPerformanceChart({
               <Line
                 type="monotone"
                 dataKey="value"
-                stroke={performance.isPositive ? "#10b981" : "#ef4444"}
-                strokeWidth={3}
+                stroke={performance.isPositive ? chartColors.success : chartColors.danger}
+                strokeWidth={2}
                 dot={false}
-                activeDot={{ 
-                  r: 4, 
-                  fill: performance.isPositive ? "#10b981" : "#ef4444",
+                activeDot={{
+                  r: 4,
+                  fill: performance.isPositive ? chartColors.success : chartColors.danger,
                   strokeWidth: 2,
-                  stroke: "#fff"
+                  stroke: chartColors.surface
                 }}
               />
               {/* Linea di riferimento per il break-even se necessario */}
               {totalCost > 0 && (
-                <ReferenceLine 
-                  y={totalCost} 
-                  stroke="#6B7280" 
+                <ReferenceLine
+                  y={totalCost}
+                  stroke={chartColors.axis}
                   strokeDasharray="3 3" 
                   strokeOpacity={0.5}
                 />
@@ -490,17 +491,17 @@ export default function AssetPerformanceChart({
           
           {/* Date labels - ora gestite direttamente da Recharts */}
         </div>
-      )}        <div className="mt-4 pt-4 border-t border-gray-100 space-y-4">
+      )}        <div className="mt-4 pt-4 border-t border-edge-subtle space-y-4">
           {/* Avviso se non ci sono dati di prezzo */}
           {performance.noPriceData && (
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+            <div className="bg-warning-subtle border border-warning-subtle rounded-lg p-4 mb-4">
               <div className="flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-amber-600" />
-                <p className="text-sm text-amber-800">
+                <AlertTriangle className="w-4 h-4 text-warning" />
+                <p className="text-sm text-warning">
                   <strong>Prezzo di mercato non disponibile</strong>
                 </p>
               </div>
-              <p className="text-xs text-amber-700 mt-1">
+              <p className="text-xs text-warning mt-1">
                 L'asset non ha un simbolo valido configurato ({asset.symbol || 'nessun simbolo'}) o il servizio di quotazioni non è raggiungibile. 
                 Le metriche di performance sono temporaneamente non disponibili.
               </p>
@@ -510,40 +511,40 @@ export default function AssetPerformanceChart({
           {/* Prima riga: Valori fondamentali */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <span className="block text-sm text-gray-600 mb-1">Valore Attuale Portafoglio</span>
-              <p className="text-lg font-bold text-gray-900">
+              <span className="block text-sm text-ink-secondary mb-1">Valore Attuale Portafoglio</span>
+              <p className="text-lg font-bold text-ink">
                 {performance.noPriceData ? (
-                  <span className="text-gray-400">Non disponibile</span>
+                  <span className="text-ink-muted">Non disponibile</span>
                 ) : (
                   formatCurrency(performance.currentValue)
                 )}
               </p>
             </div>
             <div>
-              <span className="block text-sm text-gray-600 mb-1">Capitale Investito</span>
-              <p className="text-lg font-bold text-gray-900">{formatCurrency(totalCost)}</p>
+              <span className="block text-sm text-ink-secondary mb-1">Capitale Investito</span>
+              <p className="text-lg font-bold text-ink">{formatCurrency(totalCost)}</p>
             </div>
           </div>
 
           {/* Seconda riga: Performance */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <span className="block text-sm text-gray-600 mb-1">Guadagno/Perdita Assoluto</span>
+              <span className="block text-sm text-ink-secondary mb-1">Guadagno/Perdita Assoluto</span>
               <p className={`text-lg font-bold ${
-                performance.noPriceData ? 'text-gray-400' : (
+                performance.noPriceData ? 'text-ink-muted' : (
                   performance.absoluteGain >= 0 
-                    ? 'text-green-600' 
-                    : 'text-red-600'
+                    ? 'text-success-strong' 
+                    : 'text-danger'
                 )
               }`}>
                 {performance.noPriceData ? 'Non disponibile' : formatCurrency(performance.absoluteGain)}
               </p>
             </div>
             <div>
-              <span className="block text-sm text-gray-600 mb-1">Rendimento % (ROI)</span>
+              <span className="block text-sm text-ink-secondary mb-1">Rendimento % (ROI)</span>
               <p className={`text-lg font-bold ${
-                performance.noPriceData ? 'text-gray-400' : (
-                  performance.isPositive ? 'text-green-600' : 'text-red-600'
+                performance.noPriceData ? 'text-ink-muted' : (
+                  performance.isPositive ? 'text-success-strong' : 'text-danger'
                 )
               }`}>
                 {performance.noPriceData ? 'Non disponibile' : (
@@ -555,15 +556,15 @@ export default function AssetPerformanceChart({
 
           {/* Terza riga: Dettagli investimento (solo se rilevante) */}
           {totalQuantity > 0 && currentMarketPrice > 0 && (
-            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-100">
+            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-edge-subtle">
               <div>
-                <span className="block text-sm text-gray-600 mb-1">Prezzo Medio Acquisto</span>
-                <p className="font-semibold text-gray-900">{formatCurrency(totalCost / totalQuantity)}</p>
+                <span className="block text-sm text-ink-secondary mb-1">Prezzo Medio Acquisto</span>
+                <p className="font-semibold text-ink">{formatCurrency(totalCost / totalQuantity)}</p>
               </div>              <div>
-                <span className="block text-sm text-gray-600 mb-1">Prezzo Attuale</span>
-                <p className="font-semibold text-gray-900">
+                <span className="block text-sm text-ink-secondary mb-1">Prezzo Attuale</span>
+                <p className="font-semibold text-ink">
                   {performance.noPriceData ? (
-                    <span className="text-gray-400">Non disponibile</span>
+                    <span className="text-ink-muted">Non disponibile</span>
                   ) : (
                     formatCurrency(currentMarketPrice)
                   )}
@@ -576,17 +577,17 @@ export default function AssetPerformanceChart({
           {totalQuantity > 0 && (
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <span className="block text-sm text-gray-600 mb-1">Quantità Posseduta</span>
-                <p className="font-semibold text-gray-900">
+                <span className="block text-sm text-ink-secondary mb-1">Quantità Posseduta</span>
+                <p className="font-semibold text-ink">
                   {totalQuantity % 1 === 0 ? totalQuantity.toFixed(0) : totalQuantity.toFixed(4)}
                   {asset.type === 'crypto' && ' unità'}
                   {asset.type === 'investment' && ' quote'}
                 </p>
               </div>              <div>
-                <span className="block text-sm text-gray-600 mb-1">Valore per Unità</span>
-                <p className="font-semibold text-gray-900">
+                <span className="block text-sm text-ink-secondary mb-1">Valore per Unità</span>
+                <p className="font-semibold text-ink">
                   {performance.noPriceData ? (
-                    <span className="text-gray-400">Non disponibile</span>
+                    <span className="text-ink-muted">Non disponibile</span>
                   ) : (
                     formatCurrency(currentMarketPrice)
                   )}
@@ -597,10 +598,10 @@ export default function AssetPerformanceChart({
 
           {/* Quinta riga: Metriche avanzate (solo per investimenti) */}
           {asset.type === 'investment' && performanceData.length > 1 && (
-            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-100">
+            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-edge-subtle">
               <div>
-                <span className="block text-sm text-gray-600 mb-1">Volatilità ({timeRange})</span>
-                <p className="font-semibold text-gray-900">
+                <span className="block text-sm text-ink-secondary mb-1">Volatilità ({timeRange})</span>
+                <p className="font-semibold text-ink">
                   {(() => {
                     const returns = performanceData.slice(1).map((point, i) => 
                       ((point.value - performanceData[i].value) / performanceData[i].value) * 100
@@ -613,8 +614,8 @@ export default function AssetPerformanceChart({
                 </p>
               </div>
               <div>
-                <span className="block text-sm text-gray-600 mb-1">Max Drawdown</span>
-                <p className="font-semibold text-red-600">
+                <span className="block text-sm text-ink-secondary mb-1">Max Drawdown</span>
+                <p className="font-semibold text-danger">
                   {(() => {
                     let maxDrawdown = 0
                     let peak = performanceData[0]?.value || 0

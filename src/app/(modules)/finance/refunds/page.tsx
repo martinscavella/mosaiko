@@ -286,7 +286,7 @@ export default function RefundsPage() {
     field: "refund_date" | "refund_details" | "current_amount" | "linked_amount"
   ) => {
     if (sortField !== field)
-      return <ArrowUpDown className="w-4 h-4 text-gray-400" />;
+      return <ArrowUpDown className="w-4 h-4 text-ink-muted" />;
     return sortDirection === "asc" ? (
       <ArrowUp className="w-4 h-4" />
     ) : (
@@ -544,10 +544,10 @@ export default function RefundsPage() {
       <ModuleLayout moduleId="finance">
         <div className="max-w-7xl 3xl:max-w-[1600px] 4xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 3xl:px-10 py-8">
           <div className="animate-pulse">
-            <div className="h-8 bg-gray-200 rounded w-64 mb-8"></div>
+            <div className="h-8 bg-inset rounded w-64 mb-8"></div>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {[...Array(3)].map((_, i) => (
-                <div key={i} className="h-64 bg-gray-200 rounded-lg"></div>
+                <div key={i} className="h-64 bg-inset rounded-lg"></div>
               ))}
             </div>
           </div>
@@ -561,7 +561,7 @@ export default function RefundsPage() {
       <ModuleLayout moduleId="finance">
         <div className="max-w-7xl 3xl:max-w-[1600px] 4xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 3xl:px-10 py-8">
           <div className="text-center">
-            <p className="text-gray-500">
+            <p className="text-ink-muted">
               Devi effettuare il login per visualizzare i refund
             </p>
           </div>
@@ -632,8 +632,8 @@ export default function RefundsPage() {
         />
 
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-red-800 text-sm">
+          <div className="mb-6 p-4 bg-danger-subtle border border-danger-subtle rounded-lg">
+            <p className="text-danger text-sm">
               Errore nel caricamento dei dati: {error}
             </p>
           </div>
@@ -641,28 +641,28 @@ export default function RefundsPage() {
 
         {/* Filters and Search */}
         <div className="mb-6">
-          <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-4">
+          <div className="bg-surface border border-edge shadow-card rounded-lg p-4">
             <div className="flex flex-col md:flex-row gap-4">
               {/* Search */}
               <div className="flex-1">
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-ink-muted w-4 h-4" />
                   <input
                     type="text"
                     placeholder="Cerca rimborsi..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm"
+                    className="w-full pl-10 pr-4 py-2.5 border border-edge rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-colors text-sm"
                   />
                 </div>
               </div>
               {/* Filtro per account */}
               <div className="relative">
-                <Building2 className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Building2 className="absolute left-3 top-1/2 transform -translate-y-1/2 text-ink-muted w-4 h-4" />
                 <select
                   value={selectedAccountId}
                   onChange={(e) => setSelectedAccountId(e.target.value)}
-                  className="pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white min-w-[150px]"
+                  className="pl-10 pr-8 py-2 border border-edge rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent appearance-none bg-surface min-w-[150px]"
                 >
                   <option value="all">Tutti gli account</option>
                   <option value="none">Nessun account</option>
@@ -684,16 +684,16 @@ export default function RefundsPage() {
                   />
                   <div
                     className={`relative w-11 h-6 rounded-full transition-colors ${
-                      showActiveOnly ? "bg-blue-600" : "bg-gray-200"
+                      showActiveOnly ? "bg-primary" : "bg-inset"
                     }`}
                   >
                     <div
-                      className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
+                      className={`absolute top-0.5 left-0.5 w-5 h-5 bg-surface rounded-full transition-transform ${
                         showActiveOnly ? "translate-x-5" : "translate-x-0"
                       }`}
                     ></div>
                   </div>
-                  <span className="ml-3 text-sm font-medium text-gray-700 whitespace-nowrap">
+                  <span className="ml-3 text-sm font-medium text-ink-secondary whitespace-nowrap">
                     Solo attivi
                   </span>
                 </label>
@@ -706,8 +706,8 @@ export default function RefundsPage() {
                 onClick={() => handleSort("refund_date")}
                 className={`flex items-center gap-2 px-3 py-2 text-sm border rounded-lg transition-colors ${
                   sortField === "refund_date"
-                    ? "bg-blue-100 border-blue-300 text-blue-700"
-                    : "border-gray-300 hover:bg-gray-50"
+                    ? "bg-primary-subtle border-primary-subtle text-primary-hover"
+                    : "border-edge hover:bg-canvas"
                 }`}
               >
                 Data {getSortIcon("refund_date")}
@@ -716,8 +716,8 @@ export default function RefundsPage() {
                 onClick={() => handleSort("refund_details")}
                 className={`flex items-center gap-2 px-3 py-2 text-sm border rounded-lg transition-colors ${
                   sortField === "refund_details"
-                    ? "bg-blue-100 border-blue-300 text-blue-700"
-                    : "border-gray-300 hover:bg-gray-50"
+                    ? "bg-primary-subtle border-primary-subtle text-primary-hover"
+                    : "border-edge hover:bg-canvas"
                 }`}
               >
                 Descrizione {getSortIcon("refund_details")}
@@ -726,8 +726,8 @@ export default function RefundsPage() {
                 onClick={() => handleSort("current_amount")}
                 className={`flex items-center gap-2 px-3 py-2 text-sm border rounded-lg transition-colors ${
                   sortField === "current_amount"
-                    ? "bg-blue-100 border-blue-300 text-blue-700"
-                    : "border-gray-300 hover:bg-gray-50"
+                    ? "bg-primary-subtle border-primary-subtle text-primary-hover"
+                    : "border-edge hover:bg-canvas"
                 }`}
               >
                 Importo {getSortIcon("current_amount")}
@@ -736,8 +736,8 @@ export default function RefundsPage() {
                 onClick={() => handleSort("linked_amount")}
                 className={`flex items-center gap-2 px-3 py-2 text-sm border rounded-lg transition-colors ${
                   sortField === "linked_amount"
-                    ? "bg-blue-100 border-blue-300 text-blue-700"
-                    : "border-gray-300 hover:bg-gray-50"
+                    ? "bg-primary-subtle border-primary-subtle text-primary-hover"
+                    : "border-edge hover:bg-canvas"
                 }`}
               >
                 Collegato {getSortIcon("linked_amount")}
@@ -747,29 +747,29 @@ export default function RefundsPage() {
         </div>
         {/* Refunds Table */}
         {loading ? (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+          <div className="bg-surface rounded-lg shadow-card border border-edge overflow-hidden">
             <div className="animate-pulse p-6">
-              <div className="h-4 bg-gray-200 rounded w-3/4 mb-4"></div>
+              <div className="h-4 bg-inset rounded w-3/4 mb-4"></div>
               <div className="space-y-3">
                 {[...Array(5)].map((_, i) => (
-                  <div key={i} className="h-12 bg-gray-200 rounded"></div>
+                  <div key={i} className="h-12 bg-inset rounded"></div>
                 ))}
               </div>
             </div>
           </div>
         ) : refunds.length === 0 ? (
           <div className="text-center py-16">
-            <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-8">
-              <RotateCcw className="w-16 h-16 mx-auto text-gray-300 mb-6" />
-              <h3 className="text-xl font-semibold text-gray-800 mb-3">
+            <div className="bg-surface border border-edge shadow-card rounded-lg p-8">
+              <RotateCcw className="w-16 h-16 mx-auto text-ink-muted mb-6" />
+              <h3 className="text-xl font-semibold text-ink mb-3">
                 Nessun rimborso
               </h3>
-              <p className="text-gray-600 mb-6">
+              <p className="text-ink-secondary mb-6">
                 Non hai ancora aggiunto nessun rimborso.
               </p>
               <button
                 onClick={handleAddRefund}
-                className="inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-xl text-white bg-blue-600 hover:bg-blue-700 transition-colors shadow-sm"
+                className="inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-lg text-white bg-primary hover:bg-primary-hover transition-colors shadow-card"
               >
                 <Plus className="w-4 h-4 mr-2" />
                 Aggiungi il primo rimborso
@@ -777,21 +777,21 @@ export default function RefundsPage() {
             </div>
           </div>
         ) : filteredAndSortedRefunds.length === 0 ? (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
-            <FileText className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
+          <div className="bg-surface rounded-lg shadow-card border border-edge p-8 text-center">
+            <FileText className="w-12 h-12 mx-auto text-ink-muted mb-4" />
+            <h3 className="text-lg font-medium text-ink mb-2">
               Nessun risultato
             </h3>
-            <p className="text-gray-500">
+            <p className="text-ink-muted">
               Nessun rimborso corrisponde ai filtri selezionati.
             </p>
           </div>
         ) : (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+          <div className="bg-surface rounded-lg shadow-card border border-edge overflow-hidden">
             {" "}
             {/* Table Header - Hidden on mobile */}
-            <div className="hidden md:block bg-gray-50 border-b border-gray-200 px-6 py-3">
-              <div className="grid grid-cols-12 gap-4 text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <div className="hidden md:block bg-canvas border-b border-edge px-6 py-3">
+              <div className="grid grid-cols-12 gap-4 text-xs font-medium text-ink-muted uppercase tracking-wider">
                 <div className="col-span-4">Descrizione</div>
                 <div className="col-span-2 text-center">Data</div>
                 <div className="col-span-2 text-center">Importo</div>
@@ -801,50 +801,50 @@ export default function RefundsPage() {
               </div>
             </div>
             {/* Table Body */}
-            <div className="divide-y divide-gray-200">
+            <div className="divide-y divide-edge">
               {filteredAndSortedRefunds.map((refund) => (
                 <div
                   key={refund.id}
-                  className="px-4 md:px-6 py-4 hover:bg-gray-50 transition-colors"
+                  className="px-4 md:px-6 py-4 hover:bg-canvas transition-colors"
                 >
                   {/* Desktop Layout */}
                   <div className="hidden md:grid grid-cols-12 gap-4 items-center">
                     {/* Descrizione */}
                     <div className="col-span-4">
-                      <div className="font-medium text-gray-900 text-sm">
+                      <div className="font-medium text-ink text-sm">
                         {refund.refund_details}
                       </div>
                       {refund.refund_code && (
-                        <div className="text-xs text-gray-500 mt-1">
+                        <div className="text-xs text-ink-muted mt-1">
                           Codice: {refund.refund_code}
                         </div>
                       )}
                       {refund.account_name && (
-                        <div className="text-xs text-gray-500 mt-1">
+                        <div className="text-xs text-ink-muted mt-1">
                           Account: {refund.account_name}
                         </div>
                       )}
                     </div>
 
                     {/* Data */}
-                    <div className="col-span-2 text-center text-sm text-gray-900">
+                    <div className="col-span-2 text-center text-sm text-ink">
                       {new Date(refund.refund_date).toLocaleDateString("it-IT")}
                     </div>
 
                     {/* Importo */}
                     <div className="col-span-2 text-center">
-                      <div className="font-semibold text-green-600 text-sm">
+                      <div className="font-semibold text-success-strong text-sm">
                         {formatCurrency(refund.current_amount)}
                       </div>
                     </div>
 
                     {/* Importo Collegato */}
                     <div className="col-span-2 text-center">
-                      <div className="font-medium text-blue-600 text-sm">
+                      <div className="font-medium text-primary text-sm">
                         {formatCurrency(refund.total_linked_amount)}
                       </div>{" "}
                       {getLinkedTransactionCount(refund.id) > 0 && (
-                        <div className="text-xs text-gray-500 mt-1">
+                        <div className="text-xs text-ink-muted mt-1">
                           {getLinkedTransactionCount(refund.id)} transazioni
                         </div>
                       )}
@@ -854,12 +854,12 @@ export default function RefundsPage() {
                     <div className="col-span-1 text-center">
                       {" "}
                       {isRefundLinked(refund.id) ? (
-                        <div className="inline-flex items-center px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                        <div className="inline-flex items-center px-2 py-1 bg-success-subtle text-success-strong text-xs rounded-full">
                           <Link className="w-3 h-3 mr-1" />
                           Collegato
                         </div>
                       ) : (
-                        <div className="inline-flex items-center px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                        <div className="inline-flex items-center px-2 py-1 bg-inset text-ink-secondary text-xs rounded-full">
                           <X className="w-3 h-3 mr-1" />
                           Libero
                         </div>
@@ -875,21 +875,21 @@ export default function RefundsPage() {
                               selectedRefund?.id === refund.id ? null : refund
                             )
                           }
-                          className="p-1 hover:bg-gray-100 rounded transition-colors"
+                          className="p-1 hover:bg-inset rounded transition-colors"
                         >
-                          <MoreVertical className="w-4 h-4 text-gray-400" />
+                          <MoreVertical className="w-4 h-4 text-ink-muted" />
                         </button>
 
                         {/* Dropdown Menu */}
                         {selectedRefund?.id === refund.id && (
-                          <div className="absolute right-0 top-8 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
+                          <div className="absolute right-0 top-8 mt-1 w-48 bg-surface rounded-lg shadow-elevated border border-edge z-10">
                             <div className="py-1">
                               <button
                                 onClick={() => {
                                   handleLinkRefund(refund);
                                   setSelectedRefund(null);
                                 }}
-                                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-ink-secondary hover:bg-inset"
                               >
                                 <Link className="w-4 h-4" />
                                 Collega Transazioni
@@ -899,7 +899,7 @@ export default function RefundsPage() {
                                   handleEditRefund(refund);
                                   setSelectedRefund(null);
                                 }}
-                                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-ink-secondary hover:bg-inset"
                               >
                                 <Edit2 className="w-4 h-4" />
                                 Modifica
@@ -909,7 +909,7 @@ export default function RefundsPage() {
                                   handleDeleteRefund(refund);
                                   setSelectedRefund(null);
                                 }}
-                                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-danger hover:bg-danger-subtle"
                               >
                                 <Trash2 className="w-4 h-4" />
                                 Elimina
@@ -926,16 +926,16 @@ export default function RefundsPage() {
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
-                          <h3 className="font-medium text-gray-900 text-sm">
+                          <h3 className="font-medium text-ink text-sm">
                             {refund.refund_details}
                           </h3>
                           {isRefundLinked(refund.id) ? (
-                            <div className="inline-flex items-center px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                            <div className="inline-flex items-center px-2 py-1 bg-success-subtle text-success-strong text-xs rounded-full">
                               <Link className="w-3 h-3 mr-1" />
                               {getLinkedTransactionCount(refund.id)}
                             </div>
                           ) : (
-                            <div className="inline-flex items-center px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                            <div className="inline-flex items-center px-2 py-1 bg-inset text-ink-secondary text-xs rounded-full">
                               <X className="w-3 h-3 mr-1" />
                               Libero
                             </div>
@@ -944,37 +944,37 @@ export default function RefundsPage() {
 
                         <div className="space-y-1 text-sm">
                           <div className="flex justify-between">
-                            <span className="text-gray-500">Data:</span>
-                            <span className="text-gray-900">
+                            <span className="text-ink-muted">Data:</span>
+                            <span className="text-ink">
                               {new Date(refund.refund_date).toLocaleDateString(
                                 "it-IT"
                               )}
                             </span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-500">Importo:</span>
-                            <span className="font-semibold text-green-600">
+                            <span className="text-ink-muted">Importo:</span>
+                            <span className="font-semibold text-success-strong">
                               {formatCurrency(refund.current_amount)}
                             </span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-500">Collegato:</span>
-                            <span className="font-medium text-blue-600">
+                            <span className="text-ink-muted">Collegato:</span>
+                            <span className="font-medium text-primary">
                               {formatCurrency(refund.total_linked_amount)}
                             </span>
                           </div>
                           {refund.account_name && (
                             <div className="flex justify-between">
-                              <span className="text-gray-500">Account:</span>
-                              <span className="text-gray-900">
+                              <span className="text-ink-muted">Account:</span>
+                              <span className="text-ink">
                                 {refund.account_name}
                               </span>
                             </div>
                           )}
                           {refund.refund_code && (
                             <div className="flex justify-between">
-                              <span className="text-gray-500">Codice:</span>
-                              <span className="text-gray-900">
+                              <span className="text-ink-muted">Codice:</span>
+                              <span className="text-ink">
                                 {refund.refund_code}
                               </span>
                             </div>
@@ -989,21 +989,21 @@ export default function RefundsPage() {
                               selectedRefund?.id === refund.id ? null : refund
                             )
                           }
-                          className="p-2 hover:bg-gray-100 rounded transition-colors"
+                          className="p-2 hover:bg-inset rounded transition-colors"
                         >
-                          <MoreVertical className="w-4 h-4 text-gray-400" />
+                          <MoreVertical className="w-4 h-4 text-ink-muted" />
                         </button>
 
                         {/* Dropdown Menu */}
                         {selectedRefund?.id === refund.id && (
-                          <div className="absolute right-0 top-8 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
+                          <div className="absolute right-0 top-8 mt-1 w-48 bg-surface rounded-lg shadow-elevated border border-edge z-10">
                             <div className="py-1">
                               <button
                                 onClick={() => {
                                   handleLinkRefund(refund);
                                   setSelectedRefund(null);
                                 }}
-                                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-ink-secondary hover:bg-inset"
                               >
                                 <Link className="w-4 h-4" />
                                 Collega Transazioni
@@ -1013,7 +1013,7 @@ export default function RefundsPage() {
                                   handleEditRefund(refund);
                                   setSelectedRefund(null);
                                 }}
-                                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-ink-secondary hover:bg-inset"
                               >
                                 <Edit2 className="w-4 h-4" />
                                 Modifica
@@ -1023,7 +1023,7 @@ export default function RefundsPage() {
                                   handleDeleteRefund(refund);
                                   setSelectedRefund(null);
                                 }}
-                                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-danger hover:bg-danger-subtle"
                               >
                                 <Trash2 className="w-4 h-4" />
                                 Elimina
@@ -1038,11 +1038,11 @@ export default function RefundsPage() {
                   {/* Transazioni collegate - espandibile */}
                   {refund.linked_transactions.length > 0 &&
                     selectedRefund?.id === refund.id && (
-                      <div className="mt-4 pt-4 border-t border-gray-100">
-                        <h4 className="text-sm font-medium text-gray-700 mb-3">
+                      <div className="mt-4 pt-4 border-t border-edge-subtle">
+                        <h4 className="text-sm font-medium text-ink-secondary mb-3">
                           Transazioni Collegate:
                         </h4>
-                        <div className="bg-gray-50 rounded-lg p-3">
+                        <div className="bg-canvas rounded-lg p-3">
                           <div className="space-y-2">
                             {refund.linked_transactions.map((transaction) => (
                               <div
@@ -1050,22 +1050,22 @@ export default function RefundsPage() {
                                 className="flex items-center justify-between text-sm"
                               >
                                 <div className="flex-1">
-                                  <span className="font-medium text-gray-900">
+                                  <span className="font-medium text-ink">
                                     {transaction.transaction_details}
                                   </span>
-                                  <span className="text-gray-500 ml-2">
+                                  <span className="text-ink-muted ml-2">
                                     •{" "}
                                     {new Date(
                                       transaction.transaction_date
                                     ).toLocaleDateString("it-IT")}
                                   </span>
                                   {transaction.categories?.name && (
-                                    <span className="text-gray-500 ml-1">
+                                    <span className="text-ink-muted ml-1">
                                       • {transaction.categories.name}
                                     </span>
                                   )}
                                 </div>
-                                <span className="font-semibold text-red-600">
+                                <span className="font-semibold text-danger">
                                   {formatCurrency(transaction.current_amount)}
                                 </span>
                               </div>
@@ -1083,14 +1083,14 @@ export default function RefundsPage() {
         {/* Modal per Aggiungere Refund */}
         {showAddModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="bg-surface rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-semibold">
                   Aggiungi Nuovo Rimborso
                 </h3>
                 <button
                   onClick={() => setShowAddModal(false)}
-                  className="p-1 hover:bg-gray-100 rounded"
+                  className="p-1 hover:bg-inset rounded"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -1104,7 +1104,7 @@ export default function RefundsPage() {
                 className="space-y-4"
               >
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-ink-secondary mb-1">
                     Descrizione Rimborso *
                   </label>
                   <input
@@ -1116,14 +1116,14 @@ export default function RefundsPage() {
                         refund_details: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-edge rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                     placeholder="Es. Rimborso spese mediche"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-ink-secondary mb-1">
                     Data Rimborso *
                   </label>
                   <input
@@ -1132,13 +1132,13 @@ export default function RefundsPage() {
                     onChange={(e) =>
                       setFormData({ ...formData, refund_date: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-edge rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-ink-secondary mb-1">
                     Importo (€) *
                   </label>
                   <input
@@ -1151,14 +1151,14 @@ export default function RefundsPage() {
                         current_amount: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-edge rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                     placeholder="0.00"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-ink-secondary mb-1">
                     Account Associato
                   </label>
                   <select
@@ -1166,7 +1166,7 @@ export default function RefundsPage() {
                     onChange={(e) =>
                       setFormData({ ...formData, account_id: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-edge rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                   >
                     <option value="">Nessun account</option>
                     {accounts.map((account) => (
@@ -1178,7 +1178,7 @@ export default function RefundsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-ink-secondary mb-1">
                     Codice Rimborso
                   </label>
                   <input
@@ -1187,7 +1187,7 @@ export default function RefundsPage() {
                     onChange={(e) =>
                       setFormData({ ...formData, refund_code: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-edge rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                     placeholder="Es. REF-2025-001"
                   />
                 </div>
@@ -1196,13 +1196,13 @@ export default function RefundsPage() {
                   <button
                     type="button"
                     onClick={() => setShowAddModal(false)}
-                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                    className="flex-1 px-4 py-2 border border-edge text-ink-secondary rounded-lg hover:bg-canvas transition-colors"
                   >
                     Annulla
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors"
                   >
                     Aggiungi Rimborso
                   </button>
@@ -1215,12 +1215,12 @@ export default function RefundsPage() {
         {/* Modal per Modificare Refund */}
         {showEditModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="bg-surface rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-semibold">Modifica Rimborso</h3>
                 <button
                   onClick={() => setShowEditModal(false)}
-                  className="p-1 hover:bg-gray-100 rounded"
+                  className="p-1 hover:bg-inset rounded"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -1234,7 +1234,7 @@ export default function RefundsPage() {
                 className="space-y-4"
               >
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-ink-secondary mb-1">
                     Descrizione Rimborso *
                   </label>
                   <input
@@ -1246,14 +1246,14 @@ export default function RefundsPage() {
                         refund_details: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-edge rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                     placeholder="Es. Rimborso spese mediche"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-ink-secondary mb-1">
                     Data Rimborso *
                   </label>
                   <input
@@ -1262,13 +1262,13 @@ export default function RefundsPage() {
                     onChange={(e) =>
                       setFormData({ ...formData, refund_date: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-edge rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-ink-secondary mb-1">
                     Importo (€) *
                   </label>
                   <input
@@ -1281,14 +1281,14 @@ export default function RefundsPage() {
                         current_amount: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-edge rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                     placeholder="0.00"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-ink-secondary mb-1">
                     Account Associato
                   </label>
                   <select
@@ -1296,7 +1296,7 @@ export default function RefundsPage() {
                     onChange={(e) =>
                       setFormData({ ...formData, account_id: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-edge rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                   >
                     <option value="">Nessun account</option>
                     {accounts.map((account) => (
@@ -1308,7 +1308,7 @@ export default function RefundsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-ink-secondary mb-1">
                     Codice Rimborso
                   </label>
                   <input
@@ -1317,7 +1317,7 @@ export default function RefundsPage() {
                     onChange={(e) =>
                       setFormData({ ...formData, refund_code: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-edge rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                     placeholder="Es. REF-2025-001"
                   />
                 </div>
@@ -1326,13 +1326,13 @@ export default function RefundsPage() {
                   <button
                     type="button"
                     onClick={() => setShowEditModal(false)}
-                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                    className="flex-1 px-4 py-2 border border-edge text-ink-secondary rounded-lg hover:bg-canvas transition-colors"
                   >
                     Annulla
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors"
                   >
                     Salva Modifiche
                   </button>
@@ -1345,36 +1345,36 @@ export default function RefundsPage() {
         {/* Modal per Conferma Eliminazione */}
         {showDeleteModal && refundToDelete && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <div className="bg-surface rounded-lg p-6 w-full max-w-md">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold text-red-600">
+                <h3 className="text-lg font-semibold text-danger">
                   Elimina Rimborso
                 </h3>
                 <button
                   onClick={() => setShowDeleteModal(false)}
-                  className="p-1 hover:bg-gray-100 rounded"
+                  className="p-1 hover:bg-inset rounded"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
               <div className="mb-6">
-                <p className="text-gray-700 mb-2">
+                <p className="text-ink-secondary mb-2">
                   Sei sicuro di voler eliminare questo rimborso?
                 </p>
-                <div className="bg-gray-50 p-3 rounded-lg">
+                <div className="bg-canvas p-3 rounded-lg">
                   <p className="font-medium">{refundToDelete.refund_details}</p>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-ink-secondary">
                     Data:{" "}
                     {new Date(refundToDelete.refund_date).toLocaleDateString(
                       "it-IT"
                     )}
                   </p>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-ink-secondary">
                     Importo: {formatCurrency(refundToDelete.current_amount)}
                   </p>
                 </div>
-                <p className="text-sm text-red-600 mt-2">
+                <p className="text-sm text-danger mt-2">
                   Questa azione eliminerà anche tutti i collegamenti alle
                   transazioni.
                 </p>
@@ -1383,13 +1383,13 @@ export default function RefundsPage() {
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowDeleteModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="flex-1 px-4 py-2 border border-edge text-ink-secondary rounded-lg hover:bg-canvas transition-colors"
                 >
                   Annulla
                 </button>
                 <button
                   onClick={confirmDelete}
-                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                  className="flex-1 px-4 py-2 bg-danger text-white rounded-lg hover:bg-danger transition-colors"
                 >
                   Elimina
                 </button>
@@ -1401,14 +1401,14 @@ export default function RefundsPage() {
         {/* Modal per Collegare Transazioni */}
         {showLinkModal && refundToLink && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="bg-surface rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
               {" "}
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h3 className="text-lg font-semibold">
                     Collega Transazioni - {refundToLink.refund_details}
                   </h3>
-                  <p className="text-sm text-gray-600 mt-1">
+                  <p className="text-sm text-ink-secondary mt-1">
                     Data rimborso:{" "}
                     {new Date(refundToLink.refund_date).toLocaleDateString(
                       "it-IT"
@@ -1417,34 +1417,34 @@ export default function RefundsPage() {
                 </div>
                 <button
                   onClick={closeLinkModal}
-                  className="p-1 hover:bg-gray-100 rounded"
+                  className="p-1 hover:bg-inset rounded"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
               {/* Statistiche */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <p className="text-sm font-medium text-blue-600">
+                <div className="bg-primary-subtle p-4 rounded-lg">
+                  <p className="text-sm font-medium text-primary">
                     Importo Rimborso
                   </p>
-                  <p className="text-xl font-bold text-blue-700">
+                  <p className="text-xl font-bold text-primary-hover">
                     {formatCurrency(refundToLink.current_amount)}
                   </p>
                 </div>
-                <div className="bg-green-50 p-4 rounded-lg">
-                  <p className="text-sm font-medium text-green-600">
+                <div className="bg-success-subtle p-4 rounded-lg">
+                  <p className="text-sm font-medium text-success-strong">
                     Già Collegato
                   </p>
-                  <p className="text-xl font-bold text-green-700">
+                  <p className="text-xl font-bold text-success-strong">
                     {formatCurrency(refundToLink.total_linked_amount)}
                   </p>
                 </div>
-                <div className="bg-orange-50 p-4 rounded-lg">
-                  <p className="text-sm font-medium text-orange-600">
+                <div className="bg-warning-subtle p-4 rounded-lg">
+                  <p className="text-sm font-medium text-warning">
                     Rimanente
                   </p>
-                  <p className="text-xl font-bold text-orange-700">
+                  <p className="text-xl font-bold text-warning">
                     {formatCurrency(
                       refundToLink.current_amount -
                         refundToLink.total_linked_amount
@@ -1455,20 +1455,20 @@ export default function RefundsPage() {
               {/* Transazioni già collegate */}
               {refundToLink.linked_transactions.length > 0 && (
                 <div className="mb-6">
-                  <h4 className="font-medium text-gray-900 mb-3">
+                  <h4 className="font-medium text-ink mb-3">
                     Transazioni Collegate
                   </h4>
                   <div className="space-y-2">
                     {refundToLink.linked_transactions.map((transaction) => (
                       <div
                         key={transaction.id}
-                        className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
+                        className="flex items-center justify-between p-4 bg-canvas rounded-lg"
                       >
                         <div className="flex-1">
-                          <p className="font-medium text-gray-900">
+                          <p className="font-medium text-ink">
                             {transaction.transaction_details}
                           </p>
-                          <p className="text-sm text-gray-500">
+                          <p className="text-sm text-ink-muted">
                             {new Date(
                               transaction.transaction_date
                             ).toLocaleDateString("it-IT")}
@@ -1478,7 +1478,7 @@ export default function RefundsPage() {
                         </div>
                         <div className="flex items-center gap-3">
                           <div className="text-right">
-                            <p className="font-semibold text-red-600">
+                            <p className="font-semibold text-danger">
                               {formatCurrency(transaction.current_amount)}
                             </p>
                           </div>
@@ -1487,7 +1487,7 @@ export default function RefundsPage() {
                               handleUnlinkTransaction(transaction.id)
                             }
                             disabled={unlinkingTransaction === transaction.id}
-                            className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
+                            className="p-1 text-danger hover:bg-danger-subtle rounded transition-colors disabled:opacity-50"
                             title="Scollega transazione"
                           >
                             {unlinkingTransaction === transaction.id ? (
@@ -1504,13 +1504,13 @@ export default function RefundsPage() {
               )}{" "}
               {/* Tabella per selezionare transazioni */}
               {refundableTransactions.length > 0 && (
-                <div className="border border-gray-200 rounded-lg overflow-hidden">
-                  <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+                <div className="border border-edge rounded-lg overflow-hidden">
+                  <div className="bg-canvas px-4 py-3 border-b border-edge">
                     <div className="flex items-center justify-between mb-3">
-                      <h4 className="font-medium text-gray-900">
+                      <h4 className="font-medium text-ink">
                         Seleziona Transazione da Collegare
                       </h4>
-                      <span className="text-sm text-gray-500">
+                      <span className="text-sm text-ink-muted">
                         {
                           refundableTransactions.filter((t) =>
                             t.transaction_details
@@ -1523,7 +1523,7 @@ export default function RefundsPage() {
                     </div>
                     {/* Ricerca */}
                     <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-ink-muted w-4 h-4" />
                       <input
                         type="text"
                         placeholder="Cerca transazioni..."
@@ -1531,7 +1531,7 @@ export default function RefundsPage() {
                         onChange={(e) =>
                           setTransactionSearchTerm(e.target.value)
                         }
-                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                        className="w-full pl-10 pr-4 py-2 border border-edge rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-sm"
                       />
                     </div>
                   </div>
@@ -1539,15 +1539,15 @@ export default function RefundsPage() {
                   {/* Tabella delle transazioni */}
                   <div className="max-h-64 overflow-y-auto">
                     <table className="w-full">
-                      <thead className="bg-gray-50 sticky top-0">
-                        <tr className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <thead className="bg-canvas sticky top-0">
+                        <tr className="text-xs font-medium text-ink-muted uppercase tracking-wider">
                           <th className="px-4 py-3 text-left">Descrizione</th>
                           <th className="px-4 py-3 text-center">Data</th>
                           <th className="px-4 py-3 text-center">Importo</th>
                           <th className="px-4 py-3 text-center">Seleziona</th>
                         </tr>
                       </thead>{" "}
-                      <tbody className="divide-y divide-gray-200">
+                      <tbody className="divide-y divide-edge">
                         {refundableTransactions.filter((transaction) =>
                           transaction.transaction_details
                             .toLowerCase()
@@ -1556,9 +1556,9 @@ export default function RefundsPage() {
                           <tr>
                             <td
                               colSpan={4}
-                              className="px-4 py-8 text-center text-gray-500"
+                              className="px-4 py-8 text-center text-ink-muted"
                             >
-                              <Search className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+                              <Search className="w-8 h-8 mx-auto mb-2 text-ink-muted" />
                               <p>
                                 Nessuna transazione trovata per "
                                 {transactionSearchTerm}"
@@ -1575,9 +1575,9 @@ export default function RefundsPage() {
                             .map((transaction) => (
                               <tr
                                 key={transaction.id}
-                                className={`hover:bg-gray-50 cursor-pointer transition-colors ${
+                                className={`hover:bg-canvas cursor-pointer transition-colors ${
                                   selectedTransactionId === transaction.id
-                                    ? "bg-blue-50 border-blue-200"
+                                    ? "bg-primary-subtle border-primary-subtle"
                                     : ""
                                 }`}
                                 onClick={() =>
@@ -1589,21 +1589,21 @@ export default function RefundsPage() {
                                 }
                               >
                                 <td className="px-4 py-3">
-                                  <div className="font-medium text-gray-900 text-sm">
+                                  <div className="font-medium text-ink text-sm">
                                     {transaction.transaction_details}
                                   </div>
                                   {transaction.categories?.name && (
-                                    <div className="text-xs text-gray-500 mt-1">
+                                    <div className="text-xs text-ink-muted mt-1">
                                       {transaction.categories.name}
                                     </div>
                                   )}
                                   {transaction.account_name && (
-                                    <div className="text-xs text-gray-500 mt-1">
+                                    <div className="text-xs text-ink-muted mt-1">
                                       Account: {transaction.account_name}
                                     </div>
                                   )}
                                 </td>
-                                <td className="px-4 py-3 text-center text-sm text-gray-900">
+                                <td className="px-4 py-3 text-center text-sm text-ink">
                                   {new Date(
                                     transaction.transaction_date
                                   ).toLocaleDateString("it-IT")}
@@ -1612,8 +1612,8 @@ export default function RefundsPage() {
                                   <span
                                     className={`font-semibold text-sm ${
                                       transaction.current_amount < 0
-                                        ? "text-red-600"
-                                        : "text-green-600"
+                                        ? "text-danger"
+                                        : "text-success-strong"
                                     }`}
                                   >
                                     {formatCurrency(transaction.current_amount)}
@@ -1629,7 +1629,7 @@ export default function RefundsPage() {
                                     onChange={() =>
                                       setSelectedTransactionId(transaction.id)
                                     }
-                                    className="w-4 h-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                                    className="w-4 h-4 text-primary focus:ring-primary border-edge"
                                   />{" "}
                                 </td>
                               </tr>
@@ -1641,10 +1641,10 @@ export default function RefundsPage() {
 
                   {/* Form per importo e azioni */}
                   {selectedTransactionId && (
-                    <div className="bg-gray-50 px-4 py-4 border-t border-gray-200">
+                    <div className="bg-canvas px-4 py-4 border-t border-edge">
                       <div className="space-y-3">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                          <label className="block text-sm font-medium text-ink-secondary mb-1">
                             Importo da collegare (€)
                           </label>
                           <input
@@ -1652,10 +1652,10 @@ export default function RefundsPage() {
                             step="0.01"
                             value={linkAmount}
                             onChange={(e) => setLinkAmount(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className="w-full px-3 py-2 border border-edge rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                             placeholder="0.00"
                           />
-                          <p className="text-xs text-gray-500 mt-1">
+                          <p className="text-xs text-ink-muted mt-1">
                             Lascia vuoto per collegare l'importo completo della
                             transazione
                           </p>
@@ -1667,7 +1667,7 @@ export default function RefundsPage() {
                               setSelectedTransactionId("");
                               setLinkAmount("");
                             }}
-                            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                            className="px-4 py-2 border border-edge text-ink-secondary rounded-lg hover:bg-canvas transition-colors"
                           >
                             Annulla
                           </button>
@@ -1676,7 +1676,7 @@ export default function RefundsPage() {
                             disabled={
                               !selectedTransactionId || linkingTransaction
                             }
-                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             {linkingTransaction
                               ? "Collegando..."
@@ -1690,11 +1690,11 @@ export default function RefundsPage() {
               )}
               {refundableTransactions.length === 0 && (
                 <div className="text-center py-8">
-                  <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  <FileText className="w-12 h-12 text-ink-muted mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-ink mb-2">
                     Nessuna transazione disponibile
                   </h3>
-                  <p className="text-gray-500">
+                  <p className="text-ink-muted">
                     Tutte le transazioni sono già collegate a rimborsi o asset.
                   </p>
                 </div>
@@ -1702,7 +1702,7 @@ export default function RefundsPage() {
               <div className="mt-6 flex justify-end">
                 <button
                   onClick={() => setShowLinkModal(false)}
-                  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                  className="px-4 py-2 bg-ink-secondary text-white rounded-lg hover:bg-ink-secondary transition-colors"
                 >
                   Chiudi
                 </button>

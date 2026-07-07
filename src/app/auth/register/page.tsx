@@ -86,15 +86,15 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen w-screen bg-white">
+    <div className="min-h-screen w-screen bg-surface">
       <div className="w-full h-screen">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-0 h-full">
           {/* Left side - Decorative */}
-          <div className="hidden md:flex flex-col items-center justify-center p-8 h-full w-full bg-gray-900">
+          <div className="hidden md:flex flex-col items-center justify-center p-8 h-full w-full bg-ink">
             <div className="text-center">
-              <p className="text-gray-400 text-sm font-semibold tracking-widest mb-8">INIZIA ORA</p>
-              <h2 className="text-5xl md:text-6xl font-bold text-white mb-6 leading-tight">Gestisci Tutto in Un Posto</h2>
-              <p className="text-gray-300 text-lg max-w-sm mx-auto leading-relaxed">Finanze, salute, apprendimento e task. Tutto organizzato e semplificato.</p>
+              <p className="text-ink-muted text-sm font-semibold tracking-widest mb-8">INIZIA ORA</p>
+              <h2 className="text-5xl md:text-6xl font-bold text-ink-inverse mb-6 leading-tight">Gestisci Tutto in Un Posto</h2>
+              <p className="text-ink-muted text-lg max-w-sm mx-auto leading-relaxed">Finanze, salute, apprendimento e task. Tutto organizzato e semplificato.</p>
             </div>
           </div>
 
@@ -105,15 +105,15 @@ export default function RegisterPage() {
                 <div className={`w-full transform transition-all duration-700 ${mounted ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
                   {/* Header */}
                   <div className="mb-8 text-center">
-                    <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">Sign Up</h1>
-                    <p className="text-gray-600 text-sm">Crea il tuo account Mosaiko</p>
+                    <h1 className="text-3xl sm:text-4xl font-bold text-ink mb-2">Sign Up</h1>
+                    <p className="text-ink-secondary text-sm">Crea il tuo account Mosaiko</p>
                   </div>
 
                   {/* Form Card */}
                   <div className="space-y-4">
                     {error && (
-                      <div className="p-3 rounded-lg bg-red-50 border border-red-200">
-                        <p className="text-xs sm:text-sm text-red-600">{error}</p>
+                      <div className="p-3 rounded-lg bg-danger-subtle border border-danger-subtle">
+                        <p className="text-xs sm:text-sm text-danger">{error}</p>
                       </div>
                     )}
 
@@ -121,7 +121,7 @@ export default function RegisterPage() {
                       {/* Nome e Cognome */}
                       <div className="grid grid-cols-2 gap-2">
                         <div className="space-y-1.5">
-                          <label htmlFor="firstName" className="block text-xs sm:text-sm font-medium text-gray-700">
+                          <label htmlFor="firstName" className="block text-xs sm:text-sm font-medium text-ink-secondary">
                             First Name
                           </label>
                           <input
@@ -130,12 +130,12 @@ export default function RegisterPage() {
                             value={firstName}
                             onChange={(e) => setFirstName(e.target.value)}
                             required
-                            className="w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg border border-gray-200 focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-colors bg-white outline-none text-sm sm:text-base"
+                            className="w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg border border-edge focus:border-primary focus:ring-1 focus:ring-primary transition-colors bg-surface outline-none text-sm sm:text-base"
                             placeholder="First name"
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <label htmlFor="lastName" className="block text-xs sm:text-sm font-medium text-gray-700">
+                          <label htmlFor="lastName" className="block text-xs sm:text-sm font-medium text-ink-secondary">
                             Last Name
                           </label>
                           <input
@@ -144,7 +144,7 @@ export default function RegisterPage() {
                             value={lastName}
                             onChange={(e) => setLastName(e.target.value)}
                             required
-                            className="w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg border border-gray-200 focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-colors bg-white outline-none text-sm sm:text-base"
+                            className="w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg border border-edge focus:border-primary focus:ring-1 focus:ring-primary transition-colors bg-surface outline-none text-sm sm:text-base"
                             placeholder="Last name"
                           />
                         </div>
@@ -152,7 +152,7 @@ export default function RegisterPage() {
 
                       {/* Email */}
                       <div className="space-y-1.5">
-                        <label htmlFor="email" className="block text-xs sm:text-sm font-medium text-gray-700">
+                        <label htmlFor="email" className="block text-xs sm:text-sm font-medium text-ink-secondary">
                           Email
                         </label>
                         <input
@@ -163,14 +163,14 @@ export default function RegisterPage() {
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
                           required
-                          className="w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg border border-gray-200 focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-colors bg-white outline-none text-sm sm:text-base"
+                          className="w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg border border-edge focus:border-primary focus:ring-1 focus:ring-primary transition-colors bg-surface outline-none text-sm sm:text-base"
                           placeholder="Enter your email"
                         />
                       </div>
 
                       {/* Password */}
                       <div className="space-y-1.5">
-                        <label htmlFor="password" className="block text-xs sm:text-sm font-medium text-gray-700">
+                        <label htmlFor="password" className="block text-xs sm:text-sm font-medium text-ink-secondary">
                           Password
                         </label>
                         <input
@@ -180,15 +180,15 @@ export default function RegisterPage() {
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
                           required
-                          className="w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg border border-gray-200 focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-colors bg-white outline-none text-sm sm:text-base"
+                          className="w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg border border-edge focus:border-primary focus:ring-1 focus:ring-primary transition-colors bg-surface outline-none text-sm sm:text-base"
                           placeholder="Enter password"
                         />
-                        <p className="text-xs text-gray-500">Minimum 6 characters</p>
+                        <p className="text-xs text-ink-muted">Minimum 6 characters</p>
                       </div>
 
                       {/* Conferma Password */}
                       <div className="space-y-1.5">
-                        <label htmlFor="confirmPassword" className="block text-xs sm:text-sm font-medium text-gray-700">
+                        <label htmlFor="confirmPassword" className="block text-xs sm:text-sm font-medium text-ink-secondary">
                           Confirm Password
                         </label>
                         <input
@@ -198,7 +198,7 @@ export default function RegisterPage() {
                           value={confirmPassword}
                           onChange={(e) => setConfirmPassword(e.target.value)}
                           required
-                          className="w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg border border-gray-200 focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-colors bg-white outline-none text-sm sm:text-base"
+                          className="w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg border border-edge focus:border-primary focus:ring-1 focus:ring-primary transition-colors bg-surface outline-none text-sm sm:text-base"
                           placeholder="Confirm password"
                         />
                       </div>
@@ -206,7 +206,7 @@ export default function RegisterPage() {
                       {/* Data di Nascita e Telefono */}
                       <div className="grid grid-cols-2 gap-2">
                         <div className="space-y-1.5">
-                          <label htmlFor="birthDate" className="block text-xs sm:text-sm font-medium text-gray-700">
+                          <label htmlFor="birthDate" className="block text-xs sm:text-sm font-medium text-ink-secondary">
                             Birth Date
                           </label>
                           <input
@@ -214,11 +214,11 @@ export default function RegisterPage() {
                             type="date"
                             value={birthDate}
                             onChange={(e) => setBirthDate(e.target.value)}
-                            className="w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg border border-gray-200 focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-colors bg-white outline-none text-xs sm:text-sm"
+                            className="w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg border border-edge focus:border-primary focus:ring-1 focus:ring-primary transition-colors bg-surface outline-none text-xs sm:text-sm"
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <label htmlFor="phoneNumber" className="block text-xs sm:text-sm font-medium text-gray-700">
+                          <label htmlFor="phoneNumber" className="block text-xs sm:text-sm font-medium text-ink-secondary">
                             Phone
                           </label>
                           <input
@@ -226,29 +226,29 @@ export default function RegisterPage() {
                             type="tel"
                             value={phoneNumber}
                             onChange={(e) => setPhoneNumber(e.target.value)}
-                            className="w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg border border-gray-200 focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-colors bg-white outline-none text-xs sm:text-sm"
+                            className="w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg border border-edge focus:border-primary focus:ring-1 focus:ring-primary transition-colors bg-surface outline-none text-xs sm:text-sm"
                             placeholder="+39 123 456"
                           />
                         </div>
                       </div>
 
-                      <button type="submit" disabled={loading} className="w-full bg-black text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg font-medium hover:bg-gray-900 transition-colors disabled:opacity-60 disabled:cursor-not-allowed text-sm sm:text-base">
+                      <button type="submit" disabled={loading} className="w-full bg-primary text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg font-medium hover:bg-primary-hover transition-colors disabled:opacity-60 disabled:cursor-not-allowed text-sm sm:text-base">
                         {loading ? 'Creating account...' : 'Sign Up'}
                       </button>
                     </form>
 
-                    <div className="text-center text-xs sm:text-sm text-gray-600 space-y-3">
+                    <div className="text-center text-xs sm:text-sm text-ink-secondary space-y-3">
                       <div className="relative">
                         <div className="absolute inset-0 flex items-center">
-                          <div className="w-full border-t border-gray-200"></div>
+                          <div className="w-full border-t border-edge"></div>
                         </div>
                         <div className="relative flex justify-center">
-                          <span className="px-2 bg-white text-gray-500">or</span>
+                          <span className="px-2 bg-surface text-ink-muted">or</span>
                         </div>
                       </div>
                       <p>
                         Already have an account?{' '}
-                        <Link href="/auth/login" className="text-gray-900 font-semibold hover:underline transition-colors">Sign In</Link>
+                        <Link href="/auth/login" className="text-ink font-semibold hover:underline transition-colors">Sign In</Link>
                       </p>
                     </div>
                   </div>

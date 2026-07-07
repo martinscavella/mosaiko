@@ -145,39 +145,39 @@ export default function PWAManager() {
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end justify-center p-4">
-        <div className="bg-white rounded-2xl p-6 max-w-sm w-full mb-4 animate-slide-up">
+        <div className="bg-surface rounded-lg p-6 max-w-sm w-full mb-4 animate-slide-up">
           <div className="text-center mb-4">
-            <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center mx-auto mb-3">
+            <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center mx-auto mb-3">
               <span className="text-white text-xl font-bold">M</span>
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            <h3 className="text-lg font-semibold text-ink mb-2">
               Installa Mosaiko
             </h3>
-            <p className="text-gray-600 text-sm mb-4">
+            <p className="text-ink-secondary text-sm mb-4">
               Aggiungi Mosaiko alla schermata home per utilizzarla come un'app nativa
             </p>
           </div>
           
           <div className="space-y-3 mb-6">
-            <div className="flex items-center gap-3 text-sm text-gray-700">
-              <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                <span className="text-blue-600 text-xs">1</span>
+            <div className="flex items-center gap-3 text-sm text-ink-secondary">
+              <div className="w-6 h-6 bg-primary-subtle rounded-full flex items-center justify-center flex-shrink-0">
+                <span className="text-primary text-xs">1</span>
               </div>
               <span>Tocca il pulsante di condivisione</span>
               <div className="ml-auto">
-                <svg className="w-5 h-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                <svg className="w-5 h-5 text-primary" fill="currentColor" viewBox="0 0 20 20">
                   <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
                 </svg>
               </div>
             </div>
             
-            <div className="flex items-center gap-3 text-sm text-gray-700">
-              <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                <span className="text-blue-600 text-xs">2</span>
+            <div className="flex items-center gap-3 text-sm text-ink-secondary">
+              <div className="w-6 h-6 bg-primary-subtle rounded-full flex items-center justify-center flex-shrink-0">
+                <span className="text-primary text-xs">2</span>
               </div>
               <span>Seleziona "Aggiungi alla schermata Home"</span>
               <div className="ml-auto">
-                <svg className="w-5 h-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                <svg className="w-5 h-5 text-primary" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
                 </svg>
               </div>
@@ -187,13 +187,13 @@ export default function PWAManager() {
           <div className="flex gap-3">
             <button
               onClick={dismissInstallPrompt}
-              className="flex-1 px-4 py-2 text-gray-600 bg-gray-100 rounded-xl font-medium hover:bg-gray-200 transition-colors"
+              className="flex-1 px-4 py-2 text-ink-secondary bg-inset rounded-lg font-medium hover:bg-inset transition-colors"
             >
               Non ora
             </button>
             <button
               onClick={dismissInstallPrompt}
-              className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-xl font-medium hover:bg-blue-600 transition-colors"
+              className="flex-1 px-4 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary transition-colors"
             >
               Ho capito
             </button>
@@ -209,17 +209,17 @@ export default function PWAManager() {
 
     return (
       <div className="fixed bottom-4 left-4 right-4 z-50 max-w-sm mx-auto">
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-4 animate-slide-up">
+        <div className="bg-surface rounded-lg shadow-elevated border border-edge p-4 animate-slide-up">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center flex-shrink-0">
+            <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
               <span className="text-white font-bold text-sm">M</span>
             </div>
             
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900">
+              <p className="text-sm font-medium text-ink">
                 Installa Mosaiko
               </p>
-              <p className="text-xs text-gray-600">
+              <p className="text-xs text-ink-secondary">
                 Accesso rapido dalla schermata home
               </p>
             </div>
@@ -227,13 +227,13 @@ export default function PWAManager() {
             <div className="flex gap-2">
               <button
                 onClick={dismissInstallPrompt}
-                className="px-3 py-1 text-xs text-gray-600 hover:text-gray-800 transition-colors"
+                className="px-3 py-1 text-xs text-ink-secondary hover:text-ink transition-colors"
               >
                 Non ora
               </button>
               <button
                 onClick={handleInstallClick}
-                className="px-3 py-1 bg-blue-500 text-white rounded-lg text-xs font-medium hover:bg-blue-600 transition-colors"
+                className="px-3 py-1 bg-primary text-white rounded-lg text-xs font-medium hover:bg-primary transition-colors"
               >
                 Installa
               </button>

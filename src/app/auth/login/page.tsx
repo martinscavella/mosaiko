@@ -35,15 +35,15 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen w-screen bg-white">
+    <div className="min-h-screen w-screen bg-surface">
       <div className="w-full h-screen">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-0 h-full">
           {/* Left side - Decorative */}
-          <div className="hidden md:flex flex-col items-center justify-center p-8 h-full w-full bg-gray-900">
+          <div className="hidden md:flex flex-col items-center justify-center p-8 h-full w-full bg-ink">
             <div className="text-center">
-              <p className="text-gray-400 text-sm font-semibold tracking-widest mb-8">GESTIONE INTELLIGENTE</p>
-              <h2 className="text-5xl md:text-6xl font-bold text-white mb-6 leading-tight">Controlla le Tue Finanze</h2>
-              <p className="text-gray-300 text-lg max-w-sm mx-auto leading-relaxed">Raggiungi i tuoi obiettivi finanziari con uno strumento semplice ma potente.</p>
+              <p className="text-ink-muted text-sm font-semibold tracking-widest mb-8">GESTIONE INTELLIGENTE</p>
+              <h2 className="text-5xl md:text-6xl font-bold text-ink-inverse mb-6 leading-tight">Controlla le Tue Finanze</h2>
+              <p className="text-ink-muted text-lg max-w-sm mx-auto leading-relaxed">Raggiungi i tuoi obiettivi finanziari con uno strumento semplice ma potente.</p>
             </div>
           </div>
 
@@ -53,21 +53,21 @@ export default function LoginPage() {
               <div className={`w-full transform transition-all duration-700 ${mounted ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
                 {/* Header */}
                 <div className="mb-8 text-center">
-                  <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">Welcome Back</h1>
-                  <p className="text-gray-600 text-sm">Accedi al tuo account Mosaiko</p>
+                  <h1 className="text-3xl sm:text-4xl font-bold text-ink mb-2">Welcome Back</h1>
+                  <p className="text-ink-secondary text-sm">Accedi al tuo account Mosaiko</p>
                 </div>
 
                 {/* Form Card */}
                 <div className="space-y-4">
                   {error && (
-                    <div className="p-3 rounded-lg bg-red-50 border border-red-200">
-                      <p className="text-xs sm:text-sm text-red-600">{error}</p>
+                    <div className="p-3 rounded-lg bg-danger-subtle border border-danger-subtle">
+                      <p className="text-xs sm:text-sm text-danger">{error}</p>
                     </div>
                   )}
 
                   <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="space-y-1.5">
-                      <label htmlFor="email" className="block text-xs sm:text-sm font-medium text-gray-700">
+                      <label htmlFor="email" className="block text-xs sm:text-sm font-medium text-ink-secondary">
                         Email
                       </label>
                       <input
@@ -78,13 +78,13 @@ export default function LoginPage() {
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         required
-                        className="w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg border border-gray-200 focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-colors bg-white outline-none text-sm sm:text-base"
+                        className="w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg border border-edge focus:border-primary focus:ring-1 focus:ring-primary transition-colors bg-surface outline-none text-sm sm:text-base"
                         placeholder="Enter your email"
                       />
                     </div>
 
                     <div className="space-y-1.5">
-                      <label htmlFor="password" className="block text-xs sm:text-sm font-medium text-gray-700">Password</label>
+                      <label htmlFor="password" className="block text-xs sm:text-sm font-medium text-ink-secondary">Password</label>
                       <input
                         id="password"
                         type="password"
@@ -92,36 +92,36 @@ export default function LoginPage() {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         required
-                        className="w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg border border-gray-200 focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-colors bg-white outline-none text-sm sm:text-base"
+                        className="w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg border border-edge focus:border-primary focus:ring-1 focus:ring-primary transition-colors bg-surface outline-none text-sm sm:text-base"
                         placeholder="Enter your password"
                       />
                     </div>
 
                     <div className="flex items-center justify-between text-xs sm:text-sm">
                       <label className="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900" />
-                        <span className="text-gray-600">Remember me</span>
+                        <input type="checkbox" className="w-4 h-4 rounded border-edge text-primary focus:ring-primary" />
+                        <span className="text-ink-secondary">Remember me</span>
                       </label>
-                      <Link href="/auth/forgot-password" className="text-gray-600 hover:text-gray-900 font-medium transition-colors">Forgot Password</Link>
+                      <Link href="/auth/forgot-password" className="text-ink-secondary hover:text-ink font-medium transition-colors">Forgot Password</Link>
                     </div>
 
-                    <button type="submit" disabled={loading} className="w-full bg-black text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg font-medium hover:bg-gray-900 transition-colors disabled:opacity-60 disabled:cursor-not-allowed text-sm sm:text-base">
+                    <button type="submit" disabled={loading} className="w-full bg-primary text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg font-medium hover:bg-primary-hover transition-colors disabled:opacity-60 disabled:cursor-not-allowed text-sm sm:text-base">
                       {loading ? 'Accesso in corso...' : 'Sign In'}
                     </button>
                   </form>
 
-                  <div className="text-center text-xs sm:text-sm text-gray-600 space-y-3">
+                  <div className="text-center text-xs sm:text-sm text-ink-secondary space-y-3">
                     <div className="relative">
                       <div className="absolute inset-0 flex items-center">
-                        <div className="w-full border-t border-gray-200"></div>
+                        <div className="w-full border-t border-edge"></div>
                       </div>
                       <div className="relative flex justify-center">
-                        <span className="px-2 bg-white text-gray-500">or</span>
+                        <span className="px-2 bg-surface text-ink-muted">or</span>
                       </div>
                     </div>
                     <p>
                       Don't have an account?{' '}
-                      <Link href="/auth/register" className="text-gray-900 font-semibold hover:underline transition-colors">Sign Up</Link>
+                      <Link href="/auth/register" className="text-ink font-semibold hover:underline transition-colors">Sign Up</Link>
                     </p>
                   </div>
                 </div>

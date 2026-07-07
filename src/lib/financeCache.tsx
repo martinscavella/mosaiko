@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, useRef, ReactNode, useMemo } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useAuth } from '@/lib/auth';
+import { normalizeAssetTransaction, aggregateAssetPurchaseData, type NormalizedAssetTransaction } from '@/lib/helpers/assetPurchaseData';
 
 export interface FinanceStats {
   totalBalance: number;
@@ -27,6 +28,16 @@ export interface Transaction {
   account_name?: string;
   asset_id?: string | null;
   asset_quantity?: number | null;
+  // Campi completi per dettaglio/modifica
+  initial_amount?: number;
+  transaction_code?: string | null;
+  transaction_note?: string | null;
+  currency?: string;
+  account_id?: string | null;
+  category_id?: string | null;
+  subcategory_id?: string | null;
+  created_at?: string;
+  updated_at?: string;
   accounts?: {
     type: string;
     color?: string;
@@ -202,11 +213,20 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
             transaction_date,
             transaction_details,
             current_amount,
+            initial_amount,
             transaction_type,
+            transaction_code,
+            transaction_note,
+            currency,
             is_refunded,
+            account_id,
             account_name,
+            category_id,
+            subcategory_id,
             asset_id,
             asset_quantity,
+            created_at,
+            updated_at,
             accounts(type),
             categories(name),
             subcategories(name)
@@ -231,11 +251,20 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
           transaction_date: string
           transaction_details: string
           current_amount: number
+          initial_amount: number
           transaction_type: string
+          transaction_code: string | null
+          transaction_note: string | null
+          currency: string
           is_refunded: boolean | null
+          account_id: string | null
           account_name: string | null
+          category_id: string | null
+          subcategory_id: string | null
           asset_id: string | null
           asset_quantity: number | null
+          created_at: string
+          updated_at: string
           accounts: { type: string } | { type: string }[] | null
           categories: { name: string } | { name: string }[] | null
           subcategories: { name: string } | { name: string }[] | null
@@ -251,11 +280,20 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
           transaction_date: item.transaction_date,
           transaction_details: item.transaction_details,
           current_amount: item.current_amount,
+          initial_amount: item.initial_amount,
           transaction_type: item.transaction_type,
+          transaction_code: item.transaction_code,
+          transaction_note: item.transaction_note,
+          currency: item.currency,
           is_refunded: item.is_refunded ?? undefined,
+          account_id: item.account_id,
           account_name: item.account_name ?? undefined,
+          category_id: item.category_id,
+          subcategory_id: item.subcategory_id,
           asset_id: item.asset_id,
           asset_quantity: item.asset_quantity,
+          created_at: item.created_at,
+          updated_at: item.updated_at,
           accounts: normalizeEmbedded(item.accounts),
           categories: normalizeEmbedded(item.categories),
           subcategories: normalizeEmbedded(item.subcategories)
@@ -708,6 +746,46 @@ export function useAssetOperations() {
     await refetch()
   }, [user, supabase, refetch])
 
+  // Ricalcola la quantità di un asset dalle sue transazioni collegate e la
+  // persiste sul DB. Query sempre fresca (non dalla cache): quando viene
+  // chiamata subito dopo aver collegato/scollegato una transazione, la cache
+  // non riflette ancora il cambio di asset_id appena scritto.
+  const recalcAssetQuantity = useCallback(async (assetId: string) => {
+    if (!user) return
+
+    const { data: txs, error } = await supabase
+      .from('transactions')
+      .select('asset_quantity, current_amount, transaction_date')
+      .eq('user_id', user.id)
+      .eq('asset_id', assetId)
+
+    if (error) {
+      console.error('Errore nel ricalcolo quantità asset:', error)
+      return
+    }
+
+    const normalized = (txs || [])
+      .map(normalizeAssetTransaction)
+      .filter((t): t is NormalizedAssetTransaction => t !== null)
+    const purchaseData = aggregateAssetPurchaseData(normalized)
+
+    // Nessuna transazione collegata: la quantità resta un campo manuale
+    if (!purchaseData.hasTransactions) return
+
+    const { error: updateError } = await supabase
+      .from('assets')
+      .update({
+        quantity: purchaseData.totalQuantity,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', assetId)
+      .eq('user_id', user.id)
+
+    if (updateError) {
+      console.error('Errore nell\'aggiornamento quantità asset:', updateError)
+    }
+  }, [user, supabase])
+
   const linkAssetToTransaction = useCallback(async (assetId: string, transactionId: string) => {
     if (!user) throw new Error('User not authenticated')
 
@@ -726,10 +804,11 @@ export function useAssetOperations() {
       throw error
     }
 
+    await recalcAssetQuantity(assetId)
     await refetch()
-  }, [user, supabase, refetch])
+  }, [user, supabase, refetch, recalcAssetQuantity])
 
-  const unlinkAssetFromTransaction = useCallback(async (transactionId: string) => {
+  const unlinkAssetFromTransaction = useCallback(async (assetId: string, transactionId: string) => {
     if (!user) throw new Error('User not authenticated')
 
     // Rimuove l'asset_id dalla transazione
@@ -744,8 +823,9 @@ export function useAssetOperations() {
 
     if (error) throw error
 
+    await recalcAssetQuantity(assetId)
     await refetch()
-  }, [user, supabase, refetch])
+  }, [user, supabase, refetch, recalcAssetQuantity])
   const updateAssetMarketValue = useCallback(async (assetId: string) => {
     if (!user) throw new Error('User not authenticated')
 
@@ -816,7 +896,8 @@ export function useAssetOperations() {
     deleteAsset,
     linkAssetToTransaction,
     unlinkAssetFromTransaction,
-    updateAssetMarketValue
+    updateAssetMarketValue,
+    recalcAssetQuantity
   }
 }
 

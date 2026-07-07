@@ -1,6 +1,9 @@
-import { useMemo } from 'react';
-import { Tooltip, ResponsiveContainer, Area, AreaChart, XAxis } from 'recharts';
+import { useMemo, useState } from 'react';
+import { Tooltip, ResponsiveContainer, Area, AreaChart, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { clsx } from 'clsx';
+import { TrendingUp } from 'lucide-react';
 import { formatCurrency } from '@/lib/helpers/format';
+import { chartTooltipStyle, chartAxisTick, chartColors } from '@/lib/chartTheme';
 
 interface Transaction {
   transaction_date: Date | string;
@@ -30,9 +33,19 @@ interface TotalBalanceChartProps {
 }
 
 interface BalancePoint {
-  date: string;
+  date: string; // YYYY-MM-DD
   balance: number;
 }
+
+type Range = '1M' | '3M' | '6M' | '1A' | 'Tutto';
+
+const RANGES: { id: Range; months: number | null }[] = [
+  { id: '1M', months: 1 },
+  { id: '3M', months: 3 },
+  { id: '6M', months: 6 },
+  { id: '1A', months: 12 },
+  { id: 'Tutto', months: null },
+];
 
 // Utility per validare una data
 const isValidDate = (date: Date | string | null | undefined): date is string => {
@@ -41,31 +54,11 @@ const isValidDate = (date: Date | string | null | undefined): date is string => 
   return !isNaN(dateObj.getTime());
 };
 
-// Raggruppa i punti per mese e usa il primo giorno del mese come punto sull'asse X
-const groupByMonth = (balanceHistory: BalancePoint[]): BalancePoint[] => {
-  const grouped: BalancePoint[] = [];
-
-  balanceHistory.forEach(point => {
-    const date = new Date(point.date);
-    const firstOfMonth = new Date(date.getFullYear(), date.getMonth(), 1).toISOString().slice(0, 10); // Calcola il primo giorno del mese
-    const lastGroup = grouped[grouped.length - 1];
-
-    if (lastGroup && lastGroup.date === firstOfMonth) {
-      lastGroup.balance += point.balance - (lastGroup.balance || 0);
-    } else {
-      grouped.push({ date: firstOfMonth, balance: point.balance });
-    }
-  });
-
-  return grouped;
-};
-
-// Calcola il saldo totale cumulativo nel tempo
-const computeTotalBalanceHistory = (
+// Storia giornaliera del saldo: un punto per giorno con transazioni (ultimo valore del giorno)
+const computeDailyBalanceHistory = (
   transactions: Transaction[],
   accounts: Account[]
 ): BalancePoint[] => {
-  // Filtra e ordina transazioni valide
   const validTransactions = transactions
     .filter(t => isValidDate(t.transaction_date))
     .sort((a, b) => new Date(a.transaction_date).getTime() - new Date(b.transaction_date).getTime())
@@ -77,98 +70,186 @@ const computeTotalBalanceHistory = (
 
   if (validTransactions.length === 0) return [];
 
-  // Bilancio iniziale da tutti gli account
   const initialBalance = accounts.reduce((sum, account) => sum + (account.initial_balance || 0), 0);
 
-  // Costruisci la timeline
-  const balanceHistory = [];
+  const history: BalancePoint[] = [];
   let currentBalance = initialBalance;
 
-  // Punto iniziale
-  balanceHistory.push({
-    date: validTransactions[0].transaction_date as string,
-    balance: currentBalance
-  });
-
-  // Processa tutte le transazioni
   for (const transaction of validTransactions) {
     currentBalance += transaction.current_amount;
-    balanceHistory.push({
-      date: transaction.transaction_date as string,
-      balance: currentBalance
-    });
+    const day = (transaction.transaction_date as string).slice(0, 10);
+    const last = history[history.length - 1];
+    if (last && last.date === day) {
+      last.balance = currentBalance;
+    } else {
+      history.push({ date: day, balance: currentBalance });
+    }
   }
 
-  return groupByMonth(balanceHistory);
+  return history;
 };
 
+// Riduce a un punto per mese (ultimo saldo del mese) per i periodi lunghi
+const groupByMonth = (history: BalancePoint[]): BalancePoint[] => {
+  const grouped: BalancePoint[] = [];
+  for (const point of history) {
+    const monthKey = point.date.slice(0, 7) + '-01';
+    const last = grouped[grouped.length - 1];
+    if (last && last.date === monthKey) {
+      last.balance = point.balance;
+    } else {
+      grouped.push({ date: monthKey, balance: point.balance });
+    }
+  }
+  return grouped;
+};
+
+const compactCurrency = (value: number) =>
+  Math.abs(value) >= 1000
+    ? `€${(value / 1000).toLocaleString('it-IT', { maximumFractionDigits: 1 })}k`
+    : `€${value.toLocaleString('it-IT', { maximumFractionDigits: 0 })}`;
+
 export default function TotalBalanceChart({ data, className = '' }: TotalBalanceChartProps) {
-  // Memoizza il calcolo della cronologia del saldo
-  const chartData = useMemo(() => {
+  const [range, setRange] = useState<Range>('1A');
+
+  const dailyHistory = useMemo(() => {
     if (!data?.transactions?.length || !data?.accounts) return [];
-    return computeTotalBalanceHistory(data.transactions, data.accounts);
+    return computeDailyBalanceHistory(data.transactions, data.accounts);
   }, [data?.transactions, data?.accounts]);
 
-  // Early return se non ci sono dati
-  if (!chartData.length) {
-    return (
-      <div className={`bg-white border border-gray-200 shadow-sm rounded-xl p-5 mb-4 min-h-[300px] max-h-[300px] ${className}`}>
-        <div className="h-full flex items-center justify-center text-gray-500">
-          Nessun dato disponibile
-        </div>
-      </div>
-    );
-  }
+  const chartData = useMemo(() => {
+    if (!dailyHistory.length) return [];
+    const months = RANGES.find(r => r.id === range)?.months ?? null;
+    if (months === null) return groupByMonth(dailyHistory);
+
+    const cutoff = new Date();
+    cutoff.setMonth(cutoff.getMonth() - months);
+    const cutoffKey = cutoff.toISOString().slice(0, 10);
+
+    // Punto di partenza: ultimo saldo noto prima del periodo, così la curva non parte da zero
+    const before = dailyHistory.filter(p => p.date < cutoffKey);
+    const inRange = dailyHistory.filter(p => p.date >= cutoffKey);
+    const points = before.length
+      ? [{ date: cutoffKey, balance: before[before.length - 1].balance }, ...inRange]
+      : inRange;
+
+    return months >= 6 ? groupByMonth(points) : points;
+  }, [dailyHistory, range]);
+
+  const periodDelta = useMemo(() => {
+    if (chartData.length < 2) return null;
+    const first = chartData[0].balance;
+    const last = chartData[chartData.length - 1].balance;
+    const diff = last - first;
+    const pct = first !== 0 ? (diff / Math.abs(first)) * 100 : null;
+    return { diff, pct, last };
+  }, [chartData]);
+
+  const formatLabel = (value: string) =>
+    new Date(value).toLocaleDateString('it-IT', range === '1M' || range === '3M'
+      ? { day: 'numeric', month: 'short' }
+      : { month: 'short', year: '2-digit' });
 
   return (
-    <div className={`bg-white border border-gray-200 shadow-sm rounded-xl p-5 mb-4 min-h-[300px] max-h-[300px] ${className}`}>
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-blue-100 text-blue-600">
-            <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h11M9 21V3m12 7h-7m4 4-4-4m0 0 4-4" />
-            </svg>
+    <div className={`bg-surface border border-edge shadow-card rounded-lg p-5 flex flex-col h-full min-h-[320px] ${className}`}>
+      {/* Header: titolo, valore attuale + delta periodo, selettore range */}
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-2">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-primary-subtle text-primary">
+            <TrendingUp className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="text-base font-semibold text-gray-900">Patrimonio</h3>
-            <p className="text-sm text-gray-500">Andamento del tuo patrimonio</p>
+            <h3 className="text-base font-semibold text-ink">Patrimonio</h3>
+            {periodDelta ? (
+              <p className="text-sm">
+                <span className="font-amount font-semibold text-ink">{formatCurrency(periodDelta.last)}</span>{' '}
+                <span className={clsx(
+                  'font-amount',
+                  periodDelta.diff >= 0 ? 'text-success-strong' : 'text-danger'
+                )}>
+                  {periodDelta.diff >= 0 ? '+' : ''}{formatCurrency(periodDelta.diff)}
+                  {periodDelta.pct !== null && ` (${periodDelta.pct >= 0 ? '+' : ''}${periodDelta.pct.toFixed(1)}%)`}
+                </span>
+              </p>
+            ) : (
+              <p className="text-sm text-ink-muted">Andamento del tuo patrimonio</p>
+            )}
           </div>
         </div>
+        <div className="flex items-center gap-1 bg-inset rounded-lg p-1">
+          {RANGES.map(r => (
+            <button
+              key={r.id}
+              onClick={() => setRange(r.id)}
+              className={clsx(
+                'px-2.5 py-1 rounded-md text-xs font-medium transition-colors',
+                range === r.id
+                  ? 'bg-surface text-ink shadow-card'
+                  : 'text-ink-muted hover:text-ink-secondary'
+              )}
+            >
+              {r.id}
+            </button>
+          ))}
+        </div>
       </div>
-      <ResponsiveContainer width="100%" height={170}>
-        <AreaChart data={chartData} margin={{ top: 6, right: 0, left: 0, bottom: 0 }}>
-          <defs>
-            <linearGradient id="colorBalance" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#2563eb" stopOpacity={0.1} />
-              <stop offset="100%" stopColor="#2563eb" stopOpacity={0.01} />
-            </linearGradient>
-          </defs>
-          <Tooltip
-            contentStyle={{
-              borderRadius: 8,
-              background: '#fff',
-              border: '1px solid #e5e7eb',
-              color: '#2563eb',
-              fontWeight: 500,
-              fontSize: 14,
-              boxShadow: 'none',
-              padding: 8
-            }}
-            itemStyle={{ color: '#2563eb', fontWeight: 500 }}
-            formatter={(value) => formatCurrency(Number(value))}
-            labelFormatter={(label) => new Date(label).toLocaleDateString('it-IT')}
-          />
-          <XAxis dataKey="date" hide />
-          <Area
-            type="basis"
-            dataKey="balance"
-            stroke="#2563eb"
-            strokeWidth={2}
-            fill="url(#colorBalance)"
-            dot={false}
-          />
-        </AreaChart>
-      </ResponsiveContainer>
+
+      {chartData.length === 0 ? (
+        <div className="flex-1 flex items-center justify-center text-ink-muted">
+          Nessun dato disponibile
+        </div>
+      ) : (
+        <div className="flex-1 min-h-[200px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={chartData} margin={{ top: 12, right: 4, left: 4, bottom: 0 }}>
+              <defs>
+                <linearGradient id="colorBalance" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="var(--color-primary)" stopOpacity={0.12} />
+                  <stop offset="100%" stopColor="var(--color-primary)" stopOpacity={0.01} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} vertical={false} />
+              <XAxis
+                dataKey="date"
+                tick={chartAxisTick}
+                tickFormatter={formatLabel}
+                axisLine={false}
+                tickLine={false}
+                interval="preserveStartEnd"
+                minTickGap={40}
+              />
+              <YAxis
+                tick={chartAxisTick}
+                tickFormatter={compactCurrency}
+                axisLine={false}
+                tickLine={false}
+                width={52}
+                domain={['auto', 'auto']}
+              />
+              <Tooltip
+                contentStyle={{
+                  ...chartTooltipStyle,
+                  fontWeight: 500,
+                  fontSize: 14,
+                  padding: 8
+                }}
+                itemStyle={{ color: 'var(--color-primary)', fontWeight: 500 }}
+                formatter={(value) => [formatCurrency(Number(value)), 'Patrimonio']}
+                labelFormatter={(label) => new Date(label).toLocaleDateString('it-IT')}
+              />
+              <Area
+                type="monotone"
+                dataKey="balance"
+                stroke="var(--color-primary)"
+                strokeWidth={2}
+                fill="url(#colorBalance)"
+                dot={false}
+                activeDot={{ r: 4, fill: 'var(--color-primary)', strokeWidth: 2, stroke: 'var(--color-bg-surface)' }}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      )}
     </div>
   );
 }

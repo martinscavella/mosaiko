@@ -30,10 +30,10 @@ export default function HomePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-canvas">
         <div className="flex flex-col items-center gap-4">
-          <div className="animate-spin rounded-full h-10 w-10 border-2 border-gray-200 border-t-blue-600" />
-          <p className="text-sm text-gray-500">Caricamento...</p>
+          <div className="animate-spin rounded-full h-10 w-10 border-2 border-edge border-t-primary" />
+          <p className="text-sm text-ink-muted">Caricamento...</p>
         </div>
       </div>
     )
@@ -41,32 +41,32 @@ export default function HomePage() {
 
   if (!user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+      <div className="min-h-screen flex items-center justify-center bg-canvas px-4">
         <div className={clsx(
-          "max-w-md w-full bg-white rounded-2xl border border-gray-200 shadow-sm p-8 text-center transition-all duration-300",
+          "max-w-md w-full bg-surface rounded-lg border border-edge shadow-card p-8 text-center transition-all duration-300",
           mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
         )}>
           <div className="mb-6">
             <MosaikoLogo size={56} className="inline-block" src="/mosaiko.png" />
           </div>
           
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+          <h1 className="text-2xl font-bold text-ink mb-2">
             Benvenuto in Mosaiko
           </h1>
-          <p className="text-gray-600 mb-8">
+          <p className="text-ink-secondary mb-8">
             La tua piattaforma intelligente per la gestione personale
           </p>
           
           <div className="space-y-3">
             <Link
               href="/auth/register"
-              className="block w-full bg-blue-600 text-white px-5 py-3 rounded-xl font-medium hover:bg-blue-700 transition-colors"
+              className="block w-full bg-primary text-white px-5 py-3 rounded-lg font-medium hover:bg-primary-hover transition-colors"
             >
               Inizia Ora
             </Link>
             <Link
               href="/auth/login"
-              className="block w-full bg-gray-100 text-gray-700 px-5 py-3 rounded-xl font-medium hover:bg-gray-200 transition-colors"
+              className="block w-full bg-inset text-ink-secondary px-5 py-3 rounded-lg font-medium hover:bg-inset transition-colors"
             >
               Accedi
             </Link>
@@ -77,15 +77,15 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-canvas">
       <div className="max-w-5xl 3xl:max-w-6xl 4xl:max-w-7xl mx-auto px-4 sm:px-6 3xl:px-8 py-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">
+            <h1 className="text-2xl font-bold text-ink">
               Ciao, {user.user_metadata?.firstName || user.user_metadata?.first_name || 'Utente'}!
             </h1>
-            <p className="text-gray-600 mt-1">
+            <p className="text-ink-secondary mt-1">
               Seleziona un modulo per iniziare
             </p>
           </div>
@@ -93,7 +93,7 @@ export default function HomePage() {
           <div className="flex items-center gap-2">
             <Link
               href="/profile"
-              className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-ink-secondary hover:bg-inset transition-colors"
             >
               <User className="w-4 h-4" />
               <span className="text-sm hidden sm:inline">Profilo</span>
@@ -104,8 +104,8 @@ export default function HomePage() {
               className={clsx(
                 "flex items-center gap-2 px-3 py-2 rounded-lg transition-colors",
                 isLoggingOut 
-                  ? "text-gray-400 cursor-not-allowed" 
-                  : "text-gray-600 hover:bg-gray-100"
+                  ? "text-ink-muted cursor-not-allowed" 
+                  : "text-ink-secondary hover:bg-inset"
               )}
             >
               <LogOut className="w-4 h-4" />
@@ -122,43 +122,43 @@ export default function HomePage() {
             <div 
               key={module.id}
               className={clsx(
-                "bg-white border border-gray-200 rounded-xl p-6 transition-all duration-200",
+                "bg-surface border border-edge rounded-lg shadow-card p-6 transition-all duration-200",
                 mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4",
-                module.status === 'active' && "hover:shadow-md hover:border-gray-300"
+                module.status === 'active' && "hover:shadow-elevated hover:border-edge"
               )}
               style={{ transitionDelay: `${index * 50}ms` }}
             >
               <div className="flex items-center gap-4 mb-4">
                 <div className={clsx(
-                  "w-12 h-12 rounded-xl flex items-center justify-center",
-                  module.status === 'active' ? "bg-blue-50 text-blue-600" : "bg-gray-100 text-gray-400"
+                  "w-12 h-12 rounded-lg flex items-center justify-center",
+                  module.status === 'active' ? module.accentClasses : "bg-inset text-ink-muted"
                 )}>
                   <module.icon className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-gray-900">{module.name}</h3>
+                  <h3 className="font-semibold text-ink">{module.name}</h3>
                   {module.status === 'active' && (
-                    <span className="inline-flex items-center gap-1 text-xs text-green-600">
-                      <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                    <span className="inline-flex items-center gap-1 text-xs text-success-strong">
+                      <span className="w-1.5 h-1.5 rounded-full bg-success" />
                       Attivo
                     </span>
                   )}
                 </div>
               </div>
               
-              <p className="text-sm text-gray-600 mb-4 leading-relaxed">
+              <p className="text-sm text-ink-secondary mb-4 leading-relaxed">
                 {module.description}
               </p>
               
               {module.status === 'active' ? (
                 <Link
                   href={`/${module.id}/dashboard`}
-                  className="block w-full text-center px-4 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                  className="block w-full text-center px-4 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-primary-hover transition-colors"
                 >
                   Apri
                 </Link>
               ) : (
-                <div className="w-full text-center px-4 py-2.5 bg-gray-100 text-gray-400 rounded-lg font-medium cursor-not-allowed">
+                <div className="w-full text-center px-4 py-2.5 bg-inset text-ink-muted rounded-lg font-medium cursor-not-allowed">
                   Presto disponibile
                 </div>
               )}
@@ -168,10 +168,10 @@ export default function HomePage() {
         
         {/* Footer */}
         <div className="mt-12 text-center">
-          <div className="inline-flex items-center gap-2 text-gray-400 text-sm">
+          <div className="inline-flex items-center gap-2 text-ink-muted text-sm">
             <span>Powered by</span>
             <MosaikoLogo size={18} src="/mosaiko.png" />
-            <span className="font-medium text-gray-500">Mosaiko</span>
+            <span className="font-medium text-ink-muted">Mosaiko</span>
           </div>
         </div>
       </div>

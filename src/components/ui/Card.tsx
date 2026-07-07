@@ -32,9 +32,9 @@ export function Card({
   return (
     <div
       className={clsx(
-        'bg-white border border-gray-200 rounded-xl shadow-sm',
+        'bg-surface border border-edge rounded-lg shadow-card',
         paddingClasses[padding],
-        hover && 'hover:shadow-md hover:border-gray-300 transition-all duration-200',
+        hover && 'hover:shadow-elevated hover:border-edge transition-all duration-200',
         onClick && 'cursor-pointer active:scale-[0.98]',
         className
       )}
@@ -57,10 +57,10 @@ interface CardHeaderProps {
 }
 
 const iconColorClasses = {
-  primary: 'bg-blue-100 text-blue-600',
-  success: 'bg-green-100 text-green-600',
-  danger: 'bg-red-100 text-red-600',
-  neutral: 'bg-gray-100 text-gray-600',
+  primary: 'bg-primary-subtle text-primary',
+  success: 'bg-success-subtle text-success-strong',
+  danger: 'bg-danger-subtle text-danger',
+  neutral: 'bg-inset text-ink-secondary',
 }
 
 /**
@@ -85,9 +85,9 @@ export function CardHeader({
           </div>
         )}
         <div>
-          <h3 className="text-base font-semibold text-gray-900">{title}</h3>
+          <h3 className="text-base font-semibold text-ink">{title}</h3>
           {subtitle && (
-            <p className="text-sm text-gray-500">{subtitle}</p>
+            <p className="text-sm text-ink-muted">{subtitle}</p>
           )}
         </div>
       </div>
@@ -114,7 +114,7 @@ export function CardContent({ children, className }: { children: ReactNode; clas
  */
 export function CardFooter({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <div className={clsx('mt-4 pt-4 border-t border-gray-100', className)}>
+    <div className={clsx('mt-4 pt-4 border-t border-edge-subtle', className)}>
       {children}
     </div>
   )

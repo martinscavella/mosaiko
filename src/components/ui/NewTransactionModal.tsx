@@ -3,8 +3,8 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { useAuth } from '@/lib/auth'
-import { useAllTransactions, useFinanceCache } from '@/lib/financeCache'
-import { DollarSign, Calendar, FileText, Tag, CreditCard, TrendingUp, TrendingDown, ArrowRightLeft, Check, ChevronDown } from 'lucide-react'
+import { useAllTransactions, useFinanceCache, useAssets, useAssetOperations, type Transaction } from '@/lib/financeCache'
+import { DollarSign, Calendar, FileText, Tag, CreditCard, TrendingUp, TrendingDown, ArrowRightLeft, Check, ChevronDown, Hash, Package } from 'lucide-react'
 import clsx from 'clsx'
 import Modal, { ModalButton } from './Modal'
 
@@ -33,6 +33,8 @@ interface NewTransactionModalProps {
   isOpen: boolean
   onClose: () => void
   onSuccess?: () => void
+  /** Se presente, il modale lavora in modalità modifica su questa transazione */
+  editTransaction?: Transaction | null
   prefilledData?: {
     account_id?: string
     transaction_type?: string
@@ -48,15 +50,19 @@ interface NewTransactionModalProps {
 
 type TransactionType = 'Abbonamento' | 'Acquisto' | 'AZIONE' | 'Bonifico' | 'Buono fruttifero' | 'Cancellazione rimborso' | 'Commissione' | 'Competenze' | 'Delivery' | 'Eccesso Rimborso' | 'Entrata' | 'ETF' | 'Imposte' | 'Iscrizione' | 'Ordine' | 'Prelievo' | 'Quattordicesima' | 'Rata' | 'Refund' | 'Ricarica' | 'Spesa' | 'Stipendio' | 'TFR' | 'Tredicesima'
 
-export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefilledData }: NewTransactionModalProps) {
+export default function NewTransactionModal({ isOpen, onClose, onSuccess, editTransaction, prefilledData }: NewTransactionModalProps) {
   const { user } = useAuth()
   const { refetch } = useAllTransactions()
   const { refetch: refetchFinanceCache } = useFinanceCache()
+  const { assets } = useAssets()
+  const { recalcAssetQuantity } = useAssetOperations()
   const [loading, setLoading] = useState(false)
   const [accounts, setAccounts] = useState<Account[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [subcategories, setSubcategories] = useState<Subcategory[]>([])
-  
+
+  const isEditMode = !!editTransaction
+
   // Form state
   const [formData, setFormData] = useState({
     transaction_details: '',
@@ -67,6 +73,10 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
     transaction_date: new Date().toISOString().split('T')[0],
     transaction_type: 'Spesa' as TransactionType,
     transaction_note: '',
+    transaction_code: '',
+    currency: 'EUR',
+    asset_quantity: '',
+    asset_id: '',
     is_refunded: false
   })
 
@@ -102,7 +112,11 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
         .eq('user_id', user.id)
         .order('name')
 
-      setAccounts(accountsData?.filter(account => account.current_balance > 0).sort((a, b) => b.current_balance - a.current_balance) || [])
+      // In modifica servono tutti gli account (quello della transazione può avere saldo 0)
+      const usableAccounts = isEditMode
+        ? accountsData || []
+        : accountsData?.filter(account => account.current_balance > 0) || []
+      setAccounts(usableAccounts.sort((a, b) => b.current_balance - a.current_balance))
       
       // Ordina le categorie per numero di utilizzi (più utilizzate prima), poi per nome
       const sortedCategories = (categoriesData || []).sort((a, b) => {
@@ -121,7 +135,7 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
     } catch (error) {
       console.error('Error loading initial data:', error)
     }
-  }, [user])
+  }, [user, isEditMode])
 
   useEffect(() => {
     if (isOpen && user) {
@@ -134,22 +148,52 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
     return accounts
   }, [accounts])
 
-  // Reset form quando si apre/chiude
+  // Reset form quando si apre/chiude (in modifica precompila dalla transazione)
   useEffect(() => {
-    if (isOpen) {
+    if (!isOpen) return
+
+    if (editTransaction) {
       setFormData({
-        transaction_details: prefilledData?.transaction_details || '',
-        amount: prefilledData?.amount || '',
-        account_id: prefilledData?.account_id || (filteredAccounts.length > 0 ? filteredAccounts[0].id : ''),
-        category_id: prefilledData?.category_id || '',
-        subcategory_id: prefilledData?.subcategory_id || '',
-        transaction_date: prefilledData?.transaction_date || new Date().toISOString().split('T')[0],
-        transaction_type: (prefilledData?.transaction_type as TransactionType) || 'Spesa',
-        transaction_note: prefilledData?.transaction_note || '',
-        is_refunded: prefilledData?.is_refunded || false
+        transaction_details: editTransaction.transaction_details || '',
+        amount: Math.abs(editTransaction.initial_amount ?? editTransaction.current_amount).toString(),
+        account_id: editTransaction.account_id || '',
+        category_id: editTransaction.category_id || '',
+        subcategory_id: editTransaction.subcategory_id || '',
+        transaction_date: editTransaction.transaction_date?.split('T')[0] || new Date().toISOString().split('T')[0],
+        transaction_type: (editTransaction.transaction_type as TransactionType) || 'Spesa',
+        transaction_note: editTransaction.transaction_note || '',
+        transaction_code: editTransaction.transaction_code || '',
+        currency: editTransaction.currency || 'EUR',
+        // Passa da Number() prima di stringificare: se asset_quantity arriva dal
+        // DB come stringa non nel formato atteso da <input type="number"> (es.
+        // virgola decimale, spazi), il browser scarta silenziosamente il value
+        // e mostra il placeholder invece del dato. Number() normalizza sempre
+        // al formato con punto decimale che l'input accetta.
+        asset_quantity: editTransaction.asset_quantity != null && !Number.isNaN(Number(editTransaction.asset_quantity))
+          ? String(Number(editTransaction.asset_quantity))
+          : '',
+        asset_id: editTransaction.asset_id || '',
+        is_refunded: editTransaction.is_refunded || false
       })
+      return
     }
-  }, [isOpen, filteredAccounts, prefilledData])
+
+    setFormData({
+      transaction_details: prefilledData?.transaction_details || '',
+      amount: prefilledData?.amount || '',
+      account_id: prefilledData?.account_id || (filteredAccounts.length > 0 ? filteredAccounts[0].id : ''),
+      category_id: prefilledData?.category_id || '',
+      subcategory_id: prefilledData?.subcategory_id || '',
+      transaction_date: prefilledData?.transaction_date || new Date().toISOString().split('T')[0],
+      transaction_type: (prefilledData?.transaction_type as TransactionType) || 'Spesa',
+      transaction_note: prefilledData?.transaction_note || '',
+      transaction_code: '',
+      currency: 'EUR',
+      asset_quantity: '',
+      asset_id: '',
+      is_refunded: prefilledData?.is_refunded || false
+    })
+  }, [isOpen, filteredAccounts, prefilledData, editTransaction])
 
   // Sottocategorie filtrate per categoria selezionata
   const filteredSubcategories = useMemo(() => {
@@ -165,20 +209,25 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
     }
   }, [formData.category_id, filteredSubcategories, formData.subcategory_id])
 
+  // Un asset collegato senza quantità non produce nessun dato da sommare: il
+  // ricalcolo automatico della quantità dell'asset lo salterebbe silenziosamente.
+  const isAssetLinkMissingQuantity = !!formData.asset_id && formData.asset_quantity === ''
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!user || !formData.transaction_details || !formData.amount || !formData.account_id) {
+    if (!user || !formData.transaction_details || !formData.amount || !formData.account_id || isAssetLinkMissingQuantity) {
       return
     }
 
     const amount = parseFloat(formData.amount)
-    
+
     // Controlla se l'account selezionato ha saldo sufficiente per transazioni negative
     const positiveTypes = ['Entrata', 'Stipendio', 'Quattordicesima', 'Tredicesima', 'TFR', 'Ricarica', 'Refund', 'Eccesso Rimborso', 'Cancellazione rimborso']
     const isNegativeTransaction = !positiveTypes.includes(formData.transaction_type)
     const selectedAccount = accounts.find(acc => acc.id === formData.account_id)
-    
-    if (isNegativeTransaction && selectedAccount && Math.abs(amount) > selectedAccount.current_balance) {
+
+    // Il controllo saldo vale solo in creazione: in modifica l'importo era già contabilizzato
+    if (!isEditMode && isNegativeTransaction && selectedAccount && Math.abs(amount) > selectedAccount.current_balance) {
       alert(`Saldo insufficiente! L'account ${selectedAccount.name} ha solo €${selectedAccount.current_balance.toFixed(2)} disponibili, ma stai cercando di spendere €${Math.abs(amount).toFixed(2)}.`)
       return
     }
@@ -186,30 +235,83 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
     setLoading(true)
     try {
       const supabase = createClientComponentClient()
-      
-      // Determina se l'importo è positivo o negativo in base al tipo di transazione
-      const finalAmount = positiveTypes.includes(formData.transaction_type) 
-        ? Math.abs(amount) 
-        : -Math.abs(amount)
-      
-      const { error } = await supabase
-        .from('transactions')
-        .insert({
-          user_id: user.id,
-          transaction_details: formData.transaction_details,
-          current_amount: finalAmount,
-          initial_amount: finalAmount,
-          account_id: formData.account_id,
-          category_id: formData.category_id || null,
-          subcategory_id: formData.subcategory_id || null,
-          transaction_date: formData.transaction_date,
-          transaction_type: formData.transaction_type,
-          transaction_note: formData.transaction_note || null,
-          is_refunded: formData.is_refunded,
-          currency: 'EUR'
-        })
 
-      if (error) throw error
+      // Determina se l'importo è positivo o negativo in base al tipo di transazione
+      const finalAmount = positiveTypes.includes(formData.transaction_type)
+        ? Math.abs(amount)
+        : -Math.abs(amount)
+
+      if (isEditMode && editTransaction) {
+        // L'importo modificato aggiorna initial_amount; l'eventuale delta rimborsi
+        // (current - initial) viene preservato sul nuovo importo
+        const refundDelta = (editTransaction.current_amount ?? 0) - (editTransaction.initial_amount ?? editTransaction.current_amount ?? 0)
+
+        const { error } = await supabase
+          .from('transactions')
+          .update({
+            transaction_details: formData.transaction_details,
+            current_amount: finalAmount + refundDelta,
+            initial_amount: finalAmount,
+            account_id: formData.account_id,
+            category_id: formData.category_id || null,
+            subcategory_id: formData.subcategory_id || null,
+            transaction_date: formData.transaction_date,
+            transaction_type: formData.transaction_type,
+            transaction_note: formData.transaction_note || null,
+            transaction_code: formData.transaction_code || null,
+            is_refunded: formData.is_refunded,
+            currency: formData.currency || 'EUR',
+            asset_id: formData.asset_id || null,
+            asset_quantity: formData.asset_quantity !== '' ? parseFloat(formData.asset_quantity) : null,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', editTransaction.id)
+
+        if (error) throw error
+
+        // Il trigger DB non gestisce il cambio account: ricalcola i saldi
+        // dal DB (fonte canonica) per gli account coinvolti
+        const affectedAccounts = new Set([editTransaction.account_id, formData.account_id].filter(Boolean))
+        for (const accountId of affectedAccounts) {
+          const { error: recalcError } = await supabase.rpc('recalculate_current_balance_by_id', {
+            account_id_param: accountId
+          })
+          if (recalcError) {
+            console.error('Errore ricalcolo saldo account:', recalcError)
+          }
+        }
+      } else {
+        const { error } = await supabase
+          .from('transactions')
+          .insert({
+            user_id: user.id,
+            transaction_details: formData.transaction_details,
+            current_amount: finalAmount,
+            initial_amount: finalAmount,
+            account_id: formData.account_id,
+            category_id: formData.category_id || null,
+            subcategory_id: formData.subcategory_id || null,
+            transaction_date: formData.transaction_date,
+            transaction_type: formData.transaction_type,
+            transaction_note: formData.transaction_note || null,
+            transaction_code: formData.transaction_code || null,
+            is_refunded: formData.is_refunded,
+            currency: formData.currency || 'EUR',
+            asset_id: formData.asset_id || null,
+            asset_quantity: formData.asset_quantity !== '' ? parseFloat(formData.asset_quantity) : null
+          })
+
+        if (error) throw error
+      }
+
+      // Ricalcola la quantità degli asset coinvolti: quello appena collegato
+      // (se presente) e quello eventualmente scollegato in una modifica.
+      const previousAssetId = editTransaction?.asset_id || null
+      const currentAssetId = formData.asset_id || null
+      const assetIdsToRecalc = new Set([currentAssetId, previousAssetId].filter((id): id is string => !!id))
+      for (const assetId of assetIdsToRecalc) {
+        await recalcAssetQuantity(assetId)
+      }
 
       // Aggiorna cache e ricarica dati
       try {
@@ -225,8 +327,8 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
       onSuccess?.()
       onClose()
     } catch (error) {
-      console.error('Error creating transaction:', error)
-      alert('Errore durante la creazione della transazione')
+      console.error('Error saving transaction:', error)
+      alert(isEditMode ? 'Errore durante il salvataggio delle modifiche' : 'Errore durante la creazione della transazione')
     } finally {
       setLoading(false)
     }
@@ -238,13 +340,13 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
     const transferTypes = ['Bonifico', 'Prelievo']
     
     if (positiveTypes.includes(type)) {
-      return <TrendingUp className="w-5 h-5 text-green-600" />
+      return <TrendingUp className="w-5 h-5 text-success-strong" />
     } else if (investmentTypes.includes(type)) {
-      return <TrendingUp className="w-5 h-5 text-blue-600" />
+      return <TrendingUp className="w-5 h-5 text-primary" />
     } else if (transferTypes.includes(type)) {
-      return <ArrowRightLeft className="w-5 h-5 text-purple-600" />
+      return <ArrowRightLeft className="w-5 h-5 text-module-health" />
     } else {
-      return <TrendingDown className="w-5 h-5 text-red-600" />
+      return <TrendingDown className="w-5 h-5 text-danger" />
     }
   }
 
@@ -254,8 +356,8 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Nuova Transazione"
-      subtitle="Aggiungi una nuova operazione finanziaria"
+      title={isEditMode ? 'Modifica Transazione' : 'Nuova Transazione'}
+      subtitle={isEditMode ? 'Aggiorna i dati della transazione' : 'Aggiungi una nuova operazione finanziaria'}
       size="lg"
       footer={
         <>
@@ -269,12 +371,12 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
           <button
             type="submit"
             form="new-transaction-form"
-            disabled={loading || !formData.transaction_details || !formData.amount || !formData.account_id}
+            disabled={loading || !formData.transaction_details || !formData.amount || !formData.account_id || isAssetLinkMissingQuantity}
             className={clsx(
               'px-4 py-2 rounded-lg font-medium text-sm transition-all duration-150 active:scale-95',
-              loading || !formData.transaction_details || !formData.amount || !formData.account_id
-                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                : 'bg-blue-600 hover:bg-blue-700 text-white'
+              loading || !formData.transaction_details || !formData.amount || !formData.account_id || isAssetLinkMissingQuantity
+                ? 'bg-inset text-ink-muted cursor-not-allowed'
+                : 'bg-primary hover:bg-primary-hover text-white'
             )}
           >
             {loading ? (
@@ -286,7 +388,7 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
                 Caricamento...
               </span>
             ) : (
-              'Crea Transazione'
+              isEditMode ? 'Salva Modifiche' : 'Crea Transazione'
             )}
           </button>
         </>
@@ -297,9 +399,9 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Tipo di transazione */}
               <div className="space-y-3">
-                <label className="flex items-center text-sm font-medium text-gray-700">
-                  <div className="p-2 rounded-lg bg-blue-100 mr-3">
-                    <FileText className="w-4 h-4 text-blue-600" />
+                <label className="flex items-center text-sm font-medium text-ink-secondary">
+                  <div className="p-2 rounded-lg bg-primary-subtle mr-3">
+                    <FileText className="w-4 h-4 text-primary" />
                   </div>
                   Tipo di Transazione *
                 </label>
@@ -307,7 +409,7 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
                   <select
                     value={formData.transaction_type}
                     onChange={(e) => setFormData(prev => ({ ...prev, transaction_type: e.target.value as typeof formData.transaction_type }))}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none bg-white hover:bg-gray-50 text-gray-900 font-medium"
+                    className="w-full px-4 py-3 border border-edge rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all appearance-none bg-surface hover:bg-canvas text-ink font-medium"
                     required
                   >
                     <option value="Abbonamento">Abbonamento</option>
@@ -338,7 +440,7 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
                   <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none">
                     <div className="flex items-center space-x-2">
                       {getTransactionTypeIcon(formData.transaction_type)}
-                      <ChevronDown className="w-4 h-4 text-gray-400" />
+                      <ChevronDown className="w-4 h-4 text-ink-muted" />
                     </div>
                   </div>
                 </div>
@@ -346,9 +448,9 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
 
               {/* Importo */}
               <div className="space-y-3">
-                <label className="flex items-center text-sm font-medium text-gray-700">
-                  <div className="p-2 rounded-lg bg-yellow-100 mr-3">
-                    <DollarSign className="w-4 h-4 text-yellow-600" />
+                <label className="flex items-center text-sm font-medium text-ink-secondary">
+                  <div className="p-2 rounded-lg bg-primary-subtle mr-3">
+                    <DollarSign className="w-4 h-4 text-primary" />
                   </div>
                   Importo (€) *
                 </label>
@@ -357,7 +459,7 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
                   step="0.1"
                   value={formData.amount}
                   onChange={(e) => setFormData(prev => ({ ...prev, amount: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white hover:bg-gray-50 text-gray-900 placeholder-gray-400"
+                  className="w-full px-4 py-3 border border-edge rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all bg-surface hover:bg-canvas text-ink placeholder-ink-muted"
                   placeholder="0"
                   required
                 />
@@ -366,9 +468,9 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
 
             {/* Descrizione - sempre full width */}
             <div className="space-y-3">
-              <label className="flex items-center text-sm font-medium text-gray-700">
-                <div className="p-2 rounded-lg bg-green-100 mr-3">
-                  <FileText className="w-4 h-4 text-green-600" />
+              <label className="flex items-center text-sm font-medium text-ink-secondary">
+                <div className="p-2 rounded-lg bg-inset mr-3">
+                  <FileText className="w-4 h-4 text-ink-secondary" />
                 </div>
                 Descrizione *
               </label>
@@ -376,7 +478,7 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
                 type="text"
                 value={formData.transaction_details}
                 onChange={(e) => setFormData(prev => ({ ...prev, transaction_details: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white hover:bg-gray-50 text-gray-900 placeholder-gray-400"
+                className="w-full px-4 py-3 border border-edge rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all bg-surface hover:bg-canvas text-ink placeholder-ink-muted"
                 placeholder="Descrivi la transazione..."
                 required
               />
@@ -386,9 +488,9 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Account */}
               <div className="space-y-3">
-                <label className="flex items-center text-sm font-medium text-gray-700">
-                  <div className="p-2 rounded-lg bg-indigo-100 mr-3">
-                    <CreditCard className="w-4 h-4 text-indigo-600" />
+                <label className="flex items-center text-sm font-medium text-ink-secondary">
+                  <div className="p-2 rounded-lg bg-inset mr-3">
+                    <CreditCard className="w-4 h-4 text-ink-secondary" />
                   </div>
                   Account *
                 </label>
@@ -396,7 +498,7 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
                   <select
                     value={formData.account_id}
                     onChange={(e) => setFormData(prev => ({ ...prev, account_id: e.target.value }))}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none bg-white hover:bg-gray-50 text-gray-900"
+                    className="w-full px-4 py-3 border border-edge rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all appearance-none bg-surface hover:bg-canvas text-ink"
                     required
                   >
                     <option value="">Seleziona account</option>
@@ -406,15 +508,15 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
                       </option>
                     ))}
                   </select>
-                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-muted pointer-events-none" />
                 </div>
               </div>
 
               {/* Data */}
               <div className="space-y-3">
-                <label className="flex items-center text-sm font-medium text-gray-700">
-                  <div className="p-2 rounded-lg bg-pink-100 mr-3">
-                    <Calendar className="w-4 h-4 text-pink-600" />
+                <label className="flex items-center text-sm font-medium text-ink-secondary">
+                  <div className="p-2 rounded-lg bg-inset mr-3">
+                    <Calendar className="w-4 h-4 text-ink-secondary" />
                   </div>
                   Data *
                 </label>
@@ -422,7 +524,7 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
                   type="date"
                   value={formData.transaction_date}
                   onChange={(e) => setFormData(prev => ({ ...prev, transaction_date: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white hover:bg-gray-50 text-gray-900"
+                  className="w-full px-4 py-3 border border-edge rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all bg-surface hover:bg-canvas text-ink"
                   required
                 />
               </div>
@@ -432,9 +534,9 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Categoria */}
               <div className="space-y-3">
-                <label className="flex items-center text-sm font-medium text-gray-700">
-                  <div className="p-2 rounded-lg bg-cyan-100 mr-3">
-                    <Tag className="w-4 h-4 text-cyan-600" />
+                <label className="flex items-center text-sm font-medium text-ink-secondary">
+                  <div className="p-2 rounded-lg bg-inset mr-3">
+                    <Tag className="w-4 h-4 text-ink-secondary" />
                   </div>
                   Categoria
                 </label>
@@ -442,7 +544,7 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
                   <select
                     value={formData.category_id}
                     onChange={(e) => setFormData(prev => ({ ...prev, category_id: e.target.value }))}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none bg-white hover:bg-gray-50 text-gray-900"
+                    className="w-full px-4 py-3 border border-edge rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all appearance-none bg-surface hover:bg-canvas text-ink"
                   >
                     <option value="">Nessuna categoria</option>
                     {categories.map((category) => (
@@ -451,16 +553,16 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
                       </option>
                     ))}
                   </select>
-                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-muted pointer-events-none" />
                 </div>
               </div>
 
               {/* Sottocategoria - sempre visibile se ci sono sottocategorie */}
               {formData.category_id && filteredSubcategories.length > 0 ? (
                 <div className="space-y-3 animate-in slide-in-from-top-2 duration-300">
-                  <label className="flex items-center text-sm font-medium text-gray-700">
-                    <div className="p-2 rounded-lg bg-teal-100 mr-3">
-                      <Tag className="w-4 h-4 text-teal-600" />
+                  <label className="flex items-center text-sm font-medium text-ink-secondary">
+                    <div className="p-2 rounded-lg bg-inset mr-3">
+                      <Tag className="w-4 h-4 text-ink-secondary" />
                     </div>
                     Sottocategoria
                   </label>
@@ -468,7 +570,7 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
                     <select
                       value={formData.subcategory_id}
                       onChange={(e) => setFormData(prev => ({ ...prev, subcategory_id: e.target.value }))}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none bg-white hover:bg-gray-50 text-gray-900"
+                      className="w-full px-4 py-3 border border-edge rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all appearance-none bg-surface hover:bg-canvas text-ink"
                     >
                       <option value="">Seleziona sottocategoria</option>
                       {filteredSubcategories.map((subcategory) => (
@@ -477,7 +579,7 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
                         </option>
                       ))}
                     </select>
-                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-muted pointer-events-none" />
                   </div>
                 </div>
               ) : (
@@ -486,13 +588,13 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
             </div>
 
             {/* È stato rimborsato? */}
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+            <div className="bg-warning-subtle border border-warning-subtle rounded-lg p-4">
               <div className="flex items-center space-x-3">
                 <div
                   className={`relative w-6 h-6 rounded-md cursor-pointer transition-colors ${
                     formData.is_refunded
-                      ? 'bg-amber-500 border-2 border-amber-500'
-                      : 'bg-white border-2 border-amber-300 hover:border-amber-400'
+                      ? 'bg-warning border-2 border-warning'
+                      : 'bg-surface border-2 border-warning-subtle hover:border-warning'
                   }`}
                   onClick={() => setFormData(prev => ({ ...prev, is_refunded: !prev.is_refunded }))}
                 >
@@ -511,7 +613,7 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
                 </div>
                 <label 
                   htmlFor="is-refunded" 
-                  className="flex items-center text-sm font-medium text-amber-800 cursor-pointer"
+                  className="flex items-center text-sm font-medium text-warning cursor-pointer"
                   onClick={() => setFormData(prev => ({ ...prev, is_refunded: !prev.is_refunded }))}
                 >
                   È stato rimborsato?
@@ -519,18 +621,115 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, prefil
               </div>
             </div>
 
+            {/* Codice e valuta */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="space-y-3">
+                <label className="flex items-center text-sm font-medium text-ink-secondary">
+                  <div className="p-2 rounded-lg bg-inset mr-3">
+                    <Hash className="w-4 h-4 text-ink-secondary" />
+                  </div>
+                  Codice transazione
+                </label>
+                <input
+                  type="text"
+                  value={formData.transaction_code}
+                  onChange={(e) => setFormData(prev => ({ ...prev, transaction_code: e.target.value }))}
+                  className="w-full px-4 py-3 border border-edge rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all bg-surface hover:bg-canvas text-ink placeholder-ink-muted"
+                  placeholder="Es. riferimento estratto conto (opzionale)"
+                />
+              </div>
+              <div className="space-y-3">
+                <label className="flex items-center text-sm font-medium text-ink-secondary">
+                  <div className="p-2 rounded-lg bg-inset mr-3">
+                    <DollarSign className="w-4 h-4 text-ink-secondary" />
+                  </div>
+                  Valuta
+                </label>
+                <div className="relative">
+                  <select
+                    value={formData.currency}
+                    onChange={(e) => setFormData(prev => ({ ...prev, currency: e.target.value }))}
+                    className="w-full px-4 py-3 border border-edge rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all appearance-none bg-surface hover:bg-canvas text-ink"
+                  >
+                    <option value="EUR">EUR (€)</option>
+                    <option value="USD">USD ($)</option>
+                    <option value="GBP">GBP (£)</option>
+                    <option value="CHF">CHF</option>
+                  </select>
+                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-muted pointer-events-none" />
+                </div>
+              </div>
+            </div>
+
+            {/* Collega ad Asset + Quantità - per transazioni investment (AZIONE, ETF, Buono fruttifero) */}
+            {['AZIONE', 'ETF', 'Buono fruttifero'].includes(formData.transaction_type) && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="space-y-3">
+                  <label className="flex items-center text-sm font-medium text-ink-secondary">
+                    <div className="p-2 rounded-lg bg-warning-subtle mr-3">
+                      <Package className="w-4 h-4 text-warning" />
+                    </div>
+                    Collega ad Asset
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={formData.asset_id}
+                      onChange={(e) => setFormData(prev => ({ ...prev, asset_id: e.target.value }))}
+                      className="w-full px-4 py-3 border border-edge rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all appearance-none bg-surface hover:bg-canvas text-ink"
+                    >
+                      <option value="">Nessun asset (opzionale)</option>
+                      {assets.map((asset) => (
+                        <option key={asset.id} value={asset.id}>
+                          {asset.name}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-muted pointer-events-none" />
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <label className="flex items-center text-sm font-medium text-ink-secondary">
+                    <div className="p-2 rounded-lg bg-warning-subtle mr-3">
+                      <Package className="w-4 h-4 text-warning" />
+                    </div>
+                    Quantità asset
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    value={formData.asset_quantity}
+                    onChange={(e) => setFormData(prev => ({ ...prev, asset_quantity: e.target.value }))}
+                    className={clsx(
+                      'w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all bg-surface hover:bg-canvas text-ink placeholder-ink-muted',
+                      isAssetLinkMissingQuantity ? 'border-danger' : 'border-edge'
+                    )}
+                    placeholder="Quantità (es. 10.5)"
+                    required={!!formData.asset_id}
+                  />
+                  <p className={clsx('text-xs', isAssetLinkMissingQuantity ? 'text-danger' : 'text-ink-muted')}>
+                    {isAssetLinkMissingQuantity
+                      ? 'Obbligatoria per collegare la transazione: senza quantità l\'asset non può essere aggiornato.'
+                      : formData.asset_id
+                        ? 'La quantità totale dell\'asset collegato verrà ricalcolata automaticamente.'
+                        : 'Specifica la quantità se questa transazione crea o aggiorna un asset nel tuo portafoglio.'}
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Note */}
             <div className="space-y-3">
-              <label className="flex items-center text-sm font-medium text-gray-700">
-                <div className="p-2 rounded-lg bg-gray-100 mr-3">
-                  <FileText className="w-4 h-4 text-gray-600" />
+              <label className="flex items-center text-sm font-medium text-ink-secondary">
+                <div className="p-2 rounded-lg bg-inset mr-3">
+                  <FileText className="w-4 h-4 text-ink-secondary" />
                 </div>
                 Note aggiuntive
               </label>
               <textarea
                 value={formData.transaction_note}
                 onChange={(e) => setFormData(prev => ({ ...prev, transaction_note: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white hover:bg-gray-50 text-gray-900 placeholder-gray-400 resize-none"
+                className="w-full px-4 py-3 border border-edge rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all bg-surface hover:bg-canvas text-ink placeholder-ink-muted resize-none"
                 rows={3}
                 placeholder="Note opzionali..."
               />

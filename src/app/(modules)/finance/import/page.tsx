@@ -774,7 +774,7 @@ export default function ImportPage() {
   // Funzione per renderizzare le celle in base al tipo di campo e tabella
   const renderCell = (row: ImportRow, columnKey: string): ReactNode => {
     const baseInputClasses =
-      "w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500";
+      "w-full px-2 py-1 text-sm border border-edge rounded focus:outline-none focus:ring-2 focus:ring-primary";
     // DICHIARAZIONI VARIABILI DI SUPPORTO GLOBALI ALLO SCOPE DELLA FUNZIONE
     const rowCategoryStr = (row.category ?? "").toString().toLowerCase();
     const rowSubcategoryStr = (row.subcategory ?? "").toString().toLowerCase();
@@ -785,7 +785,7 @@ export default function ImportPage() {
           <div className="flex items-center justify-center">
             <button
               onClick={() => deleteRow(row.id)}
-              className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+              className="p-1 text-danger hover:text-danger hover:bg-danger-subtle rounded transition-colors"
               title="Elimina riga"
             >
               <X className="w-4 h-4" />
@@ -796,21 +796,21 @@ export default function ImportPage() {
       case "status":
         if (row.status === "pending") {
           return (
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-warning-subtle text-warning">
               In attesa
             </span>
           );
         }
         if (row.status === "success") {
           return (
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-success-subtle text-success-strong">
               Importato
             </span>
           );
         }
         if (row.status === "error") {
           return (
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-danger-subtle text-danger">
               Errore
             </span>
           );
@@ -822,7 +822,7 @@ export default function ImportPage() {
           <select
             value={row.targetTable}
             onChange={(e) => updateRow(row.id, "targetTable", e.target.value)}
-            className="px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="px-2 py-1 text-sm border border-edge rounded focus:outline-none focus:ring-2 focus:ring-primary"
           >
             <option value="transactions">Transazioni</option>
             <option value="refunds">Rimborsi</option>
@@ -861,7 +861,7 @@ export default function ImportPage() {
               placeholder="Dettagli transazione"
             />
             {row.errors && row.errors.length > 0 && (
-              <div className="text-xs text-red-600 mt-1">
+              <div className="text-xs text-danger mt-1">
                 {row.errors.join(", ")}
               </div>
             )}
@@ -884,7 +884,7 @@ export default function ImportPage() {
           <select
             value={row.account || ""}
             onChange={(e) => updateRow(row.id, "account", e.target.value)}
-            className="min-w-[150px] px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="min-w-[150px] px-2 py-1 text-sm border border-edge rounded focus:outline-none focus:ring-2 focus:ring-primary"
           >
             <option value="">Seleziona account</option>
             {userAccounts.length === 0 ? (
@@ -913,9 +913,9 @@ export default function ImportPage() {
             <select
               value={currentCategoryExists ? row.category : ""}
               onChange={(e) => updateRow(row.id, "category", e.target.value)}
-              className={`min-w-[150px] px-2 py-1 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 ${hasInvalidCategory
-                ? "border-red-300 bg-red-50"
-                : "border-gray-300"
+              className={`min-w-[150px] px-2 py-1 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-primary ${hasInvalidCategory
+                ? "border-danger-subtle bg-danger-subtle"
+                : "border-edge"
                 }`}
             >
               <option value="">Seleziona categoria</option>
@@ -930,7 +930,7 @@ export default function ImportPage() {
               )}
             </select>
             {hasInvalidCategory && (
-              <div className="text-xs text-red-600 mt-1">
+              <div className="text-xs text-danger mt-1">
                 "{row.category}" non è valida - Seleziona da quelle disponibili
               </div>
             )}
@@ -959,9 +959,9 @@ export default function ImportPage() {
             <select
               value={currentSubcategoryExists ? row.subcategory : ""}
               onChange={(e) => updateRow(row.id, "subcategory", e.target.value)}
-              className={`min-w-[150px] px-2 py-1 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 ${hasInvalidSubcategory
-                ? "border-red-300 bg-red-50"
-                : "border-gray-300"
+              className={`min-w-[150px] px-2 py-1 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-primary ${hasInvalidSubcategory
+                ? "border-danger-subtle bg-danger-subtle"
+                : "border-edge"
                 }`}
               disabled={!selectedCategory}
             >
@@ -977,12 +977,12 @@ export default function ImportPage() {
               ))}
             </select>
             {hasInvalidSubcategory && (
-              <div className="text-xs text-red-600 mt-1">
+              <div className="text-xs text-danger mt-1">
                 "{row.subcategory}" non è valida per questa categoria
               </div>
             )}
             {!selectedCategory && row.subcategory && (
-              <div className="text-xs text-orange-600 mt-1">
+              <div className="text-xs text-warning mt-1">
                 Seleziona prima una categoria
               </div>
             )}
@@ -994,7 +994,7 @@ export default function ImportPage() {
           <select
             value={row.currency || "EUR"}
             onChange={(e) => updateRow(row.id, "currency", e.target.value)}
-            className="px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="px-2 py-1 text-sm border border-edge rounded focus:outline-none focus:ring-2 focus:ring-primary"
           >
             <option value="EUR">EUR</option>
             <option value="USD">USD</option>
@@ -1010,7 +1010,7 @@ export default function ImportPage() {
             step="0.01"
             value={row.amount}
             onChange={(e) => updateRow(row.id, "amount", e.target.value)}
-            className="w-24 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-24 px-2 py-1 text-sm border border-edge rounded focus:outline-none focus:ring-2 focus:ring-primary"
           />
         );
 
@@ -1031,7 +1031,7 @@ export default function ImportPage() {
             type="checkbox"
             checked={!!row.is_refunded}
             onChange={(e) => updateRow(row.id, "is_refunded", e.target.checked)}
-            className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+            className="w-5 h-5 text-primary border-edge rounded focus:ring-primary"
             title="Segna come rimborsato"
           />
         );
@@ -1064,10 +1064,10 @@ export default function ImportPage() {
       <ModuleLayout moduleId="finance">
         <div className="max-w-7xl 3xl:max-w-[1600px] 4xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 3xl:px-10 py-8">
           <div className="animate-pulse">
-            <div className="h-8 bg-gray-200 rounded w-64 mb-8"></div>
+            <div className="h-8 bg-inset rounded w-64 mb-8"></div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {[...Array(2)].map((_, i) => (
-                <div key={i} className="h-64 bg-gray-200 rounded-lg"></div>
+                <div key={i} className="h-64 bg-inset rounded-lg"></div>
               ))}
             </div>
           </div>
@@ -1081,7 +1081,7 @@ export default function ImportPage() {
       <ModuleLayout moduleId="finance">
         <div className="max-w-7xl 3xl:max-w-[1600px] 4xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 3xl:px-10 py-8">
           <div className="text-center">
-            <p className="text-gray-500">
+            <p className="text-ink-muted">
               Devi effettuare il login per utilizzare l'import dati
             </p>
           </div>
@@ -1201,17 +1201,17 @@ export default function ImportPage() {
         {/* Resto del contenuto... */}
         {/* Sezione Upload - Solo se non c'è un file caricato */}
         {!currentFile && (
-          <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-8 relative">
+          <div className="bg-surface border border-edge shadow-card rounded-lg p-8 relative">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center space-x-3">
-                <div className="p-3 bg-blue-600 rounded-xl">
+                <div className="p-3 bg-primary rounded-lg">
                   <Upload className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-gray-900">
+                  <h2 className="text-xl font-bold text-ink">
                     Carica File
                   </h2>
-                  <p className="text-gray-600">
+                  <p className="text-ink-secondary">
                     Supporta file CSV e Excel (.xlsx, .xls)
                   </p>
                 </div>
@@ -1220,7 +1220,7 @@ export default function ImportPage() {
               {/* Pulsante Info */}
               <button
                 onClick={() => setShowInfoPopup(true)}
-                className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                className="p-2 text-ink-muted hover:text-primary hover:bg-primary-subtle rounded-lg transition-colors"
                 title="Informazioni formato file"
               >
                 <Info className="w-5 h-5" />
@@ -1228,9 +1228,9 @@ export default function ImportPage() {
             </div>
 
             <div
-              className={`border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200 ${isDragOver
-                ? "border-blue-400 bg-blue-50"
-                : "border-gray-300 hover:border-blue-400"
+              className={`border-2 border-dashed rounded-lg p-8 text-center transition-all duration-200 ${isDragOver
+                ? "border-primary bg-primary-subtle"
+                : "border-edge hover:border-primary"
                 }`}
               onDrop={handleDrop}
               onDragOver={handleDragOver}
@@ -1245,16 +1245,16 @@ export default function ImportPage() {
               />
 
               <div className="space-y-4">
-                <FileText className="w-12 h-12 text-gray-400 mx-auto" />
+                <FileText className="w-12 h-12 text-ink-muted mx-auto" />
                 <div>
-                  <p className="text-lg font-medium text-gray-900">
+                  <p className="text-lg font-medium text-ink">
                     Trascina il file qui
                   </p>
-                  <p className="text-gray-500">oppure clicca per selezionare</p>
+                  <p className="text-ink-muted">oppure clicca per selezionare</p>
                 </div>
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                  className="px-6 py-2 bg-primary hover:bg-primary-hover text-white rounded-lg transition-colors"
                 >
                   Seleziona File
                 </button>
@@ -1268,43 +1268,43 @@ export default function ImportPage() {
                 onClick={() => setShowInfoPopup(false)}
               >
                 <div
-                  className="bg-white rounded-xl p-6 max-w-md mx-4 shadow-2xl"
+                  className="bg-surface rounded-lg p-6 max-w-md mx-4 shadow-elevated"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center space-x-3">
-                      <div className="p-2 bg-blue-100 rounded-lg">
-                        <Info className="w-5 h-5 text-blue-600" />
+                      <div className="p-2 bg-primary-subtle rounded-lg">
+                        <Info className="w-5 h-5 text-primary" />
                       </div>
-                      <h3 className="text-lg font-semibold text-gray-900">
+                      <h3 className="text-lg font-semibold text-ink">
                         Formato File Supportato
                       </h3>
                     </div>
                     <button
                       onClick={() => setShowInfoPopup(false)}
-                      className="text-gray-400 hover:text-gray-600 transition-colors"
+                      className="text-ink-muted hover:text-ink-secondary transition-colors"
                     >
                       <X className="w-5 h-5" />
                     </button>
                   </div>
 
-                  <div className="space-y-4 text-sm text-gray-700">
+                  <div className="space-y-4 text-sm text-ink-secondary">
                     <div>
-                      <h4 className="font-medium text-gray-900 mb-2">
+                      <h4 className="font-medium text-ink mb-2">
                         Colonne Richieste:
                       </h4>
                       <p>• Data, Descrizione, Importo</p>
                     </div>
 
                     <div>
-                      <h4 className="font-medium text-gray-900 mb-2">
+                      <h4 className="font-medium text-ink mb-2">
                         Colonne Opzionali:
                       </h4>
                       <p>• Tipo, Categoria, Sottocategoria, Conto</p>
                     </div>
 
                     <div>
-                      <h4 className="font-medium text-gray-900 mb-2">
+                      <h4 className="font-medium text-ink mb-2">
                         Formati:
                       </h4>
                       <p>
@@ -1320,7 +1320,7 @@ export default function ImportPage() {
                     </div>
 
                     <div>
-                      <h4 className="font-medium text-gray-900 mb-2">
+                      <h4 className="font-medium text-ink mb-2">
                         Banche Supportate:
                       </h4>
                       <p>• Contanti, Revolut, PayPal, Postepay, Edenred</p>
@@ -1332,14 +1332,14 @@ export default function ImportPage() {
                   <div className="mt-6 flex justify-between">
                     <button
                       onClick={downloadTemplate}
-                      className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                      className="inline-flex items-center px-4 py-2 bg-success-strong text-white rounded-lg hover:bg-success-strong transition-colors"
                     >
                       <Download className="w-4 h-4 mr-2" />
                       Scarica Template
                     </button>
                     <button
                       onClick={() => setShowInfoPopup(false)}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors"
                     >
                       Ho Capito
                     </button>
@@ -1352,21 +1352,21 @@ export default function ImportPage() {
 
         {/* Informazioni File Caricato */}
         {currentFile && (
-          <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-6">
+          <div className="bg-surface border border-edge shadow-card rounded-lg p-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
-                <div className="p-3 bg-green-100 rounded-xl">
-                  <FileSpreadsheet className="w-6 h-6 text-green-600" />
+                <div className="p-3 bg-success-subtle rounded-lg">
+                  <FileSpreadsheet className="w-6 h-6 text-success-strong" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-gray-900">
+                  <h3 className="font-semibold text-ink">
                     {currentFile.name}
                   </h3>
-                  <div className="flex items-center space-x-4 text-sm text-gray-600">
+                  <div className="flex items-center space-x-4 text-sm text-ink-secondary">
                     <span>{(currentFile.size / 1024).toFixed(1)} KB</span>
                     {detectedBank && (
                       <span className="flex items-center space-x-1">
-                        <CheckCircle className="w-4 h-4 text-green-500" />
+                        <CheckCircle className="w-4 h-4 text-success" />
                         <span>{detectedBank.name}</span>
                       </span>
                     )}
@@ -1379,18 +1379,18 @@ export default function ImportPage() {
 
         {/* Progress Bar durante l'import */}
         {isUploading && importStats.total > 0 && (
-          <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-6">
+          <div className="bg-surface border border-edge shadow-card rounded-lg p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">
+              <h3 className="text-lg font-semibold text-ink">
                 Import in corso...
               </h3>
-              <span className="text-sm text-gray-600">
+              <span className="text-sm text-ink-secondary">
                 {importStats.processed} / {importStats.total}
               </span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
+            <div className="w-full bg-inset rounded-full h-2">
               <div
-                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                className="bg-primary h-2 rounded-full transition-all duration-300"
                 style={{
                   width: `${(importStats.processed / importStats.total) * 100
                     }%`,
@@ -1402,18 +1402,18 @@ export default function ImportPage() {
 
         {/* Preview Dati */}
         {importData.length > 0 && (
-          <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden">
-            <div className="p-6 border-b border-gray-200">
+          <div className="bg-surface border border-edge shadow-card rounded-lg overflow-hidden">
+            <div className="p-6 border-b border-edge">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900">
+                  <h3 className="text-lg font-semibold text-ink">
                     Preview Dati
                   </h3>
-                  <p className="text-gray-600">
+                  <p className="text-ink-secondary">
                     Tutti i record raggruppati per tabella di destinazione
                   </p>
                 </div>
-                <div className="text-sm text-gray-500">
+                <div className="text-sm text-ink-muted">
                   Totale: {importData.length} record
                 </div>
               </div>
@@ -1493,16 +1493,16 @@ export default function ImportPage() {
                   return (
                     <div
                       key={targetTable}
-                      className="border-b border-gray-200 last:border-b-0"
+                      className="border-b border-edge last:border-b-0"
                     >
-                      <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
-                        <h4 className="text-md font-medium text-gray-900 flex items-center">
+                      <div className="px-6 py-4 bg-canvas border-b border-edge">
+                        <h4 className="text-md font-medium text-ink flex items-center">
                           <span
                             className={`inline-block w-3 h-3 rounded-full mr-3 ${targetTable === "transactions"
-                              ? "bg-blue-500"
+                              ? "bg-primary"
                               : targetTable === "refunds"
-                                ? "bg-green-500"
-                                : "bg-purple-500"
+                                ? "bg-success"
+                                : "bg-module-health"
                               }`}
                           ></span>
                           {tableLabel} ({rows.length} record
@@ -1512,29 +1512,29 @@ export default function ImportPage() {
 
                       <div className="overflow-x-auto">
                         <table className="w-full">
-                          <thead className="bg-gray-50">
+                          <thead className="bg-canvas">
                             <tr>
                               {columns.map((column) => (
                                 <th
                                   key={column.key}
-                                  className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                  className="px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase tracking-wider"
                                 >
                                   {column.label}
                                 </th>
                               ))}
                             </tr>
                           </thead>
-                          <tbody className="bg-white divide-y divide-gray-200">
+                          <tbody className="bg-surface divide-y divide-edge">
                             {rows.map((row: ImportRow) => (
                               <tr
                                 key={row.id}
-                                className={`hover:bg-gray-50 ${row.status === "error" ? "bg-red-50" : ""
+                                className={`hover:bg-canvas ${row.status === "error" ? "bg-danger-subtle" : ""
                                   }`}
                               >
                                 {columns.map((column) => (
                                   <td
                                     key={column.key}
-                                    className="px-4 py-3 whitespace-nowrap text-sm text-gray-900"
+                                    className="px-4 py-3 whitespace-nowrap text-sm text-ink"
                                   >
                                     {renderCell(row, column.key)}
                                   </td>

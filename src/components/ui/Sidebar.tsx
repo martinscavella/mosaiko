@@ -4,17 +4,20 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useAuth } from "@/lib/auth";
+import { useTheme } from "@/lib/theme";
 import { MosaikoLogo } from "@/components/ui/MosaikoLogo";
 import clsx from "clsx";
-import { 
-  Home, 
-  Banknote, 
+import {
+  Home,
+  Banknote,
   User,
   ChevronRight,
   Settings,
   LogOut,
   PanelLeftClose,
-  PanelLeftOpen
+  PanelLeftOpen,
+  Sun,
+  Moon
 } from "lucide-react";
 
 const navigation = [
@@ -44,6 +47,7 @@ const navigation = [
 export function Sidebar() {
   const pathname = usePathname();
   const { user, signOut } = useAuth();
+  const { resolvedTheme, toggleTheme } = useTheme();
   
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set());
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
@@ -106,24 +110,24 @@ export function Sidebar() {
   return (
     <div 
       className={clsx(
-        "relative flex h-full flex-col bg-white border-r border-gray-200 transition-all duration-200",
+        "relative flex h-full flex-col bg-surface border-r border-edge transition-all duration-200",
         isCompact ? "w-16" : "w-64"
       )}
     >
       {/* Header */}
       <div className={clsx(
-        "flex h-16 shrink-0 items-center border-b border-gray-200",
+        "flex h-16 shrink-0 items-center border-b border-edge",
         isCompact ? "justify-center px-3" : "justify-between px-4"
       )}>
         <div className="flex items-center gap-3">
           <MosaikoLogo size={isCompact ? 24 : 28} src="/mosaiko.png" />
-          {!isCompact && <span className="font-semibold text-gray-900">Mosaiko</span>}
+          {!isCompact && <span className="font-semibold text-ink">Mosaiko</span>}
         </div>
         
         {!isCompact && (
           <button
             onClick={toggleCompact}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            className="p-1.5 rounded-lg text-ink-muted hover:text-ink-secondary hover:bg-inset transition-colors"
             title="Comprimi sidebar"
           >
             <PanelLeftClose className="w-4 h-4" />
@@ -135,7 +139,7 @@ export function Sidebar() {
       {isCompact && (
         <button
           onClick={toggleCompact}
-          className="mx-auto mt-3 p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+          className="mx-auto mt-3 p-1.5 rounded-lg text-ink-muted hover:text-ink-secondary hover:bg-inset transition-colors"
           title="Espandi sidebar"
         >
           <PanelLeftOpen className="w-4 h-4" />
@@ -156,8 +160,8 @@ export function Sidebar() {
                       "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                       isCompact && "justify-center",
                       isActive 
-                        ? "bg-blue-50 text-blue-600" 
-                        : "text-gray-700 hover:bg-gray-100"
+                        ? "bg-primary-subtle text-primary" 
+                        : "text-ink-secondary hover:bg-inset"
                     )}
                     title={isCompact ? item.name : undefined}
                   >
@@ -178,8 +182,8 @@ export function Sidebar() {
                       className={clsx(
                         "flex items-center justify-center rounded-lg p-2 transition-colors",
                         isModuleActive 
-                          ? "bg-blue-50 text-blue-600" 
-                          : "text-gray-700 hover:bg-gray-100"
+                          ? "bg-primary-subtle text-primary" 
+                          : "text-ink-secondary hover:bg-inset"
                       )}
                       title={item.name}
                     >
@@ -196,8 +200,8 @@ export function Sidebar() {
                     className={clsx(
                       "w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                       isModuleActive 
-                        ? "bg-blue-50 text-blue-600" 
-                        : "text-gray-700 hover:bg-gray-100"
+                        ? "bg-primary-subtle text-primary" 
+                        : "text-ink-secondary hover:bg-inset"
                     )}
                   >
                     <item.icon className="w-5 h-5 shrink-0" />
@@ -211,7 +215,7 @@ export function Sidebar() {
                   </button>
 
                   {isExpanded && (
-                    <ul className="mt-1 ml-4 space-y-1 border-l border-gray-200 pl-3">
+                    <ul className="mt-1 ml-4 space-y-1 border-l border-edge pl-3">
                       {item.children?.map((child) => {
                         const isChildActive = pathname === child.href;
                         return (
@@ -221,8 +225,8 @@ export function Sidebar() {
                               className={clsx(
                                 "block rounded-md px-3 py-1.5 text-sm transition-colors",
                                 isChildActive 
-                                  ? "bg-blue-50 text-blue-600 font-medium" 
-                                  : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                                  ? "bg-primary-subtle text-primary font-medium" 
+                                  : "text-ink-secondary hover:bg-inset hover:text-ink"
                               )}
                             >
                               {child.name}
@@ -239,24 +243,45 @@ export function Sidebar() {
         </ul>
       </nav>
 
+      {/* Theme Toggle */}
+      <div className={clsx("px-3 pb-2", isCompact && "px-2")}>
+        <button
+          onClick={toggleTheme}
+          className={clsx(
+            "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-ink-secondary hover:bg-inset transition-colors",
+            isCompact ? "justify-center w-auto mx-auto p-2" : "w-full"
+          )}
+          title={resolvedTheme === "dark" ? "Tema chiaro" : "Tema scuro"}
+        >
+          {resolvedTheme === "dark" ? (
+            <Sun className="w-5 h-5 shrink-0" />
+          ) : (
+            <Moon className="w-5 h-5 shrink-0" />
+          )}
+          {!isCompact && (
+            <span>{resolvedTheme === "dark" ? "Tema chiaro" : "Tema scuro"}</span>
+          )}
+        </button>
+      </div>
+
       {/* Profile Section */}
-      <div className={clsx("border-t border-gray-200 p-3", isCompact && "px-2")}>
+      <div className={clsx("border-t border-edge p-3", isCompact && "px-2")}>
         {user ? (
           <div className="relative">
             {isCompact ? (
               <Link
                 href="/profile"
-                className="flex items-center justify-center p-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
+                className="flex items-center justify-center p-2 rounded-lg text-ink-secondary hover:bg-inset transition-colors"
                 title={userDisplayName}
               >
                 {user.user_metadata?.avatar_url ? (
                   <div 
-                    className="w-8 h-8 rounded-full bg-cover bg-center border border-gray-200"
+                    className="w-8 h-8 rounded-full bg-cover bg-center border border-edge"
                     style={{ backgroundImage: `url(${user.user_metadata.avatar_url})` }}
                   />
                 ) : (
-                  <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
-                    <User className="w-4 h-4 text-gray-500" />
+                  <div className="w-8 h-8 rounded-full bg-inset flex items-center justify-center">
+                    <User className="w-4 h-4 text-ink-muted" />
                   </div>
                 )}
               </Link>
@@ -264,38 +289,38 @@ export function Sidebar() {
               <>
                 <button
                   onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-                  className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                  className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-inset transition-colors"
                 >
                   {user.user_metadata?.avatar_url ? (
                     <div 
-                      className="w-9 h-9 rounded-full bg-cover bg-center border border-gray-200 shrink-0"
+                      className="w-9 h-9 rounded-full bg-cover bg-center border border-edge shrink-0"
                       style={{ backgroundImage: `url(${user.user_metadata.avatar_url})` }}
                     />
                   ) : (
-                    <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
-                      <User className="w-5 h-5 text-gray-500" />
+                    <div className="w-9 h-9 rounded-full bg-inset flex items-center justify-center shrink-0">
+                      <User className="w-5 h-5 text-ink-muted" />
                     </div>
                   )}
                   <div className="flex-1 min-w-0 text-left">
-                    <p className="text-sm font-medium text-gray-900 truncate">{userDisplayName}</p>
-                    <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                    <p className="text-sm font-medium text-ink truncate">{userDisplayName}</p>
+                    <p className="text-xs text-ink-muted truncate">{user.email}</p>
                   </div>
                 </button>
 
                 {profileMenuOpen && (
-                  <div className="absolute bottom-full left-0 right-0 mb-2 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
+                  <div className="absolute bottom-full left-0 right-0 mb-2 bg-elevated rounded-lg shadow-elevated border border-edge overflow-hidden">
                     <div className="p-1">
                       <Link
                         href="/profile"
                         onClick={() => setProfileMenuOpen(false)}
-                        className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                        className="flex items-center gap-2 px-3 py-2 text-sm text-ink-secondary hover:bg-inset rounded-md transition-colors"
                       >
                         <Settings className="w-4 h-4" />
                         <span>Impostazioni</span>
                       </Link>
                       <button
                         onClick={handleLogout}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-danger hover:bg-danger-subtle rounded-md transition-colors"
                       >
                         <LogOut className="w-4 h-4" />
                         <span>Logout</span>

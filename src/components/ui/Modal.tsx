@@ -74,20 +74,20 @@ export default function Modal({
       {/* Modal */}
       <div 
         className={clsx(
-          'relative bg-white rounded-2xl shadow-2xl w-full animate-in zoom-in-95 slide-in-from-bottom-4 duration-200',
+          'relative bg-surface rounded-lg shadow-elevated w-full animate-in zoom-in-95 slide-in-from-bottom-4 duration-200',
           'max-h-[90vh] flex flex-col',
           sizeClasses[size]
         )}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-start justify-between p-6 border-b border-gray-200">
+        <div className="flex items-start justify-between p-6 border-b border-edge">
           <div className="flex-1 min-w-0">
-            <h2 className="text-2xl font-bold text-gray-900 mb-1">
+            <h2 className="text-2xl font-bold text-ink mb-1">
               {title}
             </h2>
             {subtitle && (
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-ink-muted">
                 {subtitle}
               </p>
             )}
@@ -95,7 +95,7 @@ export default function Modal({
           {showCloseButton && (
             <button
               onClick={onClose}
-              className="ml-4 flex-shrink-0 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              className="ml-4 flex-shrink-0 p-2 text-ink-muted hover:text-ink-secondary hover:bg-inset rounded-lg transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
@@ -109,7 +109,7 @@ export default function Modal({
 
         {/* Footer */}
         {footer && (
-          <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 bg-gray-50">
+          <div className="flex items-center justify-end gap-3 p-6 border-t border-edge bg-canvas">
             {footer}
           </div>
         )}
@@ -137,9 +137,9 @@ export function ModalButton({
   type = 'button'
 }: ModalButtonProps) {
   const variantClasses = {
-    primary: 'bg-blue-600 hover:bg-blue-700 text-white',
-    secondary: 'bg-gray-200 hover:bg-gray-300 text-gray-900',
-    danger: 'bg-red-600 hover:bg-red-700 text-white'
+    primary: 'bg-primary hover:bg-primary-hover text-white',
+    secondary: 'bg-inset hover:bg-inset text-ink',
+    danger: 'bg-danger hover:bg-danger text-white'
   }
 
   return (
@@ -150,7 +150,7 @@ export function ModalButton({
       className={clsx(
         'px-4 py-2 rounded-lg font-medium text-sm transition-all duration-150 active:scale-95',
         disabled || loading
-          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+          ? 'bg-inset text-ink-muted cursor-not-allowed'
           : variantClasses[variant]
       )}
     >

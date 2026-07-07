@@ -1,6 +1,3 @@
-/* ===================== GOOGLE FONTS ===================== */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap');
-
 /* ===================== TAILWIND BASE ===================== */
 /* stylelint-disable at-rule-no-unknown */
 @tailwind base;
@@ -8,30 +5,167 @@
 @tailwind utilities;
 /* stylelint-enable at-rule-no-unknown */
 
-/* ===================== CSS VARIABLES ===================== */
+/* ===================== DESIGN TOKENS (designtoken.md) ===================== */
 @layer base {
   :root {
-    --font-inter: 'Inter', system-ui, -apple-system, sans-serif;
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222.2 84% 4.9%;
+    /* --- Primitive colors --- */
+    --blue-600: #1D4ED8;
+    --blue-700: #1E40AF;
+    --blue-100: #DBEAFE;
+
+    --green-500: #10B981;
+    --green-100: #D1FAE5;
+
+    --red-600: #DC2626;
+    --red-100: #FEE2E2;
+
+    --amber-600: #D97706;
+    --amber-100: #FEF3C7;
+
+    --teal-600: #0D9488;
+    --teal-100: #CCFBF1;
+    --violet-600: #7C3AED;
+    --violet-100: #EDE9FE;
+
+    --slate-900: #0F172A;
+    --slate-700: #334155;
+    --slate-400: #94A3B8;
+    --slate-100: #F1F5F9;
+    --slate-50: #F8FAFC;
+    --white: #FFFFFF;
+
+    /* --- Brand --- */
+    --color-primary: var(--blue-600);
+    --color-primary-hover: var(--blue-700);
+    --color-primary-subtle: var(--blue-100);
+
+    /* --- Status --- */
+    --color-success: var(--green-500);
+    --color-success-strong: #059669;
+    --color-success-subtle: var(--green-100);
+    --color-danger: var(--red-600);
+    --color-danger-subtle: var(--red-100);
+    --color-warning: var(--amber-600);
+    --color-warning-subtle: var(--amber-100);
+
+    /* --- Text --- */
+    --color-text-primary: var(--slate-900);
+    --color-text-secondary: var(--slate-700);
+    --color-text-muted: var(--slate-400);
+    --color-text-inverse: var(--white);
+
+    /* --- Background --- */
+    --color-bg-canvas: var(--slate-50);
+    --color-bg-surface: var(--white);
+    --color-bg-elevated: var(--white);
+    --color-bg-inset: var(--slate-100);
+    --color-border: #E2E8F0;
+    --color-border-subtle: var(--slate-100);
+
+    /* --- Module accents --- */
+    --color-module-finance: var(--blue-600);
+    --color-module-finance-subtle: var(--blue-100);
+    --color-module-tasks: var(--teal-600);
+    --color-module-tasks-subtle: var(--teal-100);
+    --color-module-health: var(--violet-600);
+    --color-module-health-subtle: var(--violet-100);
+    --color-module-learning: var(--amber-600);
+    --color-module-learning-subtle: var(--amber-100);
+
+    /* --- Elevation --- */
+    --shadow-card: 0px 2px 8px rgba(15, 23, 42, 0.06);
+    --shadow-elevated: 0px 4px 16px rgba(15, 23, 42, 0.10);
+
+    /* --- Charts --- */
+    --chart-grid: #E2E8F0;
+    --chart-tooltip-bg: var(--white);
+    /* Palette categorica validata (CVD-safe, contrasto >= 3:1 su surface) */
+    --chart-cat-1: #1D4ED8;
+    --chart-cat-2: #0D9488;
+    --chart-cat-3: #7C3AED;
+    --chart-cat-4: #D97706;
+    --chart-cat-5: #DB2777;
+    --chart-cat-6: #65A30D;
+    --chart-cat-7: #0891B2;
+    --chart-cat-8: #4F46E5;
+
+    color-scheme: light;
   }
-  
-  * {
-    font-family: var(--font-inter);
+
+  [data-theme="dark"] {
+    --color-bg-canvas: #0B1220;
+    --color-bg-surface: #131B2E;
+    --color-bg-elevated: #1A2438;
+    --color-bg-inset: #1E2A44;
+    --color-border: #24304A;
+    --color-border-subtle: #1C2740;
+
+    --color-text-primary: #F1F5F9;
+    --color-text-secondary: #CBD5E1;
+    --color-text-muted: #64748B;
+    --color-text-inverse: #0F172A;
+
+    --color-primary: #3B82F6;
+    --color-primary-hover: #60A5FA;
+    --color-primary-subtle: #1E3A8A;
+
+    --color-success: #34D399;
+    --color-success-strong: #34D399;
+    --color-success-subtle: #064E3B;
+    --color-danger: #F87171;
+    --color-danger-subtle: #7F1D1D;
+    --color-warning: #FBBF24;
+    --color-warning-subtle: #78350F;
+
+    --color-module-finance: #60A5FA;
+    --color-module-finance-subtle: #1E3A8A;
+    --color-module-tasks: #2DD4BF;
+    --color-module-tasks-subtle: #134E4A;
+    --color-module-health: #A78BFA;
+    --color-module-health-subtle: #4C1D95;
+    --color-module-learning: #FBBF24;
+    --color-module-learning-subtle: #78350F;
+
+    --shadow-card: 0px 2px 8px rgba(0, 0, 0, 0.35);
+    --shadow-elevated: 0px 4px 16px rgba(0, 0, 0, 0.50);
+
+    --chart-grid: #24304A;
+    --chart-tooltip-bg: #1A2438;
+    --chart-cat-1: #3B82F6;
+    --chart-cat-2: #0D9488;
+    --chart-cat-3: #8B5CF6;
+    --chart-cat-4: #D97706;
+    --chart-cat-5: #EC4899;
+    --chart-cat-6: #65A30D;
+    --chart-cat-7: #0891B2;
+    --chart-cat-8: #6366F1;
+
+    color-scheme: dark;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: var(--font-body), system-ui, -apple-system, sans-serif;
+    background-color: var(--color-bg-canvas);
+    color: var(--color-text-primary);
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading), var(--font-body), system-ui, sans-serif;
   }
 }
 
-/* ===================== BASE STYLES ===================== */
-html {
-  scroll-behavior: smooth;
+/* ===================== AMOUNTS / TABULAR NUMBERS ===================== */
+.font-amount {
+  font-family: var(--font-mono), monospace;
+  font-variant-numeric: tabular-nums;
 }
 
-* {
-  box-sizing: border-box;
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
 }
 
 /* ===================== SCROLLBAR ===================== */
@@ -40,16 +174,16 @@ html {
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: var(--color-bg-inset);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: var(--color-text-muted);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: var(--color-text-secondary);
 }
 
 /* ===================== ANIMAZIONI ESSENZIALI ===================== */
@@ -95,14 +229,19 @@ html {
 
 /* ===================== LOADING SKELETON ===================== */
 .skeleton {
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background: linear-gradient(
+    90deg,
+    var(--color-bg-inset) 25%,
+    var(--color-border) 50%,
+    var(--color-bg-inset) 75%
+  );
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
 
 /* ===================== FOCUS STATES ===================== */
 .focus-ring:focus {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
 

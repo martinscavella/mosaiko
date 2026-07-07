@@ -94,7 +94,7 @@ export function BottomMenu() {
   return (
     <>
       {/* Bottom Menu - mobile only */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40 safe-bottom">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-surface border-t border-edge z-40 safe-bottom">
         <div className="max-w-7xl 3xl:max-w-[1600px] 4xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 3xl:px-10">
           <div className="max-w-md mx-auto w-full px-2">
             <div className="flex items-center justify-center h-16 gap-1">
@@ -110,7 +110,7 @@ export function BottomMenu() {
                         onClick={item.action}
                         className={clsx(
                           "flex-1 flex flex-col items-center justify-center gap-1 px-1 py-1.5 rounded-lg transition-all duration-200",
-                          item.active ? "text-blue-600" : "text-gray-500 active:bg-gray-50"
+                          item.active ? "text-primary" : "text-ink-muted active:bg-canvas"
                         )}
                       >
                         <IconComponent size={24} strokeWidth={item.active ? 2.5 : 2} />
@@ -130,7 +130,7 @@ export function BottomMenu() {
                       href={item.href!}
                       className={clsx(
                         "flex-1 flex flex-col items-center justify-center gap-1 px-1 py-1.5 rounded-lg transition-all duration-200",
-                        item.active ? "text-blue-600" : "text-gray-500 active:bg-gray-50"
+                        item.active ? "text-primary" : "text-ink-muted active:bg-canvas"
                       )}
                     >
                       <IconComponent size={24} strokeWidth={item.active ? 2.5 : 2} />
@@ -156,7 +156,7 @@ export function BottomMenu() {
                       key={fab.name}
                       onClick={fab.action}
                       aria-label={fab.name}
-                      className="flex-shrink-0 -mt-6 bg-blue-600 text-white w-14 h-14 rounded-xl shadow-lg flex items-center justify-center active:scale-95 hover:shadow-xl transition-transform"
+                      className="flex-shrink-0 -mt-6 bg-primary text-white w-14 h-14 rounded-lg shadow-elevated flex items-center justify-center active:scale-95 hover:shadow-elevated transition-transform"
                     >
                       <Icon size={26} strokeWidth={2} />
                     </button>
@@ -167,7 +167,7 @@ export function BottomMenu() {
                   <Link 
                     key={fab.name}
                     href={fab.href!} 
-                    className="flex-shrink-0 -mt-6 bg-blue-600 text-white w-14 h-14 rounded-xl shadow-lg flex items-center justify-center active:scale-95 hover:shadow-xl transition-transform"
+                    className="flex-shrink-0 -mt-6 bg-primary text-white w-14 h-14 rounded-lg shadow-elevated flex items-center justify-center active:scale-95 hover:shadow-elevated transition-transform"
                   >
                     <Icon size={26} strokeWidth={2} />
                   </Link>
@@ -186,7 +186,7 @@ export function BottomMenu() {
                         onClick={item.action}
                         className={clsx(
                           "flex-1 flex flex-col items-center justify-center gap-1 px-1 py-1.5 rounded-lg transition-all duration-200",
-                          item.active ? "text-blue-600" : "text-gray-500 active:bg-gray-50"
+                          item.active ? "text-primary" : "text-ink-muted active:bg-canvas"
                         )}
                       >
                         <IconComponent size={24} strokeWidth={item.active ? 2.5 : 2} />
@@ -206,7 +206,7 @@ export function BottomMenu() {
                       href={item.href!}
                       className={clsx(
                         "flex-1 flex flex-col items-center justify-center gap-1 px-1 py-1.5 rounded-lg transition-all duration-200",
-                        item.active ? "text-blue-600" : "text-gray-500 active:bg-gray-50"
+                        item.active ? "text-primary" : "text-ink-muted active:bg-canvas"
                       )}
                     >
                       <IconComponent size={24} strokeWidth={item.active ? 2.5 : 2} />
@@ -227,21 +227,21 @@ export function BottomMenu() {
 
       {/* More Menu Popup */}
       {showMoreMenu && (
-        <div className="md:hidden fixed bottom-20 right-4 left-4 sm:left-auto sm:w-72 bg-white rounded-2xl shadow-2xl border border-gray-200 z-50 overflow-hidden animate-in slide-in-from-bottom-4 duration-200">
+        <div className="md:hidden fixed bottom-20 right-4 left-4 sm:left-auto sm:w-72 bg-surface rounded-lg shadow-elevated border border-edge z-50 overflow-hidden animate-in slide-in-from-bottom-4 duration-200">
           {/* Header solo se utente loggato */}
           {user && (
-            <div className="p-4 bg-gray-50 border-b border-gray-100">
+            <div className="p-4 bg-canvas border-b border-edge-subtle">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center">
+                <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center">
                   <User size={20} className="text-white" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-gray-900 truncate">
+                  <p className="text-sm font-semibold text-ink truncate">
                     {user?.user_metadata?.first_name && user?.user_metadata?.last_name
                       ? `${user.user_metadata.first_name} ${user.user_metadata.last_name}`
                       : user?.email?.split('@')[0] || 'User'}
                   </p>
-                  <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                  <p className="text-xs text-ink-muted truncate">{user?.email}</p>
                 </div>
               </div>
             </div>
@@ -250,7 +250,7 @@ export function BottomMenu() {
           <div className="py-2">
             {secondaryMenuItems.map((item, index) => {
               if (item.type === 'divider') {
-                return <div key={`divider-${index}`} className="h-px bg-gray-200 my-2" />;
+                return <div key={`divider-${index}`} className="h-px bg-inset my-2" />;
               }
               
               const IconComponent = item.icon!;
@@ -264,11 +264,11 @@ export function BottomMenu() {
                   className={clsx(
                     "flex items-center px-4 py-3 text-sm font-medium transition-colors",
                     isActive 
-                      ? "bg-blue-50 text-blue-600" 
-                      : "text-gray-700 hover:bg-gray-50 active:bg-gray-100"
+                      ? "bg-primary-subtle text-primary" 
+                      : "text-ink-secondary hover:bg-canvas active:bg-inset"
                   )}
                 >
-                  <IconComponent size={20} className={clsx("mr-3", isActive ? "text-blue-600" : "text-gray-400")} />
+                  <IconComponent size={20} className={clsx("mr-3", isActive ? "text-primary" : "text-ink-muted")} />
                   {item.name}
                 </Link>
               );
@@ -277,7 +277,7 @@ export function BottomMenu() {
             {/* Logout sempre presente */}
             <button
               onClick={handleSignOut}
-              className="flex items-center w-full px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 active:bg-red-100 transition-colors"
+              className="flex items-center w-full px-4 py-3 text-sm font-medium text-danger hover:bg-danger-subtle active:bg-danger-subtle transition-colors"
             >
               <LogOut size={20} className="mr-3" />
               Esci dall'Account

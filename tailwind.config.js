@@ -5,6 +5,7 @@ module.exports = {
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
+  darkMode: ['selector', '[data-theme="dark"]'],
   theme: {
     extend: {
       // Breakpoint per schermi ultrawide
@@ -13,55 +14,104 @@ module.exports = {
         '4xl': '2560px',
       },
       fontFamily: {
-        'sans': ['var(--font-inter)', 'system-ui', '-apple-system', 'sans-serif'],
-        'mono': ['Fira Code', 'Menlo', 'monospace'],
+        sans: ['var(--font-body)', 'system-ui', '-apple-system', 'sans-serif'],
+        heading: ['var(--font-heading)', 'var(--font-body)', 'system-ui', 'sans-serif'],
+        mono: ['var(--font-mono)', 'Menlo', 'monospace'],
+      },
+      fontSize: {
+        // Scala tipografica da designtoken.md
+        h1: ['26px', { lineHeight: '32px', fontWeight: '700' }],
+        h2: ['20px', { lineHeight: '28px', fontWeight: '600' }],
+        body: ['15px', { lineHeight: '22px' }],
+        caption: ['13px', { lineHeight: '18px' }],
+        amount: ['32px', { lineHeight: '38px', fontWeight: '700' }],
       },
       colors: {
-        background: "var(--background)",
-        foreground: "var(--foreground)",
+        // Token semantici — definiti in globals.css, mai hex hardcoded nei componenti
+        primary: {
+          DEFAULT: 'var(--color-primary)',
+          hover: 'var(--color-primary-hover)',
+          subtle: 'var(--color-primary-subtle)',
+        },
+        success: {
+          DEFAULT: 'var(--color-success)',
+          strong: 'var(--color-success-strong)',
+          subtle: 'var(--color-success-subtle)',
+        },
+        danger: {
+          DEFAULT: 'var(--color-danger)',
+          subtle: 'var(--color-danger-subtle)',
+        },
+        warning: {
+          DEFAULT: 'var(--color-warning)',
+          subtle: 'var(--color-warning-subtle)',
+        },
+        canvas: 'var(--color-bg-canvas)',
+        surface: 'var(--color-bg-surface)',
+        elevated: 'var(--color-bg-elevated)',
+        inset: 'var(--color-bg-inset)',
+        ink: {
+          DEFAULT: 'var(--color-text-primary)',
+          secondary: 'var(--color-text-secondary)',
+          muted: 'var(--color-text-muted)',
+          inverse: 'var(--color-text-inverse)',
+        },
+        edge: {
+          DEFAULT: 'var(--color-border)',
+          subtle: 'var(--color-border-subtle)',
+        },
+        module: {
+          finance: {
+            DEFAULT: 'var(--color-module-finance)',
+            subtle: 'var(--color-module-finance-subtle)',
+          },
+          tasks: {
+            DEFAULT: 'var(--color-module-tasks)',
+            subtle: 'var(--color-module-tasks-subtle)',
+          },
+          health: {
+            DEFAULT: 'var(--color-module-health)',
+            subtle: 'var(--color-module-health-subtle)',
+          },
+          learning: {
+            DEFAULT: 'var(--color-module-learning)',
+            subtle: 'var(--color-module-learning-subtle)',
+          },
+        },
+      },
+      borderColor: {
+        DEFAULT: 'var(--color-border)',
+      },
+      boxShadow: {
+        card: 'var(--shadow-card)',
+        elevated: 'var(--shadow-elevated)',
       },
       animation: {
-        'float': 'float 3s ease-in-out infinite',
-        'shimmer': 'shimmer 2s infinite',
-        'glow': 'glow 2s ease-in-out infinite alternate',
-        'gradient': 'gradient-shift 3s ease infinite',
+        shimmer: 'shimmer 2s infinite',
         'slide-up': 'slideInUp 0.6s ease-out forwards',
         'fade-scale': 'fadeInScale 0.5s ease-out forwards',
       },
       keyframes: {
-        float: {
-          '0%, 100%': { transform: 'translateY(0px)' },
-          '50%': { transform: 'translateY(-10px)' },
-        },
         shimmer: {
           '0%': { backgroundPosition: '-200% 0' },
           '100%': { backgroundPosition: '200% 0' },
         },
-        glow: {
-          '0%, 100%': { boxShadow: '0 0 20px rgba(59, 130, 246, 0.3)' },
-          '50%': { boxShadow: '0 0 30px rgba(147, 51, 234, 0.4)' },
-        },
-        'gradient-shift': {
-          '0%': { backgroundPosition: '0% 50%' },
-          '50%': { backgroundPosition: '100% 50%' },
-          '100%': { backgroundPosition: '0% 50%' },
-        },
         slideInUp: {
-          'from': {
+          from: {
             transform: 'translateY(30px)',
             opacity: '0',
           },
-          'to': {
+          to: {
             transform: 'translateY(0)',
             opacity: '1',
           },
         },
         fadeInScale: {
-          'from': {
+          from: {
             transform: 'scale(0.8)',
             opacity: '0',
           },
-          'to': {
+          to: {
             transform: 'scale(1)',
             opacity: '1',
           },

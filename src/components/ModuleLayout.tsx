@@ -7,7 +7,7 @@ interface ModuleLayoutProps {
 
 export default function ModuleLayout({ children }: ModuleLayoutProps) {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-canvas">
       {/* Module Content */}
       <main>
         {children}

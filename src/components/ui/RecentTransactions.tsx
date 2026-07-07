@@ -45,20 +45,20 @@ export default function RecentTransactions({ limit = 5, onTransactionClick }: Re
   // Loading skeleton
   if (loading) {
     return (
-      <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-5">
+      <div className="bg-surface border border-edge rounded-lg shadow-card p-5">
         <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 bg-gray-200 rounded-lg animate-pulse" />
-          <div className="h-5 bg-gray-200 rounded w-36 animate-pulse" />
+          <div className="w-10 h-10 bg-inset rounded-lg animate-pulse" />
+          <div className="h-5 bg-inset rounded w-36 animate-pulse" />
         </div>
         <div className="space-y-3">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 animate-pulse">
-              <div className="w-9 h-9 bg-gray-200 rounded-lg" />
+            <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-canvas animate-pulse">
+              <div className="w-9 h-9 bg-inset rounded-lg" />
               <div className="flex-1">
-                <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
-                <div className="h-3 bg-gray-200 rounded w-1/2" />
+                <div className="h-4 bg-inset rounded w-3/4 mb-2" />
+                <div className="h-3 bg-inset rounded w-1/2" />
               </div>
-              <div className="h-4 bg-gray-200 rounded w-16" />
+              <div className="h-4 bg-inset rounded w-16" />
             </div>
           ))}
         </div>
@@ -69,14 +69,14 @@ export default function RecentTransactions({ limit = 5, onTransactionClick }: Re
   // Error state
   if (error) {
     return (
-      <div className="bg-white border border-red-200 rounded-xl shadow-sm p-5">
+      <div className="bg-surface border border-danger-subtle rounded-lg shadow-card p-5">
         <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-red-100 text-red-600">
+          <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-danger-subtle text-danger">
             <Calendar className="w-5 h-5" />
           </div>
-          <h3 className="text-base font-semibold text-gray-900">Transazioni Recenti</h3>
+          <h3 className="text-base font-semibold text-ink">Transazioni Recenti</h3>
         </div>
-        <p className="text-sm text-red-600">Errore: {error}</p>
+        <p className="text-sm text-danger">Errore: {error}</p>
       </div>
     )
   }
@@ -84,31 +84,31 @@ export default function RecentTransactions({ limit = 5, onTransactionClick }: Re
   // Empty state
   if (transactions.length === 0) {
     return (
-      <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-5">
+      <div className="bg-surface border border-edge rounded-lg shadow-card p-5">
         <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-blue-100 text-blue-600">
+          <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-primary-subtle text-primary">
             <Calendar className="w-5 h-5" />
           </div>
-          <h3 className="text-base font-semibold text-gray-900">Transazioni Recenti</h3>
+          <h3 className="text-base font-semibold text-ink">Transazioni Recenti</h3>
         </div>
         <div className="text-center py-8">
-          <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-          <p className="text-sm text-gray-500">Nessuna transazione</p>
+          <Calendar className="w-12 h-12 text-ink-muted mx-auto mb-3" />
+          <p className="text-sm text-ink-muted">Nessuna transazione</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-5">
+    <div className="bg-surface border border-edge rounded-lg shadow-card p-5">
       {/* Header */}
       <div className="flex items-center gap-3 mb-4">
-        <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-blue-100 text-blue-600">
+        <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-primary-subtle text-primary">
           <Calendar className="w-5 h-5" />
         </div>
         <div>
-          <h3 className="text-base font-semibold text-gray-900">Transazioni Recenti</h3>
-          <p className="text-sm text-gray-500">Ultime {transactions.length} transazioni</p>
+          <h3 className="text-base font-semibold text-ink">Transazioni Recenti</h3>
+          <p className="text-sm text-ink-muted">Ultime {transactions.length} transazioni</p>
         </div>
       </div>
 
@@ -124,22 +124,22 @@ export default function RecentTransactions({ limit = 5, onTransactionClick }: Re
               <div
                 key={transaction.id}
                 onClick={() => openModal(transaction)}
-                className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 hover:bg-gray-100 cursor-pointer transition-colors duration-150"
+                className="flex items-center gap-3 p-3 rounded-lg bg-canvas hover:bg-inset cursor-pointer transition-colors duration-150"
               >
                 {/* Icona */}
                 <div className={clsx(
                   'w-9 h-9 flex items-center justify-center rounded-lg',
-                  isIncome ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
+                  isIncome ? 'bg-success-subtle text-success-strong' : 'bg-danger-subtle text-danger'
                 )}>
                   {isIncome ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownLeft className="w-4 h-4" />}
                 </div>
 
                 {/* Dettagli */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">
+                  <p className="text-sm font-medium text-ink truncate">
                     {transaction.transaction_details || 'Transazione'}
                   </p>
-                  <p className="text-xs text-gray-500 truncate">
+                  <p className="text-xs text-ink-muted truncate">
                     {formatDate(transaction.transaction_date)}
                     {transaction.account_name && ` • ${transaction.account_name}`}
                   </p>
@@ -147,8 +147,8 @@ export default function RecentTransactions({ limit = 5, onTransactionClick }: Re
 
                 {/* Importo */}
                 <span className={clsx(
-                  'text-sm font-semibold tabular-nums',
-                  isIncome ? 'text-green-600' : 'text-red-600'
+                  'text-sm font-semibold font-amount',
+                  isIncome ? 'text-success-strong' : 'text-danger'
                 )}>
                   {isIncome ? '+' : '-'}{formatAmount(amount)}
                 </span>

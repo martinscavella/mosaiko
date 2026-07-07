@@ -6,7 +6,7 @@ import ModuleLayout from "@/components/ModuleLayout"; // Layout di base per il m
 import ModuleHeader from "@/components/ui/ModuleHeader"; // Header della dashboard
 import FinanceWidget from "@/components/ui/FinanceWidget"; // Widget per mostrare dati finanziari
 import RecentTransactions from "@/components/ui/RecentTransactions"; // Lista delle transazioni recenti
-import FinancialGoalsWidget from "@/components/ui/FinancialGoalsWidget"; // Widget per obiettivi finanziari
+import CategorySpendingWidget from "@/components/ui/CategorySpendingWidget"; // Spese per categoria del mese
 import CacheStatus from "@/components/ui/CacheStatus"; // Stato della cache dei dati
 import CashQuickActions from "@/components/ui/CashQuickActions"; // Azioni rapide sui contanti
 import LoadingSpinner from "@/components/ui/LoadingSpinner"; // Spinner di caricamento uniforme
@@ -60,6 +60,68 @@ export default function FinanceDashboard() {
   }
   const totalSavingsRate =
     totalIncome > 0 ? ((totalIncome - totalExpenses) / totalIncome) * 100 : 0;
+
+  // Aggregati del mese precedente per i delta reali dei KPI
+  // (stessa logica delle stats: entrate = importi positivi, uscite senza acquisti asset)
+  const prevMonth = (() => {
+    if (!data?.transactions || !stats.monthYear) return null;
+    const [year, month] = stats.monthYear.split("-").map(Number);
+    const prevDate = new Date(year, month - 2, 1);
+    const prevKey = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, "0")}`;
+
+    let income = 0;
+    let expenses = 0;
+    let hasData = false;
+    data.transactions.forEach((t) => {
+      if (t.transaction_date.slice(0, 7) !== prevKey) return;
+      hasData = true;
+      const amount = Number(t.current_amount || 0);
+      if (amount > 0) income += amount;
+      else if (!t.asset_id) expenses += Math.abs(amount);
+    });
+    if (!hasData) return null;
+
+    const savingsRate = income > 0 ? ((income - expenses) / income) * 100 : 0;
+    const label = prevDate.toLocaleDateString("it-IT", { month: "long" });
+    return { income, expenses, savingsRate: Math.max(0, Math.min(100, savingsRate)), label };
+  })();
+
+  // Delta percentuale vs mese precedente, con sentiment corretto per ciascun KPI
+  const pctDelta = (current: number, previous: number) =>
+    previous !== 0 ? ((current - previous) / previous) * 100 : null;
+
+  const incomeDelta = (() => {
+    if (!prevMonth) return undefined;
+    const pct = pctDelta(stats.monthlyIncome, prevMonth.income);
+    if (pct === null) return undefined;
+    return {
+      label: `${Math.abs(pct).toFixed(0)}% vs ${prevMonth.label}`,
+      direction: pct >= 0 ? ("up" as const) : ("down" as const),
+      sentiment: pct >= 0 ? ("good" as const) : ("bad" as const),
+    };
+  })();
+
+  const expensesDelta = (() => {
+    if (!prevMonth) return undefined;
+    const pct = pctDelta(stats.monthlyExpenses, prevMonth.expenses);
+    if (pct === null) return undefined;
+    return {
+      label: `${Math.abs(pct).toFixed(0)}% vs ${prevMonth.label}`,
+      direction: pct >= 0 ? ("up" as const) : ("down" as const),
+      // Per le uscite un aumento è negativo
+      sentiment: pct <= 0 ? ("good" as const) : ("bad" as const),
+    };
+  })();
+
+  const savingsDelta = (() => {
+    if (!prevMonth) return undefined;
+    const diff = stats.savingsRate - prevMonth.savingsRate;
+    return {
+      label: `${Math.abs(diff).toFixed(1)} p.p. vs ${prevMonth.label}`,
+      direction: diff >= 0 ? ("up" as const) : ("down" as const),
+      sentiment: diff >= 0 ? ("good" as const) : ("bad" as const),
+    };
+  })();
 
   // Se l'autenticazione è in caricamento, mostra uno spinner uniforme
   if (authLoading) {
@@ -151,15 +213,15 @@ export default function FinanceDashboard() {
             </div>
           </div>
 
-          {/* Seconda riga: statistiche mensili, responsive */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 3xl:grid-cols-3 gap-4 3xl:gap-6 mb-4"> {/* gap e mb uniformati a 4 */}
+          {/* Seconda riga: KPI mensili con delta reale vs mese precedente */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 3xl:grid-cols-3 gap-4 3xl:gap-6 mb-4">
             <FinanceWidget
               title="Entrate Mensili"
               value={formatCurrency(stats.monthlyIncome)}
               subtitle={stats.currentMonth}
               icon="income"
               color="green"
-              trend={stats.monthlyIncome > 0 ? "up" : "neutral"}
+              delta={incomeDelta}
               loading={loading}
               onClick={() => router.push('/finance/transactions')}
             />
@@ -173,7 +235,7 @@ export default function FinanceDashboard() {
               }
               icon="expenses"
               color="red"
-              trend={stats.monthlyExpenses > 0 ? "down" : "neutral"}
+              delta={expensesDelta}
               loading={loading}
               onClick={() => router.push('/finance/transactions')}
             />
@@ -182,22 +244,20 @@ export default function FinanceDashboard() {
               value={formatPercentage(stats.savingsRate)}
               subtitle={stats.currentMonth}
               icon="badge-percent"
-              color="purple"
-              trend={
-                stats.savingsRate > 20
-                  ? "up"
-                  : stats.savingsRate > 10
-                  ? "neutral"
-                  : "down"
-              }
+              color="blue"
+              delta={savingsDelta}
               loading={loading}
             />
           </div>
 
-          {/* Transazioni Recenti e Obiettivi */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 3xl:gap-6 mb-4"> {/* gap e mb uniformati a 4 */}
-            <RecentTransactions limit={5} onTransactionClick={openModal} />
-            <FinancialGoalsWidget limit={4} />
+          {/* Terza riga: spese per categoria del mese */}
+          <div className="mb-4">
+            <CategorySpendingWidget />
+          </div>
+
+          {/* Transazioni recenti a tutta larghezza */}
+          <div className="mb-4">
+            <RecentTransactions limit={8} onTransactionClick={openModal} />
           </div>
         </div>
       </ModuleLayout>

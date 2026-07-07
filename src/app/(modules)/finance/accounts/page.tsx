@@ -142,17 +142,17 @@ export default function AccountsPage() {
 
   const getAccountTypeColor = (type: string) => {
     const colors: { [key: string]: string } = {
-      bank_account: 'bg-blue-100 text-blue-800',
-      debit_card: 'bg-indigo-100 text-indigo-800',
-      credit_card: 'bg-red-100 text-red-800',
-      saving_account: 'bg-green-100 text-green-800',
-      foreign_account: 'bg-purple-100 text-purple-800',
-      investment_account: 'bg-orange-100 text-orange-800',
-      cash: 'bg-yellow-100 text-yellow-800',
-      voucher: 'bg-pink-100 text-pink-800',
-      digital_wallet: 'bg-cyan-100 text-cyan-800'
+      bank_account: 'bg-primary-subtle text-primary',
+      debit_card: 'bg-primary-subtle text-primary',
+      credit_card: 'bg-danger-subtle text-danger',
+      saving_account: 'bg-success-subtle text-success-strong',
+      foreign_account: 'bg-module-health-subtle text-module-health',
+      investment_account: 'bg-warning-subtle text-warning',
+      cash: 'bg-warning-subtle text-warning',
+      voucher: 'bg-module-health-subtle text-module-health',
+      digital_wallet: 'bg-module-tasks-subtle text-module-tasks'
     }
-    return colors[type] || 'bg-gray-100 text-gray-800'
+    return colors[type] || 'bg-inset text-ink'
   }
 
   const getAccountIcon = (type: string) => {
@@ -196,10 +196,10 @@ export default function AccountsPage() {
   }
 
   const getSortIcon = (field: 'name' | 'type' | 'balance') => {
-    if (sortField !== field) return <ArrowUpDown className="w-4 h-4 text-gray-400" />
+    if (sortField !== field) return <ArrowUpDown className="w-4 h-4 text-ink-muted" />
     return sortDirection === 'asc' ? 
-      <ArrowUp className="w-4 h-4 text-blue-600" /> : 
-      <ArrowDown className="w-4 h-4 text-blue-600" />
+      <ArrowUp className="w-4 h-4 text-primary" /> : 
+      <ArrowDown className="w-4 h-4 text-primary" />
   }
 
   const filteredAndSortedAccounts = accounts
@@ -231,10 +231,10 @@ export default function AccountsPage() {
       <ModuleLayout moduleId="finance">
         <div className="max-w-7xl 3xl:max-w-[1600px] 4xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 3xl:px-10 py-8">
           <div className="animate-pulse">
-            <div className="h-8 bg-gray-200 rounded w-64 mb-8"></div>
+            <div className="h-8 bg-inset rounded w-64 mb-8"></div>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {[...Array(3)].map((_, i) => (
-                <div key={i} className="h-64 bg-gray-200 rounded-lg"></div>
+                <div key={i} className="h-64 bg-inset rounded-lg"></div>
               ))}
             </div>
           </div>
@@ -248,7 +248,7 @@ export default function AccountsPage() {
       <ModuleLayout moduleId="finance">
         <div className="max-w-7xl 3xl:max-w-[1600px] 4xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 3xl:px-10 py-8">
           <div className="text-center">
-            <p className="text-gray-500">Devi effettuare il login per visualizzare i tuoi account</p>
+            <p className="text-ink-muted">Devi effettuare il login per visualizzare i tuoi account</p>
           </div>
         </div>
       </ModuleLayout>
@@ -312,18 +312,18 @@ export default function AccountsPage() {
 
         {/* Filters and Search */}
         <div className="mb-6">
-          <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-4">
+          <div className="bg-surface border border-edge rounded-lg shadow-card p-4">
             <div className="flex flex-col md:flex-row gap-4">
               {/* Search */}
               <div className="flex-1">
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-ink-muted w-4 h-4" />
                   <input
                     type="text"
                     placeholder="Cerca account..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm"
+                    className="w-full pl-10 pr-4 py-2.5 border border-edge rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-colors text-sm"
                   />
                 </div>
               </div>
@@ -334,7 +334,7 @@ export default function AccountsPage() {
                   <select
                     value={selectedAccountType}
                     onChange={(e) => setSelectedAccountType(e.target.value)}
-                    className="w-full appearance-none pl-4 pr-10 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors text-sm font-medium text-gray-700 cursor-pointer"
+                    className="w-full appearance-none pl-4 pr-10 py-2.5 border border-edge rounded-lg focus:ring-2 focus:ring-primary focus:border-primary bg-surface transition-colors text-sm font-medium text-ink-secondary cursor-pointer"
                   >
                     <option value="all">Tutti i tipi</option>
                     {getUniqueAccountTypes().map(type => (
@@ -344,7 +344,7 @@ export default function AccountsPage() {
                     ))}
                   </select>
                   <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                    <Filter className="w-4 h-4 text-gray-500" />
+                    <Filter className="w-4 h-4 text-ink-muted" />
                   </div>
                 </div>
               </div>
@@ -353,7 +353,7 @@ export default function AccountsPage() {
               <div className="flex items-center gap-3">
                 {(searchTerm || selectedAccountType !== 'all') && (
                   <>
-                    <span className="text-sm font-medium text-gray-600 whitespace-nowrap">
+                    <span className="text-sm font-medium text-ink-secondary whitespace-nowrap">
                       {filteredAndSortedAccounts.length} risultati
                     </span>
                     <button
@@ -361,7 +361,7 @@ export default function AccountsPage() {
                         setSearchTerm('')
                         setSelectedAccountType('all')
                       }}
-                      className="px-3 py-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 border border-gray-200 hover:border-gray-300 rounded-lg transition-colors"
+                      className="px-3 py-1.5 text-xs font-medium text-primary hover:text-primary-hover border border-edge hover:border-edge rounded-lg transition-colors"
                     >
                       Reset
                     </button>
@@ -374,22 +374,22 @@ export default function AccountsPage() {
 
         {/* Accounts Table */}
         {loading ? (
-          <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
+          <div className="bg-surface border border-edge rounded-lg shadow-card p-6">
             <div className="animate-pulse space-y-4">
-              <div className="h-5 bg-gray-200 rounded-lg"></div>
+              <div className="h-5 bg-inset rounded-lg"></div>
               {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-12 bg-gray-100 rounded-lg"></div>
+                <div key={i} className="h-12 bg-inset rounded-lg"></div>
               ))}
             </div>
           </div>
         ) : (
-          <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+          <div className="bg-surface border border-edge rounded-lg shadow-card overflow-hidden">
             <div className="overflow-x-auto">
               <table className="min-w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
+                <thead className="bg-canvas border-b border-edge">
                   <tr>
                     <th
-                      className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                      className="px-6 py-3 text-left text-xs font-semibold text-ink-secondary uppercase tracking-wider cursor-pointer hover:bg-inset transition-colors"
                       onClick={() => handleSort('name')}
                     >
                       <div className="flex items-center space-x-2">
@@ -398,7 +398,7 @@ export default function AccountsPage() {
                       </div>
                     </th>
                     <th
-                      className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden md:table-cell cursor-pointer hover:bg-gray-100 transition-colors"
+                      className="px-6 py-3 text-left text-xs font-semibold text-ink-secondary uppercase tracking-wider hidden md:table-cell cursor-pointer hover:bg-inset transition-colors"
                       onClick={() => handleSort('type')}
                     >
                       <div className="flex items-center space-x-2">
@@ -407,7 +407,7 @@ export default function AccountsPage() {
                       </div>
                     </th>
                     <th
-                      className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                      className="px-6 py-3 text-right text-xs font-semibold text-ink-secondary uppercase tracking-wider cursor-pointer hover:bg-inset transition-colors"
                       onClick={() => handleSort('balance')}
                     >
                       <div className="flex items-center justify-end space-x-2">
@@ -415,19 +415,19 @@ export default function AccountsPage() {
                         {getSortIcon('balance')}
                       </div>
                     </th>
-                    <th className="px-6 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider hidden lg:table-cell">
+                    <th className="px-6 py-3 text-center text-xs font-semibold text-ink-secondary uppercase tracking-wider hidden lg:table-cell">
                       Ultimo Aggiornamento
                     </th>
-                    <th className="px-6 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-center text-xs font-semibold text-ink-secondary uppercase tracking-wider">
                       Azioni
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-edge-subtle">
                   {filteredAndSortedAccounts.map((account) => (
                     <tr
                       key={account.id}
-                      className="hover:bg-gray-50 transition-colors"
+                      className="hover:bg-canvas transition-colors"
                       style={{ borderLeft: `4px solid ${account.color}` }}
                     >
                       <td className="px-6 py-4">
@@ -456,11 +456,11 @@ export default function AccountsPage() {
                             })()}
                           </div>
                           <div>
-                            <div className="font-semibold text-gray-900">{account.name}</div>
-                            <div className="text-sm text-gray-500 md:hidden">
+                            <div className="font-semibold text-ink">{account.name}</div>
+                            <div className="text-sm text-ink-muted md:hidden">
                               {getAccountTypeLabel(account.type)}
                             </div>
-                            <div className="flex items-center space-x-1 text-xs text-gray-400 lg:hidden">
+                            <div className="flex items-center space-x-1 text-xs text-ink-muted lg:hidden">
                               <Clock className="w-3 h-3" />
                               <span>
                                 {account.lastUpdated ? formatRelativeTime(account.lastUpdated) : 'Mai aggiornato'}
@@ -476,22 +476,22 @@ export default function AccountsPage() {
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end space-x-2">
-                          <div className={`font-bold text-lg ${account.current_balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          <div className={`font-bold text-lg ${account.current_balance >= 0 ? 'text-success-strong' : 'text-danger'}`}>
                             {formatCurrency(account.current_balance)}
                           </div>
-                          <div className={`p-1 rounded-full ${account.current_balance >= 0 ? 'bg-green-100' : 'bg-red-100'}`}>
+                          <div className={`p-1 rounded-full ${account.current_balance >= 0 ? 'bg-success-subtle' : 'bg-danger-subtle'}`}>
                             {account.current_balance >= 0 ? (
-                              <TrendingUp className="w-4 h-4 text-green-600" />
+                              <TrendingUp className="w-4 h-4 text-success-strong" />
                             ) : (
-                              <TrendingDown className="w-4 h-4 text-red-600" />
+                              <TrendingDown className="w-4 h-4 text-danger" />
                             )}
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 text-center hidden lg:table-cell">
                         <div className="flex items-center justify-center space-x-2">
-                          <Clock className="w-4 h-4 text-gray-400" />
-                          <span className="text-sm text-gray-600 font-medium">
+                          <Clock className="w-4 h-4 text-ink-muted" />
+                          <span className="text-sm text-ink-secondary font-medium">
                             {account.lastUpdated ? formatRelativeTime(account.lastUpdated) : 'Mai aggiornato'}
                           </span>
                         </div>
@@ -500,17 +500,17 @@ export default function AccountsPage() {
                         <div className="relative">
                           <button
                             onClick={() => setSelectedAccount(selectedAccount?.id === account.id ? null : account)}
-                            className="p-2 rounded-full text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+                            className="p-2 rounded-full text-ink-muted hover:text-ink-secondary hover:bg-inset transition-colors"
                           >
                             <MoreVertical className="w-4 h-4" />
                           </button>
                           {selectedAccount?.id === account.id && (
-                            <div className="absolute right-0 top-10 bg-white border border-gray-200 rounded-xl shadow-lg py-2 z-20 min-w-[140px]">
-                              <button className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                            <div className="absolute right-0 top-10 bg-surface border border-edge rounded-lg shadow-elevated py-2 z-20 min-w-[140px]">
+                              <button className="flex items-center w-full px-4 py-2 text-sm text-ink-secondary hover:bg-canvas transition-colors">
                                 <Edit2 className="w-4 h-4 mr-3" />
                                 Modifica
                               </button>
-                              <button className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors">
+                              <button className="flex items-center w-full px-4 py-2 text-sm text-danger hover:bg-danger-subtle transition-colors">
                                 <Trash2 className="w-4 h-4 mr-3" />
                                 Elimina
                               </button>
@@ -527,17 +527,17 @@ export default function AccountsPage() {
             {/* No results message */}
             {filteredAndSortedAccounts.length === 0 && (
               <div className="text-center py-16 px-8">
-                <div className="text-gray-300 mb-6">
+                <div className="text-ink-muted mb-6">
                   <Search className="w-16 h-16 mx-auto" />
                 </div>
-                <h3 className="text-xl font-semibold text-gray-800 mb-3">Nessun account trovato</h3>
-                <p className="text-gray-600 mb-6">Prova a modificare i filtri di ricerca per trovare i tuoi account</p>
+                <h3 className="text-xl font-semibold text-ink mb-3">Nessun account trovato</h3>
+                <p className="text-ink-secondary mb-6">Prova a modificare i filtri di ricerca per trovare i tuoi account</p>
                 <button
                   onClick={() => {
                     setSearchTerm('')
                     setSelectedAccountType('all')
                   }}
-                  className="inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-xl text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors shadow-sm"
+                  className="inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-lg text-white bg-primary hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors shadow-card"
                 >
                   <RefreshCw className="w-4 h-4 mr-2" />
                   Cancella filtri
@@ -550,24 +550,24 @@ export default function AccountsPage() {
         {/* Add Account Modal */}
         {showAddModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <div className="bg-surface rounded-lg max-w-md w-full p-6">
               <h3 className="text-lg font-semibold mb-4">Aggiungi Nuovo Account</h3>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-ink-secondary mb-1">
                     Nome Account
                   </label>
                   <input
                     type="text"
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full border border-edge rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
                     placeholder="Es. Conto Corrente Principale"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-ink-secondary mb-1">
                     Tipo Account
                   </label>
-                  <select className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <select className="w-full border border-edge rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary">
                     <option value="bank_account">Conto Bancario</option>
                     <option value="debit_card">Carta di Debito</option>
                     <option value="credit_card">Carta di Credito</option>
@@ -580,31 +580,31 @@ export default function AccountsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-ink-secondary mb-1">
                     Colore
                   </label>
                   <input
                     type="color"
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    defaultValue="#3B82F6"
+                    className="w-full border border-edge rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
+                    defaultValue="#1D4ED8"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-ink-secondary mb-1">
                     Saldo Iniziale
                   </label>
                   <input
                     type="number"
                     step="0.01"
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full border border-edge rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
                     placeholder="0.00"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-ink-secondary mb-1">
                     Valuta
                   </label>
-                  <select className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <select className="w-full border border-edge rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary">
                     <option value="EUR">EUR - Euro</option>
                     <option value="USD">USD - Dollaro</option>
                     <option value="GBP">GBP - Sterlina</option>
@@ -615,13 +615,13 @@ export default function AccountsPage() {
               <div className="flex justify-end space-x-3 mt-6">
                 <button
                   onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
+                  className="px-4 py-2 text-ink-secondary border border-edge rounded-md hover:bg-canvas"
                 >
                   Annulla
                 </button>
                 <button
                   onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                  className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-hover"
                 >
                   Aggiungi
                 </button>
