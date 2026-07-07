@@ -61,11 +61,39 @@ export const findValue = (headers: string[], values: string[], possibleNames: st
   return undefined;
 }
 
+// Converte una stringa di importo in formato italiano ("1.234,56", punto per le
+// migliaia e virgola per i decimali) o internazionale ("1234.56" / "1,234.56")
+// in un numero corretto. Un semplice `.replace(',', '.')` tronca gli importi
+// italiani >= 1000 (es. "2.500,00" diventava 2.5 invece di 2500): il secondo
+// punto rimasto nella stringa fa fermare parseFloat al primo gruppo.
+export const parseLocaleAmount = (raw: string | undefined | null): number => {
+  if (!raw) return NaN;
+  let s = raw.toString().trim().replace(/[€$£\s]/g, '');
+  if (!s) return NaN;
+  const lastComma = s.lastIndexOf(',');
+  const lastDot = s.lastIndexOf('.');
+  if (lastComma !== -1 && lastDot !== -1) {
+    if (lastComma > lastDot) {
+      // Virgola = decimale, punto/i = separatore migliaia
+      s = s.replace(/\./g, '').replace(',', '.');
+    } else {
+      // Punto = decimale, virgola/e = separatore migliaia
+      s = s.replace(/,/g, '');
+    }
+  } else if (lastComma !== -1) {
+    // Solo virgola: è decimale se seguita da al massimo 2 cifre (formato
+    // valuta), altrimenti è un separatore delle migliaia senza decimali.
+    const decimalDigits = s.length - lastComma - 1;
+    s = decimalDigits <= 2 ? s.replace(',', '.') : s.replace(/,/g, '');
+  }
+  return parseFloat(s);
+};
+
 // Helper: somma tax all'amount se la colonna tax è popolata
 const applyTax = (amountNum: number, headers: string[], values: string[]): number => {
   const taxStr = findValue(headers, values, ['tax', 'tassa', 'imposta', 'iva']);
   if (taxStr) {
-    const taxNum = parseFloat(taxStr.replace(',', '.'));
+    const taxNum = parseLocaleAmount(taxStr);
     if (!isNaN(taxNum) && taxNum !== 0) {
       return amountNum + taxNum;
     }
@@ -151,7 +179,7 @@ export const BANK_PARSERS: BankParser[] = [
       amount = findValue(headers, values, ['importo', 'importo valuta', 'valore']) || ''
       let category: string | undefined = findValue(headers, values, ['categoria', 'categoria operazione', 'tipo', 'tipologia'])
       let subcategory: string | undefined = undefined;
-      let amountNum = parseFloat(amount.replace(',', '.'))
+      let amountNum = parseLocaleAmount(amount)
       // Somma tax se presente
       amountNum = applyTax(amountNum, headers, values);
       // Determina il segno corretto
@@ -277,7 +305,7 @@ export const BANK_PARSERS: BankParser[] = [
       const category = findValue(headers, values, ['categoria', 'category']);
       const subcategory = findValue(headers, values, ['sottocategoria', 'subcategory']);
       // Postepay: importo negativo = spesa, positivo = entrata
-      let amountNum = parseFloat(amountRaw.replace(',', '.'));
+      let amountNum = parseLocaleAmount(amountRaw);
       // Somma tax se presente
       amountNum = applyTax(amountNum, headers, values);
       let signedAmount = amountNum;
@@ -350,7 +378,7 @@ export const BANK_PARSERS: BankParser[] = [
       }
       // Importo: campo Netto (supporta varianti con spazi)
       const amountStr = findValue(headers, values, ['netto', 'net', 'netto ', ' netto']) || '';
-      let amountNum = parseFloat(amountStr.replace(',', '.'));
+      let amountNum = parseLocaleAmount(amountStr);
       if (isNaN(amountNum)) amountNum = 0;
       // Somma tax se presente
       amountNum = applyTax(amountNum, headers, values);
@@ -446,8 +474,7 @@ export const BANK_PARSERS: BankParser[] = [
       // Parsing robusto dell'importo preservando il segno
       let amountNum = 0;
       if (amountStr) {
-        const cleanAmount = amountStr.trim().replace(',', '.');
-        amountNum = parseFloat(cleanAmount);
+        amountNum = parseLocaleAmount(amountStr);
         if (isNaN(amountNum)) amountNum = 0;
       }
 
@@ -463,14 +490,11 @@ export const BANK_PARSERS: BankParser[] = [
       let type = '';
       const category = findValue(headers, values, ['categoria', 'category']);
       const subcategory = findValue(headers, values, ['sottocategoria', 'subcategory']);
-      let transactionType = '';
       let targetTable: 'transactions' | 'refunds' | 'funds_transfer' = 'transactions';
 
       // Se abbiamo il Tipo dal CSV (formato italiano), usalo
       if (typeFromCSV) {
         type = typeFromCSV;
-        // Mappa il tipo al transactionType
-        transactionType = TRANSACTION_TYPE_MAP[type] || (amountNum >= 0 ? 'Entrata' : 'Spesa');
 
         // Determina targetTable in base al tipo
         if (type.toLowerCase().includes('rimborso') || type.toLowerCase().includes('refund')) {
@@ -495,49 +519,41 @@ export const BANK_PARSERS: BankParser[] = [
         switch (typeRaw.toUpperCase()) {
           case 'CARD_PAYMENT':
             type = 'Spesa';
-            transactionType = 'expense';
             targetTable = 'transactions';
             amountNum = -Math.abs(amountNum);
             break;
           case 'CARD_REFUND':
             type = 'Rimborso';
-            transactionType = 'refund';
             targetTable = 'refunds';
             amountNum = Math.abs(amountNum);
             break;
           case 'TRANSFER':
             type = amountNum >= 0 ? 'Entrata' : 'Spesa';
-            transactionType = amountNum >= 0 ? 'income' : 'expense';
             targetTable = 'funds_transfer';
             break;
           case 'TOPUP':
             type = 'Ricarica';
-            transactionType = 'income';
             targetTable = 'funds_transfer';
             amountNum = Math.abs(amountNum);
             break;
           case 'INTEREST':
             type = 'Entrata';
-            transactionType = 'income';
             targetTable = 'transactions';
             break;
           case 'EXCHANGE':
             // Scambio valuta: determina da importo
             type = amountNum > 0 ? 'Entrata' : (amountNum < 0 ? 'Spesa' : 'Trasferimento');
-            transactionType = amountNum > 0 ? 'income' : (amountNum < 0 ? 'expense' : 'transfer');
             targetTable = 'transactions';
             break;
           case 'REWARD':
             // Premi/Referral bonus
             type = 'Entrata';
-            transactionType = 'income';
             targetTable = 'transactions';
             amountNum = Math.abs(amountNum);
             break;
           default:
             // Default fallback: determina da segno importo
             type = amountNum >= 0 ? 'Entrata' : 'Spesa';
-            transactionType = amountNum >= 0 ? 'income' : 'expense';
             targetTable = 'transactions';
         }
       }
@@ -586,7 +602,13 @@ export const BANK_PARSERS: BankParser[] = [
         category,
         subcategory,
         targetTable,
-        transactionType,
+        // Usa sempre l'etichetta italiana (type) anche per transactionType:
+        // la picklist UI (TransactionTypeCombobox) e la validazione in
+        // page.tsx accettano solo le label italiane (es. "Spesa"), non i
+        // valori inglesi usati internamente per il mapping DB ("expense").
+        // La conversione verso l'enum DB avviene comunque a valle tramite
+        // TRANSACTION_TYPE_MAP in processImport.
+        transactionType: type,
         currency
       };
     },
@@ -642,8 +664,7 @@ export const BANK_PARSERS: BankParser[] = [
       // Parsing importo: preserva segno
       let amountNum = 0;
       if (amountStr) {
-        const cleanAmount = amountStr.trim().replace(',', '.');
-        amountNum = parseFloat(cleanAmount);
+        amountNum = parseLocaleAmount(amountStr);
         if (isNaN(amountNum)) amountNum = 0;
       }
       // Somma tax se presente
@@ -769,18 +790,13 @@ export const BANK_PARSERS: BankParser[] = [
 
       // Tutte le descrizioni Trade Republic hanno il prefisso "Trade Republic: "
       const description = descriptionRaw ? `Trade Republic: ${descriptionRaw}` : '';
-      
-      // Debug
-      if (typeof window !== 'undefined' && window.console) {
-        console.log('DEBUG Trade Republic parseRow:', { dateISO, categoryTR, typeRaw, amountStr, description: description.substring(0, 50) });
-      }
-      
+
       // Parsing importo
-      let amountNum = parseFloat(amountStr.replace(',', '.'));
+      let amountNum = parseLocaleAmount(amountStr);
       if (isNaN(amountNum)) amountNum = 0;
-      
+
       // Parsing fee
-      let feeNum = parseFloat(feeStr.replace(',', '.'));
+      let feeNum = parseLocaleAmount(feeStr);
       if (isNaN(feeNum)) feeNum = 0;
 
       // Somma tax se presente
@@ -1088,7 +1104,7 @@ export async function parseCSV(file: File, accountId?: string, setDetectedBank?:
         // Nessun parser trovato dal nome file → fallback generico
         const description = findValue(headers, values, ['descrizione', 'description', 'causale', 'note']) || '';
         const amountRaw = findValue(headers, values, ['importo', 'amount', 'valore']) || '';
-        let amountNum = parseFloat(amountRaw.replace(',', '.'));
+        let amountNum = parseLocaleAmount(amountRaw);
         // Somma tax se presente
         amountNum = applyTax(amountNum, headers, values);
         const category = findValue(headers, values, ['categoria', 'category']);
@@ -1189,7 +1205,7 @@ export async function parseExcel(file: File, accountId?: string, setDetectedBank
         // Assicura che targetTable sia sempre valorizzato
         let targetTable = parsedRow.targetTable;
         if (!targetTable) {
-          const amountNum = parseFloat((parsedRow.amount || '').replace(',', '.'));
+          const amountNum = parseLocaleAmount(parsedRow.amount);
           targetTable = determineTargetTable(parsedRow.description || '', parsedRow.type || 'Spesa', amountNum, parsedRow.category);
         }
         const row: ImportRow = {
@@ -1215,7 +1231,7 @@ export async function parseExcel(file: File, accountId?: string, setDetectedBank
         // Nessun parser trovato dal nome file → fallback generico
         const description = findValue(headers, values, ['descrizione', 'description', 'causale']) || '';
         const amountRaw = findValue(headers, values, ['importo', 'amount', 'valore']) || '';
-        let amountNum = parseFloat(amountRaw.replace(',', '.'));
+        let amountNum = parseLocaleAmount(amountRaw);
         // Somma tax se presente
         amountNum = applyTax(amountNum, headers, values);
         const category = findValue(headers, values, ['categoria', 'category']);
