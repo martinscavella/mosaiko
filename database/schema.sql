@@ -664,7 +664,11 @@ CREATE TRIGGER transactions_set_account_name BEFORE INSERT OR UPDATE ON public.t
 CREATE TRIGGER set_account_name BEFORE INSERT OR UPDATE ON public.transactions FOR EACH ROW EXECUTE FUNCTION public.update_account_name();
 CREATE TRIGGER transactions_balance_update AFTER INSERT OR UPDATE OR DELETE ON public.transactions FOR EACH ROW EXECUTE FUNCTION public.update_current_balance();
 CREATE TRIGGER transactions_category_update AFTER INSERT OR UPDATE OR DELETE ON public.transactions FOR EACH ROW EXECUTE FUNCTION public.update_category_subcategory_totals();
-CREATE TRIGGER trigger_update_category_subcategory_totals AFTER INSERT OR UPDATE OR DELETE ON public.transactions FOR EACH ROW EXECUTE FUNCTION public.update_category_subcategory_totals();
+-- RIMOSSO il 2026-07-12 (migration drop_duplicate_category_totals_trigger_and_recalc,
+-- vedi database/migrations/): trigger_update_category_subcategory_totals era un
+-- DUPLICATO attivo di transactions_category_update (stessa funzione, stessi eventi)
+-- e faceva contare due volte ogni movimento nei totali di categorie/sottocategorie.
+-- Totali ricalcolati dalla fonte canonica dopo il drop (drift verificato = 0).
 -- DISABILITATO sul DB live (tgenabled='D') — vedi nota sopra su monthly_summary
 CREATE TRIGGER trigger_calculate_monthly_summary AFTER INSERT OR UPDATE OR DELETE ON public.transactions FOR EACH ROW EXECUTE FUNCTION public.trigger_calculate_monthly_summary();
 ALTER TABLE public.transactions DISABLE TRIGGER trigger_calculate_monthly_summary;
