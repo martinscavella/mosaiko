@@ -1,3 +1,5 @@
+> **Documento storico** — spostato da root a `docs/history/` il 2026-07-12. Fotografa lo stato del progetto alla data indicata nel documento; per lo stato corrente e il piano operativo vedi [docs/PLAN.md](../PLAN.md).
+
 # Mosaiko — Audit Fase 1
 
 Data: 2026-07-04
@@ -15,17 +17,17 @@ stato adattato di conseguenza (es. niente FlatList, criteri di performance web).
 
 ## 1. Tour del repository
 
-**Entry point**: [src/app/layout.tsx](src/app/layout.tsx) — root layout che innesta
+**Entry point**: [src/app/layout.tsx](../../src/app/layout.tsx) — root layout che innesta
 `AuthProvider` → `FinanceCacheProvider` → shell con `Sidebar` (desktop) / `BottomMenu`
 (mobile) → `{children}`. Qui vengono montati anche `PWAManager` e `IOSPWASetup`.
 
 **Routing**: App Router con route group `src/app/(modules)/` per i moduli
-(`finance`, `health`, `tasks`, `learning` — vedi [src/app/modules.ts](src/app/modules.ts)).
+(`finance`, `health`, `tasks`, `learning` — vedi [src/app/modules.ts](../../src/app/modules.ts)).
 Solo `finance` è implementato; gli altri tre sono placeholder "in sviluppo" senza
 alcun auth gate (non critico oggi, ma nessuna barriera esiste se in futuro ci
 si dimentica di aggiungerla — vedi §4.1).
 
-**Auth**: [src/lib/auth.tsx](src/lib/auth.tsx) — `AuthProvider` basato su
+**Auth**: [src/lib/auth.tsx](../../src/lib/auth.tsx) — `AuthProvider` basato su
 `@supabase/auth-helpers-nextjs` (`createClientComponentClient`), espone `useAuth()`
 con `user/loading/signIn/signUp/signOut/updateProfile`. La protezione delle pagine
 è fatta **manualmente per pagina** (`if (!user) ...` dentro ogni `page.tsx`), non
@@ -35,20 +37,20 @@ importato/usato** — vedi §3.4).
 **Flusso dati frontend → Supabase**: i componenti client chiamano direttamente
 `supabase-js` (via `createClientComponentClient()`, istanziato in ~24 punti diversi
 senza un singleton condiviso) e si affidano interamente alle **Row Level Security
-policy** di Postgres (`auth.uid() = user_id`, vedi [database/schema.sql](database/schema.sql))
+policy** di Postgres (`auth.uid() = user_id`, vedi [database/schema.sql](../../database/schema.sql))
 per l'isolamento dei dati tra utenti. Non c'è un layer di API interno per le
 operazioni CRUD di dominio (accounts/transactions/assets/ecc.) — solo 3 route
 handler Next.js in `src/app/api/` fanno da proxy per dati di mercato esterni
 (Yahoo Finance, CoinGecko) e uno interroga Supabase direttamente lato server.
 
-**Stato applicativo/cache**: [src/lib/financeCache.tsx](src/lib/financeCache.tsx)
+**Stato applicativo/cache**: [src/lib/financeCache.tsx](../../src/lib/financeCache.tsx)
 (1273 righe) è un context provider che carica **tutte** le transazioni/account/asset
 dell'utente in memoria all'avvio e li tiene in cache con invalidazione a tempo
-(fresh 1h / stale 30min, vedi [docs/CACHE_OPTIMIZATION.md](docs/CACHE_OPTIMIZATION.md)).
+(fresh 1h / stale 30min, vedi [docs/CACHE_OPTIMIZATION.md](../guides/CACHE_OPTIMIZATION.md)).
 Wrappa l'intera app, quindi il suo comportamento di re-render impatta tutte le pagine
 finance (vedi §7.2).
 
-**Database**: schema Postgres/Supabase in [database/schema.sql](database/schema.sql):
+**Database**: schema Postgres/Supabase in [database/schema.sql](../../database/schema.sql):
 10 tabelle (`profiles, accounts, assets, categories, financial_goals, funds_transfer,
 refunds, refund_transaction, subcategories, transactions`), tutte con RLS abilitata
 e policy `FOR ALL USING (auth.uid() = user_id)`. Solo 2 indici espliciti oltre alle
@@ -120,18 +122,18 @@ minima (raccomando `vitest` per la velocità di setup con Next.js).
 118 chiamate `console.log/debug/warn` (esclusi `console.error` legittimi), tutte
 attive anche in produzione (nessun gating su `NODE_ENV`). Le più gravi:
 
-- [src/lib/auth.tsx:29-30,40-41](src/lib/auth.tsx#L29-L41) — logga l'intero oggetto
+- [src/lib/auth.tsx:29-30,40-41](../../src/lib/auth.tsx#L29-L41) — logga l'intero oggetto
   `session.user` e `user_metadata` a ogni login/refresh.
-- [src/lib/auth.tsx:53,60,75,85](src/lib/auth.tsx#L53) — logga email in chiaro e
+- [src/lib/auth.tsx:53,60,75,85](../../src/lib/auth.tsx#L53) — logga email in chiaro e
   l'intera risposta `{ data, error }` di `signInWithPassword`/`signUp` (contiene
   access/refresh token).
-- [src/lib/profiles.ts:20-21,40,53](src/lib/profiles.ts#L20) — logga `userId` e
+- [src/lib/profiles.ts:20-21,40,53](../../src/lib/profiles.ts#L20) — logga `userId` e
   intero `profileData` (PII: nome, data di nascita, ecc.) prima/dopo insert.
-- [src/app/api/transactions/route.ts:39,42-47,63](src/app/api/transactions/route.ts#L39) —
+- [src/app/api/transactions/route.ts:39,42-47,63](../../src/app/api/transactions/route.ts#L39) —
   logga lato server array di transazioni con importi finanziari reali a ogni GET.
-- [src/lib/financeCache.tsx:826,854,1005,1043](src/lib/financeCache.tsx#L1043) —
+- [src/lib/financeCache.tsx:826,854,1005,1043](../../src/lib/financeCache.tsx#L1043) —
   logga valori di portafoglio/asset reali in EUR.
-- [src/app/(modules)/finance/assets/page.tsx:99-110](<src/app/(modules)/finance/assets/page.tsx#L99>) —
+- [src/app/(modules)/finance/assets/page.tsx:99-110](<../../src/app/(modules)/finance/assets/page.tsx#L99>) —
   logga payload finanziari e ID/nomi asset.
 
 Altri file con volumi minori: `financeImportParsers.ts` (13), `market-price/route.ts` (7),
@@ -143,19 +145,19 @@ log server di Vercel/hosting. Fix a basso rischio: rimuovere o wrappare dietro u
 logger che rispetta `NODE_ENV !== 'production'`.
 
 ### 3.3 TODO / codice morto
-- [src/app/(modules)/finance/reports/page.tsx:133](<src/app/(modules)/finance/reports/page.tsx#L133>) —
+- [src/app/(modules)/finance/reports/page.tsx:133](<../../src/app/(modules)/finance/reports/page.tsx#L133>) —
   unico TODO nel repo: "Spezzare questo useMemo in 5-6 useMemo più piccoli e focalizzati".
-- [src/lib/financeCache.tsx:238](src/lib/financeCache.tsx#L238) — riga di codice
+- [src/lib/financeCache.tsx:238](../../src/lib/financeCache.tsx#L238) — riga di codice
   commentata (filtro transazioni asset).
-- [src/lib/financeCache.tsx:526-529](src/lib/financeCache.tsx#L526) — stub
+- [src/lib/financeCache.tsx:526-529](../../src/lib/financeCache.tsx#L526) — stub
   `useAutoValuationAssets()` commentato con nota "RIMOSSO: campo non presente nel
   database" — funzionalità abbandonata a metà, da rimuovere o completare.
-- [src/components/ProtectedRoute.tsx](src/components/ProtectedRoute.tsx) — componente
+- [src/components/ProtectedRoute.tsx](../../src/components/ProtectedRoute.tsx) — componente
   completo ma **mai importato da nessuna parte** in `src/app`. La protezione reale
   delle pagine è fatta ad-hoc in ogni `page.tsx` (`finance/dashboard`, `transactions`,
   `accounts`, `assets`, `reports`, `refunds`), il che rende la protezione
   "per convenzione" e facile da dimenticare su pagine nuove.
-- [src/hooks/useAnimation.ts](src/hooks/useAnimation.ts) — hook esportato, nessun
+- [src/hooks/useAnimation.ts](../../src/hooks/useAnimation.ts) — hook esportato, nessun
   import in tutto `src/`.
 - `public/generate-icons.sh`, `public/generate-png-icons.js`, `test-pwa.sh` (root) —
   script orfani, non referenziati da `package.json` né da README.
@@ -166,14 +168,14 @@ logger che rispetta `NODE_ENV !== 'production'`.
   non hanno alcun gate — oggi non espongono dati sensibili (sono stub statici), ma
   il pattern "gate manuale per pagina" si è già dimostrato inconsistente (vedi
   `ProtectedRoute` inutilizzato sopra).
-- [src/app/api/transactions/route.ts](src/app/api/transactions/route.ts) — il GET
+- [src/app/api/transactions/route.ts](../../src/app/api/transactions/route.ts) — il GET
   handler non verifica esplicitamente `auth.getUser()`/`getSession()` prima di
   interrogare Supabase: si affida **interamente** alle RLS policy passate via cookie
   di sessione. Funziona finché le RLS restano corrette, ma non c'è difesa in
   profondità: se una policy viene disabilitata o modificata per errore in futuro,
   questo endpoint diventa un IDOR (chiunque può enumerare `asset_id`).
-- [src/app/api/market-price/route.ts:35](src/app/api/market-price/route.ts#L35) e
-  [src/app/api/price-history/route.ts:63,108](src/app/api/price-history/route.ts#L63) —
+- [src/app/api/market-price/route.ts:35](../../src/app/api/market-price/route.ts#L35) e
+  [src/app/api/price-history/route.ts:63,108](../../src/app/api/price-history/route.ts#L63) —
   i parametri `symbol`/`type` da query string vengono interpolati senza validazione
   in URL verso Yahoo Finance/CoinGecko (niente allowlist, niente `encodeURIComponent`).
   Endpoint non autenticati e senza rate limiting: rischio di abuso come proxy
@@ -191,16 +193,16 @@ logger che rispetta `NODE_ENV !== 'production'`.
   dati di mercato pubblici, ma vanno comunque rate-limitati).
 
 ### 3.5 Configurazione critica
-- [next.config.ts](next.config.ts) — **nessun header di sicurezza** (no CSP, no
+- [next.config.ts](../../next.config.ts) — **nessun header di sicurezza** (no CSP, no
   `X-Frame-Options`, no `Referrer-Policy`, no HSTS).
-- [next.config.ts:6-11](next.config.ts#L6) — `eslint: { ignoreDuringBuilds: true }`
+- [next.config.ts:6-11](../../next.config.ts#L6) — `eslint: { ignoreDuringBuilds: true }`
   e `typescript: { ignoreBuildErrors: true }`: **la build in produzione ignora sia
   gli errori di lint che quelli di tipo**. Nonostante `tsconfig.json` abbia
   `"strict": true`, questo è vanificato in CI/build — errori di tipo possono
   arrivare in produzione silenziosamente. Va rimosso appena il codebase è pulito
   a sufficienza da non rompere la build.
 - Nessun file `.env*` committato, correttamente ignorato da `.gitignore`.
-- [database/schema.sql:4](database/schema.sql#L4) —
+- [database/schema.sql:4](../../database/schema.sql#L4) —
   `ALTER DATABASE postgres SET "app.jwt_secret" TO 'your-jwt-secret';` — placeholder
   letterale lasciato nello schema versionato. Su Supabase gestito questa riga non ha
   effetto reale (il JWT secret è gestito dalla piattaforma), ma è comunque un residuo
@@ -212,14 +214,14 @@ logger che rispetta `NODE_ENV !== 'production'`.
 ## 4. Performance
 
 ### 4.1 Query Supabase inefficienti
-- [src/lib/financeCache.tsx:181-229](src/lib/financeCache.tsx#L181) —
+- [src/lib/financeCache.tsx:181-229](../../src/lib/financeCache.tsx#L181) —
   `fetchFinanceData` carica **tutte** le transazioni dell'utente, a vita, in batch
   da 1000 via loop `while(hasMore)`, senza filtro data né limite superiore. Rieseguito
   a ogni mount del provider e a ogni invalidazione cache. Per un utente con anni di
   storico questo significa migliaia di righe scaricate e tenute in memoria a ogni
   login.
-- [src/lib/financeCache.tsx:1002-1075](src/lib/financeCache.tsx#L1063) +
-  [src/app/(modules)/finance/assets/page.tsx:297-320](<src/app/(modules)/finance/assets/page.tsx#L314>) —
+- [src/lib/financeCache.tsx:1002-1075](../../src/lib/financeCache.tsx#L1063) +
+  [src/app/(modules)/finance/assets/page.tsx:297-320](<../../src/app/(modules)/finance/assets/page.tsx#L314>) —
   **il problema più impattante trovato**: `handleUpdateAllAssetsValues` chiama
   `updateAssetMarketValue()` in sequenza per ogni asset (`await` dentro un loop); ogni
   chiamata fa select→fetch esterno→update→**`await refetch()`** (financeCache.tsx:1063),
@@ -228,16 +230,16 @@ logger che rispetta `NODE_ENV !== 'production'`.
   eseguite in serie. Andrebbe: aggiornare tutti gli asset in batch, poi un solo
   `refetch()` finale — riduzione stimata del lavoro di rete da O(N × storico
   completo) a O(N + 1 refetch).
-- [src/lib/financeCache.tsx:881-941](src/lib/financeCache.tsx#L881) —
+- [src/lib/financeCache.tsx:881-941](../../src/lib/financeCache.tsx#L881) —
   `updateAllAssetsFromTransactions` itera gli asset chiamando
   `updateAssetFromTransactions(asset.id)` (2 select + 1 update ciascuno) invece di
   un'unica query con `in('asset_id', ids)` raggruppata poi in JS — N+1 classico.
-- [src/app/(modules)/finance/accounts/page.tsx:73-94](<src/app/(modules)/finance/accounts/page.tsx#L73>) —
+- [src/app/(modules)/finance/accounts/page.tsx:73-94](<../../src/app/(modules)/finance/accounts/page.tsx#L73>) —
   dentro `Promise.all(cacheAccounts.map(...))`, 2 query `select('*')` separate
   (`funds_transfer`, `refunds`) per ogni account invece di un'unica `in('account_id', ids)`
   per tabella — N+1 che scala con il numero di conti, rieseguito a ogni cambio di
   `financeData`.
-- [src/app/(modules)/finance/import/page.tsx:556-668](<src/app/(modules)/finance/import/page.tsx#L656>) —
+- [src/app/(modules)/finance/import/page.tsx:556-668](<../../src/app/(modules)/finance/import/page.tsx#L656>) —
   il salvataggio dell'import fa un `insert()` **per riga**, in sequenza, con
   `findIndex` O(n²) e `setImportData([...])` (copia completa array + re-render) dopo
   **ogni singola riga**. Per un estratto conto di 500 righe: 500 round-trip di rete
@@ -250,22 +252,22 @@ logger che rispetta `NODE_ENV !== 'production'`.
   velocizzare il fetch principale sopra).
 
 ### 4.2 Re-render evitabili
-- [src/lib/financeCache.tsx:399-406](src/lib/financeCache.tsx#L399) — `contextValue`
+- [src/lib/financeCache.tsx:399-406](../../src/lib/financeCache.tsx#L399) — `contextValue`
   passato al Provider è un oggetto letterale **non wrappato in `useMemo`**
   (nonostante `useMemo` sia già importato nel file), quindi ogni cambio di stato
   interno (incluso il polling di staleness ogni 5 minuti, linee 378-388) ricrea
   l'oggetto e **ri-renderizza ogni consumer** di `useFinanceCache`/derivati in tutta
   l'app, dato che il provider wrappa l'intero layout.
-- [src/app/(modules)/finance/transactions/page.tsx:132-136](<src/app/(modules)/finance/transactions/page.tsx#L132>) —
+- [src/app/(modules)/finance/transactions/page.tsx:132-136](<../../src/app/(modules)/finance/transactions/page.tsx#L132>) —
   `filteredStats` (entrate/uscite) calcolato con due passate `.filter().reduce()`
   direttamente nel corpo del render (nessun `useMemo`), ripetuto a ogni render anche
   per cambi di stato non correlati, potenzialmente sull'intero storico transazioni.
-- [src/components/ui/AssetPerformanceChart.tsx:456-463](<src/components/ui/AssetPerformanceChart.tsx#L456>) —
+- [src/components/ui/AssetPerformanceChart.tsx:456-463](<../../src/components/ui/AssetPerformanceChart.tsx#L456>) —
   array ricostruito inline come prop `data` per Recharts a ogni render.
-- [src/components/ui/AssetPerformanceChart.tsx:636-660](<src/components/ui/AssetPerformanceChart.tsx#L636>) —
+- [src/components/ui/AssetPerformanceChart.tsx:636-660](<../../src/components/ui/AssetPerformanceChart.tsx#L636>) —
   volatilità e max-drawdown calcolati con IIFE dentro il JSX (non `useMemo`),
   ricalcolati a ogni re-render incluso il polling prezzi.
-- [src/components/ui/TransactionsTable.tsx:193-283](<src/components/ui/TransactionsTable.tsx#L193>) —
+- [src/components/ui/TransactionsTable.tsx:193-283](<../../src/components/ui/TransactionsTable.tsx#L193>) —
   qui il filtro/sort **è** correttamente in `useMemo` e la tabella pagina
   client-side (10-100 righe/pagina), quindi non serve virtualizzazione per il DOM;
   resta però il costo di ricalcolo su ogni keystroke di ricerca sull'intero array
@@ -273,16 +275,16 @@ logger che rispetta `NODE_ENV !== 'production'`.
 
 ### 4.3 Bundle / codice non ottimizzato
 - Nessun uso di `next/dynamic` in tutto il repo.
-- [src/app/(modules)/finance/import/page.tsx:8](<src/app/(modules)/finance/import/page.tsx#L8>) —
+- [src/app/(modules)/finance/import/page.tsx:8](<../../src/app/(modules)/finance/import/page.tsx#L8>) —
   `import * as XLSX from "xlsx"` a livello di modulo in una pagina client; xlsx è
   pesante e andrebbe caricato dinamicamente solo quando l'utente seleziona un file.
 - `jspdf`, importato staticamente in
-  [src/components/ui/TransactionDetailsModal.tsx:1](<src/components/ui/TransactionDetailsModal.tsx#L1>),
+  [src/components/ui/TransactionDetailsModal.tsx:1](<../../src/components/ui/TransactionDetailsModal.tsx#L1>),
   finisce nel bundle iniziale della dashboard finance (il modale è importato
   staticamente da `finance/dashboard/page.tsx` e `RecentTransactions.tsx`) pur
   essendo usato solo per l'export PDF, azione rara — candidato ideale per
   `next/dynamic`.
-- [financeImportParsers.ts:1179](<src/app/(modules)/finance/import/financeImportParsers.ts#L1179>)
+- [financeImportParsers.ts:1179](<../../src/app/(modules)/finance/import/financeImportParsers.ts#L1179>)
   e i loop di elaborazione righe (1072, 1090, 1190, 1217, 1309, 1319) girano
   sincroni sul thread principale — file di import grandi bloccano la UI durante
   il parsing, aggravato dal salvataggio riga-per-riga di §4.1.

@@ -1,3 +1,5 @@
+> **Documento storico** — spostato da root a `docs/history/` il 2026-07-12. Fotografa lo stato del progetto alla data indicata nel documento; per lo stato corrente e il piano operativo vedi [docs/PLAN.md](../PLAN.md).
+
 # Mosaiko — Triage Fase 2
 
 Data: 2026-07-04 — basato su [AUDIT.md](AUDIT.md) (codebase + infrastruttura live
@@ -64,10 +66,10 @@ ciascuna sezione sotto.
   `lib/helpers/format.ts` e `dateRange.ts`. `npm test` verde.
 
 ### C2 — Dati sensibili (token di sessione, PII, importi) in `console.log` di produzione ✅ RISOLTO
-- **File**: [src/lib/auth.tsx:29-30,40-41,53,60,75,85](src/lib/auth.tsx#L29),
-  [src/lib/profiles.ts:20-21,40,53](src/lib/profiles.ts#L20),
-  [src/app/api/transactions/route.ts:39,42-47,63](src/app/api/transactions/route.ts#L39),
-  [src/lib/financeCache.tsx:826,854,1005,1043](src/lib/financeCache.tsx#L1043)
+- **File**: [src/lib/auth.tsx:29-30,40-41,53,60,75,85](../../src/lib/auth.tsx#L29),
+  [src/lib/profiles.ts:20-21,40,53](../../src/lib/profiles.ts#L20),
+  [src/app/api/transactions/route.ts:39,42-47,63](../../src/app/api/transactions/route.ts#L39),
+  [src/lib/financeCache.tsx:826,854,1005,1043](../../src/lib/financeCache.tsx#L1043)
 - **Sintomo**: 118 chiamate console.log attive anche in produzione, incluse
   risposte complete di `signIn`/`signUp` (contengono access/refresh token) ed
   email in chiaro.
@@ -81,7 +83,7 @@ ciascuna sezione sotto.
   mantenuti i `console.error` con solo codice/messaggio d'errore per il debug.
 
 ### C3 — Build di produzione ignora errori TypeScript e lint ✅ RISOLTO
-- **File**: [next.config.ts:6-11](next.config.ts#L6)
+- **File**: [next.config.ts:6-11](../../next.config.ts#L6)
   (`eslint.ignoreDuringBuilds: true`, `typescript.ignoreBuildErrors: true`)
 - **Sintomo**: `tsconfig.json` ha `strict: true`, ma la build Next.js non fallisce
   mai per errori di tipo o lint.
@@ -101,8 +103,8 @@ ciascuna sezione sotto.
   con successo.
 
 ### C5 — CVE critica in `jspdf` (dipendenza diretta) ✅ RISOLTO
-- **File**: [package.json](package.json) (`jspdf: ^3.0.1`), uso in
-  [src/components/ui/TransactionDetailsModal.tsx:1](<src/components/ui/TransactionDetailsModal.tsx#L1>)
+- **File**: [package.json](../../package.json) (`jspdf: ^3.0.1`), uso in
+  [src/components/ui/TransactionDetailsModal.tsx:1](<../../src/components/ui/TransactionDetailsModal.tsx#L1>)
 - **Sintomo**: `npm audit` (letto per intero questa volta) segnala **CVE critica
   CVSS 9.6** ("HTML Injection in New Window paths") e diverse CVE alte (PDF/AcroForm
   injection → esecuzione JS arbitraria) su tutte le versioni `<=4.2.0`.
@@ -123,8 +125,8 @@ ciascuna sezione sotto.
 ## IMPORTANTI
 
 ### I1 — Aggiornamento asset: refetch completo dell'intero storico per ogni asset
-- **File**: [src/lib/financeCache.tsx:1002-1075](src/lib/financeCache.tsx#L1063) +
-  [src/app/(modules)/finance/assets/page.tsx:297-320](<src/app/(modules)/finance/assets/page.tsx#L314>)
+- **File**: [src/lib/financeCache.tsx:1002-1075](../../src/lib/financeCache.tsx#L1063) +
+  [src/app/(modules)/finance/assets/page.tsx:297-320](<../../src/app/(modules)/finance/assets/page.tsx#L314>)
 - **Sintomo**: `handleUpdateAllAssetsValues` aggiorna gli asset uno alla volta in
   sequenza; ognuno chiama `refetch()` che ricarica **tutto** lo storico
   transazioni.
@@ -136,7 +138,7 @@ ciascuna sezione sotto.
   necessario).
 
 ### I2 — Fetch illimitato di tutte le transazioni ad ogni mount/invalidazione cache — RIMANDATO (decisione utente)
-- **File**: [src/lib/financeCache.tsx:181-229](src/lib/financeCache.tsx#L181)
+- **File**: [src/lib/financeCache.tsx:181-229](../../src/lib/financeCache.tsx#L181)
 - **Sintomo**: nessun filtro data/limite superiore, loop `while(hasMore)` a batch
   di 1000.
 - **Impatto stimato**: cresce linearmente con lo storico dell'utente; per utenti
@@ -164,7 +166,7 @@ ciascuna sezione sotto.
      anni) prima di scegliere la soglia di default.
 
 ### I3 — Import bancario: insert riga-per-riga invece di batch ✅ RISOLTO
-- **File**: [src/app/(modules)/finance/import/page.tsx:556-668](<src/app/(modules)/finance/import/page.tsx#L656>)
+- **File**: [src/app/(modules)/finance/import/page.tsx:556-668](<../../src/app/(modules)/finance/import/page.tsx#L656>)
 - **Azione applicata**: insert in batch da 500 righe per tabella invece che
   riga per riga (confermato dall'utente, accettando il trade-off tutto-o-niente
   per batch invece che per singola riga). Vedi commit `dd8d40e`.
@@ -173,32 +175,32 @@ ciascuna sezione sotto.
   import di uno o due ordini di grandezza.
 
 ### I4 — `contextValue` di `FinanceCacheProvider` non memoizzato
-- **File**: [src/lib/financeCache.tsx:399-406](src/lib/financeCache.tsx#L399)
+- **File**: [src/lib/financeCache.tsx:399-406](../../src/lib/financeCache.tsx#L399)
 - **Impatto stimato**: ogni cambio di stato interno ri-renderizza tutti i
   consumer in tutta l'app (il provider wrappa l'intero layout) — fix a basso
   rischio (`useMemo` già importato, non usato).
 
 ### I5 — Bundle: `xlsx` e `jspdf` caricati staticamente
-- **File**: [src/app/(modules)/finance/import/page.tsx:8](<src/app/(modules)/finance/import/page.tsx#L8>),
-  [src/components/ui/TransactionDetailsModal.tsx:1](<src/components/ui/TransactionDetailsModal.tsx#L1>)
+- **File**: [src/app/(modules)/finance/import/page.tsx:8](<../../src/app/(modules)/finance/import/page.tsx#L8>),
+  [src/components/ui/TransactionDetailsModal.tsx:1](<../../src/components/ui/TransactionDetailsModal.tsx#L1>)
 - **Impatto stimato**: due librerie pesanti nel bundle iniziale per funzionalità
   usate raramente (import file, export PDF); misurabile con `next build` prima/dopo
   conversione a `next/dynamic`.
 
 ### I6 — Nessun security header / CSP
-- **File**: [next.config.ts](next.config.ts)
+- **File**: [next.config.ts](../../next.config.ts)
 - **Impatto**: nessuna difesa in profondità contro injection/clickjacking anche
   se oggi non risultano sink XSS noti.
 
 ### I7 — Protezione route inconsistente: `ProtectedRoute` morto, nessun middleware
-- **File**: [src/components/ProtectedRoute.tsx](src/components/ProtectedRoute.tsx),
+- **File**: [src/components/ProtectedRoute.tsx](../../src/components/ProtectedRoute.tsx),
   pagine `finance/*`
 - **Impatto**: la protezione dipende dalla disciplina di copiare l'if manuale in
   ogni nuova pagina; le pagine placeholder `health/tasks/learning` già non ce
   l'hanno.
 
 ### I8 — `api/transactions` senza verifica esplicita di auth
-- **File**: [src/app/api/transactions/route.ts](src/app/api/transactions/route.ts)
+- **File**: [src/app/api/transactions/route.ts](../../src/app/api/transactions/route.ts)
 - **Impatto**: nessuna difesa in profondità oltre le RLS; se le RLS venissero
   disabilitate per errore, diventerebbe un IDOR.
 
@@ -232,7 +234,7 @@ ciascuna sezione sotto.
   funzioni.
 
 ### I11 — `database/schema.sql` disallineato dal DB live ✅ RISOLTO
-- **File**: [database/schema.sql](database/schema.sql)
+- **File**: [database/schema.sql](../../database/schema.sql)
 - **Impatto**: chi legge lo schema committato si fa un'idea sbagliata di come
   funzionano saldi/totali (gestiti da trigger DB non documentati nel repo).
 - **Azione applicata**: rigenerato l'intero file leggendo tabelle, indici,
@@ -265,8 +267,8 @@ ciascuna sezione sotto.
   almeno un metodo MFA (vedi link di remediation nell'advisor Supabase).
 
 ### I13 — Dipendenza Supabase deprecata
-- **File**: [package.json](package.json) (`@supabase/auth-helpers-nextjs`), uso in
-  [src/lib/auth.tsx](src/lib/auth.tsx)
+- **File**: [package.json](../../package.json) (`@supabase/auth-helpers-nextjs`), uso in
+  [src/lib/auth.tsx](../../src/lib/auth.tsx)
 - **Impatto**: pacchetto non più raccomandato da Supabase (sostituito da
   `@supabase/ssr`, già presente come dipendenza ma inutilizzato); migrazione non
   banale, da pianificare separatamente.
@@ -275,19 +277,19 @@ ciascuna sezione sotto.
 
 ## MINORI
 
-- TODO in [finance/reports/page.tsx:133](<src/app/(modules)/finance/reports/page.tsx#L133>)
+- TODO in [finance/reports/page.tsx:133](<../../src/app/(modules)/finance/reports/page.tsx#L133>)
   (split `useMemo`).
-- Codice morto: [financeCache.tsx:238](src/lib/financeCache.tsx#L238),
-  [526-529](src/lib/financeCache.tsx#L526) (stub `useAutoValuationAssets`
+- Codice morto: [financeCache.tsx:238](../../src/lib/financeCache.tsx#L238),
+  [526-529](../../src/lib/financeCache.tsx#L526) (stub `useAutoValuationAssets`
   abbandonato).
-- [useAnimation.ts](src/hooks/useAnimation.ts) esportato ma mai importato.
+- [useAnimation.ts](../../src/hooks/useAnimation.ts) esportato ma mai importato.
 - Script orfani: `public/generate-icons.sh`, `public/generate-png-icons.js`,
   `test-pwa.sh`.
 - Duplicazione formattazione data/valuta in ~8 componenti (candidato per helper
   condiviso).
 - `select('*')` senza colonne esplicite in vari punti (over-fetch minore, non
   urgente).
-- [database/schema.sql:4](database/schema.sql#L4) — placeholder
+- [database/schema.sql:4](../../database/schema.sql#L4) — placeholder
   `your-jwt-secret` da rimuovere (nessun effetto su Supabase gestito, ma cattiva
   igiene).
 - `npm audit`: vulnerabilità moderate transitive (`ajv`, `brace-expansion`,

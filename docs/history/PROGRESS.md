@@ -1,3 +1,5 @@
+> **Documento storico** — spostato da root a `docs/history/` il 2026-07-12. Fotografa lo stato del progetto alla data indicata nel documento; per lo stato corrente e il piano operativo vedi [docs/PLAN.md](../PLAN.md).
+
 # Mosaiko — Stato avanzamento audit/mosaiko-full-review
 
 ## Fase 1 — Audit ✅ completata (2026-07-04)

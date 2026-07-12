@@ -10,12 +10,16 @@ Mosaiko è una Progressive Web App (PWA) italiana per la gestione personale inte
 
 Tutta la documentazione è organizzata nella cartella [`docs/`](docs/):
 
-- **[ANALYSIS_REPORT.md](docs/ANALYSIS_REPORT.md)** - Rapporto completo di analisi (38 issues identificati)
-- **[README.md](docs/README.md)** - Documentazione del progetto
-- **[CACHE_OPTIMIZATION.md](docs/CACHE_OPTIMIZATION.md)** - Strategie di cache e ottimizzazione
-- **[FONT_SETUP.md](docs/FONT_SETUP.md)** - Setup e gestione font
-- **[IMPORT_MAPPINGS.md](docs/IMPORT_MAPPINGS.md)** - Path mappings e import structure
-- **[IOS_PWA_GUIDE.md](docs/IOS_PWA_GUIDE.md)** - Guida PWA per iOS
+- **[PLAN.md](docs/PLAN.md)** - 📌 Piano operativo corrente: decisioni, task, roadmap, scoping nuovi moduli (aggiornato 2026-07-12)
+- **[guides/](docs/guides/)** - Guide tecniche vive:
+  - [CACHE_OPTIMIZATION.md](docs/guides/CACHE_OPTIMIZATION.md) - Strategie di cache e ottimizzazione
+  - [IMPORT_MAPPINGS.md](docs/guides/IMPORT_MAPPINGS.md) - Mappature import estratti conto per banca
+  - [IOS_PWA_GUIDE.md](docs/guides/IOS_PWA_GUIDE.md) - Guida PWA per iOS
+- **[history/](docs/history/)** - Documenti storici (fotografie datate, non aggiornate):
+  - [AUDIT.md](docs/history/AUDIT.md), [TRIAGE.md](docs/history/TRIAGE.md), [PROGRESS.md](docs/history/PROGRESS.md) - Audit completo luglio 2026
+  - [ANALYSIS_REPORT.md](docs/history/ANALYSIS_REPORT.md) - Analisi marzo 2026
+
+In root: **[designtoken.md](designtoken.md)** (design system, referenziato da [claude.md](claude.md)).
 
 ---
 
@@ -39,7 +43,7 @@ npm run lint:fix && npm run type-check
 
 ## 📁 Struttura Progetto
 
-```
+```text
 mosaiko/
 ├── src/
 │   ├── app/              # Next.js app router
@@ -50,7 +54,7 @@ mosaiko/
 │   └── hooks/           # Custom React hooks
 ├── database/            # Schema Supabase (PostgreSQL)
 ├── public/              # Static assets, PWA manifest, Service Worker
-├── docs/                # 📚 Documentazione
+├── docs/                # 📚 PLAN.md + guides/ + history/
 └── ...
 ```
 
@@ -67,4 +71,4 @@ Vedi [copilot-instructions.md](.github/copilot-instructions.md) per le convenzio
 ## 📞 Contatti / Info
 
 - Repository: [github.com/martinscavella/mosaiko](https://github.com/martinscavella/mosaiko)
-- Branch attuale: `feature/general_optimization` → `fix/code-cleanup-analysis`
+- Branch di sviluppo: `master`
