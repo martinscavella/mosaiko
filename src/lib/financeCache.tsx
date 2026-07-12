@@ -480,14 +480,17 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
     setError(null)
   }, [])
 
-  const contextValue: FinanceCacheContextType = {
+  // Memoizzato: il provider wrappa l'intero layout, senza useMemo ogni cambio
+  // di stato interno ricreerebbe l'oggetto e ri-renderizzerebbe tutti i
+  // consumer di useFinanceCache (fix I4, perso in un merge e ripristinato).
+  const contextValue: FinanceCacheContextType = useMemo(() => ({
     data,
     loading,
     error,
     refetch,
     invalidateCache,
     isDataStale: data ? isDataStale(data.lastFetch) : false
-  };
+  }), [data, loading, error, refetch, invalidateCache, isDataStale]);
 
   return <FinanceCacheContext.Provider value={contextValue}>{children}</FinanceCacheContext.Provider>;
 }
