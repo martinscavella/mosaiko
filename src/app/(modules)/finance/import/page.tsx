@@ -722,6 +722,25 @@ export default function ImportPage() {
     if (refunds.length > 0) await processList(refunds);
     if (fundTransfers.length > 0) await processList(fundTransfers);
 
+    // Riallinea i saldi dei conti toccati alla formula canonica
+    // (docs/DATA_MODEL.md §2) con la stessa RPC usata dai modali: i trigger
+    // applicano i delta riga per riga, il ricalcolo finale garantisce il
+    // risultato anche su import batch molto grandi.
+    const importedAccountIds = new Set(
+      [...transactions, ...refunds, ...fundTransfers]
+        .filter((row) => row.status === "success" && row.account)
+        .map((row) => row.account as string)
+    );
+    for (const accountId of importedAccountIds) {
+      const { error: recalcError } = await supabase.rpc(
+        "recalculate_current_balance_by_id",
+        { account_id_param: accountId }
+      );
+      if (recalcError) {
+        console.error("Errore ricalcolo saldo account:", recalcError);
+      }
+    }
+
     setIsUploading(false);
   };
 
