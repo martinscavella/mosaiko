@@ -4,7 +4,12 @@ Data: 2026-07-12 — attua la decisione D1 di [PLAN.md](PLAN.md) (task T1.2).
 Questo documento è la specifica di riferimento per T3.2 (razionalizzazione
 trigger/RPC) e per i test sui flussi che muovono denaro (T3.10).
 
-**Stato: BOZZA — in attesa di approvazione dell'utente.**
+**Stato: APPROVATO dall'utente il 2026-07-13 e ATTUATO** (migration T3.2 in
+`database/migrations/`, 13 scenari verificati sul DB live con rollback,
+riconciliazione T3.3 applicata). Nota implementativa: per rendere corretto lo
+storno anche nella cascata di DELETE del rimborso, il conto accreditato è
+denormalizzato come snapshot su `refund_transaction.account_id` (popolato da
+trigger; il guard §4 impedisce che diverga dal padre).
 
 ---
 
