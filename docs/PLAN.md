@@ -24,19 +24,19 @@ la roadmap, lo scope dei nuovi moduli (§7) e il backlog (§8).
 
 | ID | Task | Pri | Dip. | Stima | Definition of Done |
 | --- | --- | --- | --- | --- | --- |
-| T1.1 | Ripristino ambiente dev: `npm ci`; verificare `npm test`, `npm run type-check`, `npm run build` verdi; annotare versione Node nel README | P0 | — | XS | I 3 comandi passano in locale |
+| T1.1 | ✅ **FATTO 2026-07-12** — Ripristino ambiente dev: `npm ci`; verificare `npm test`, `npm run type-check`, `npm run build` verdi; annotare versione Node nel README | P0 | — | XS | I 3 comandi passano in locale |
 | T1.2 | ~~Decisione formula saldo~~ **DECISA (D1, formula completa in §0)** → scrivere `docs/DATA_MODEL.md` con la semantica di saldi/rimborsi/current_amount e gli scenari di test (rimborso pieno/parziale/cancellato/cross-conto) | P0 | D1 | S | Documento approvato dall'utente |
 | T1.3 | ~~Decisioni prodotto~~ **DECISE (D2/D3/D4)** — ~~questionari moduli~~ **RISPOSTE RICEVUTE il 2026-07-12**, scope consolidato in §7 | P1 | — | ✅ | Fatto |
 | T1.4 | Test manuale registrazione reale end-to-end (mai verificato dopo il fix C6) | P1 | — | XS | Esito documentato |
-| T1.5 | Backup/snapshot DB Supabase prima di ogni intervento su trigger/dati | P0 | — | XS | Backup verificato ripristinabile |
+| T1.5 | ✅ **FATTO 2026-07-12** (snapshot totali in tabelle `_backup_20260712_*` con RLS, per T3.1) — Backup/snapshot DB Supabase prima di ogni intervento su trigger/dati | P0 | — | XS | Backup verificato ripristinabile |
 
 ## 2. FASE 2 — Fondazioni tecniche
 
 | ID | Task | Pri | Dip. | Stima | Definition of Done |
 | --- | --- | --- | --- | --- | --- |
-| T2.1 | CI GitHub Actions: install, lint, `tsc --noEmit`, `vitest run`, `next build` su ogni PR/push | P0 | T1.1 | S | PR bloccate se rosso |
+| T2.1 | ✅ **FATTO 2026-07-12** (`.github/workflows/ci.yml`) — CI GitHub Actions: install, lint, `tsc --noEmit`, `vitest run`, `next build` su ogni PR/push | P0 | T1.1 | S | PR bloccate se rosso |
 | T2.2 | Migration versionate: init `supabase/` nel repo, baseline dal dump live, regola "mai più DDL manuale"; `database/schema.sql` diventa artefatto derivato | P1 | — | M | `supabase db diff` pulito vs live |
-| T2.3 | Ripristinare memoizzazione `contextValue` (financeCache.tsx:483, fix I4 annullato dalla PR #16) | P0 | T2.1 | XS | `useMemo` presente + nota regressione in history/PROGRESS.md |
+| T2.3 | ✅ **FATTO 2026-07-12** (commit 0d7d664) — Ripristinare memoizzazione `contextValue` (financeCache.tsx:483, fix I4 annullato dalla PR #16) | P0 | T2.1 | XS | `useMemo` presente + nota regressione in history/PROGRESS.md |
 | T2.4 | Audit dei merge post-luglio contro tutti i fix dell'audit (spot-check già fatto: import dinamici, batch insert, auth check ok) | P1 | — | S | Checklist fix-per-fix completata |
 | T2.5 | Tipi generati Supabase (D5): `supabase gen types typescript` in `src/lib/database.types.ts`, client tipizzato `createClientComponentClient<Database>()`, rigenerazione in CI; rimuovere `lib/utils.ts` e `lib/marketData.ts` (morti); verificare e rimuovere dipendenze inutilizzate (`@supabase/auth-ui-*`, `auth-helpers-react`) | P2 | T2.2 | M | Zero cast manuali sulle righe Supabase; build verde |
 | T2.6 | Pulizia branch stantii locali/remoti (~17) previa conferma utente | P3 | conferma | XS | Solo branch attivi |
@@ -45,7 +45,7 @@ la roadmap, lo scope dei nuovi moduli (§7) e il backlog (§8).
 
 | ID | Task | Pri | Dip. | Stima | Definition of Done |
 | --- | --- | --- | --- | --- | --- |
-| T3.1 | **Fix trigger duplicato categorie**: DROP di uno dei due trigger gemelli su `transactions` + `recalculate_category_subcategory_totals()` + query di verifica | P0 | T1.5, T2.2 | S | Drift = 0 su tutte le categorie; una scrittura di test muove i totali 1× |
+| T3.1 | ✅ **FATTO 2026-07-12** (migration in database/migrations/, drift verificato = 0) — **Fix trigger duplicato categorie**: DROP di uno dei due trigger gemelli su `transactions` + `recalculate_category_subcategory_totals()` + query di verifica | P0 | T1.5, T2.2 | S | Drift = 0 su tutte le categorie; una scrittura di test muove i totali 1× |
 | T3.2 | **Razionalizzazione trigger saldi secondo D1** (formula in §0): riscrivere le RPC con la formula per-allocazione sul conto del rimborso; il trigger su `transactions` reagisce solo a `initial_amount` (non ai bump di `current_amount` da allocazione — elimina il double count senza bisogno del guard `myapp.trigger_context`, da rimuovere); eliminare trigger ridondanti (doppio set `account_name`, doppia propagazione rename, trigger no-op su refunds/funds_transfer, funzioni `monthly_summary` morte) | P0 | T1.2, T3.1 | L | Per ogni scenario (rimborso pieno/parziale/cancellato/cross-conto): saldo trigger == saldo RPC == valore atteso calcolato a mano |
 | T3.3 | **Riconciliazione una tantum**: ricalcolo saldi e totali su tutto il DB con la nuova formula; report before/after (i saldi cambieranno, vedi D1) | P0 | T3.2 | S | Numeri approvati dall'utente |
 | T3.4 | Import: chiamare `recalculate_current_balance_by_id` per ogni conto toccato a fine `processImport` + refetch | P0 | T3.2 | XS | Import di test lascia saldi = formula canonica |
