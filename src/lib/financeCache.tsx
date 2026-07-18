@@ -1052,16 +1052,17 @@ export function useUnlinkedAssetTransactions() {
     setError(null)
 
     try {
-      // Prima trova l'ID della categoria 'ASSET & INVESTIMENTI'
+      // La categoria asset si individua per slug (stabile), non per nome
+      // visualizzato: vedi migration 20260718_onboarding_default_categories
       const { data: categoryData, error: categoryError } = await supabase
         .from('categories')
         .select('id')
-        .eq('name', 'ASSET & INVESTIMENTI')
+        .eq('slug', 'assets')
         .single()
 
       if (categoryError) {
         console.error('Error finding category:', categoryError)
-        throw new Error('Categoria ASSET & INVESTIMENTI non trovata')
+        throw new Error('Categoria asset non trovata')
       }
 
       if (!categoryData) {

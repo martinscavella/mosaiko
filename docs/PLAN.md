@@ -55,7 +55,7 @@ la roadmap, lo scope dei nuovi moduli (§7) e il backlog (§8).
 | T3.8 | Join per `account_id` invece di `account_name` (cache + accounts page + usage map) | P1 | — | S | Statistiche corrette con due conti omonimi |
 | T3.9 | Sistema toast/notifiche unico; sostituire i ~20 `alert()`/`confirm()` | P2 | — | M | Zero `alert()` nel repo |
 | T3.10 | Test sui flussi che muovono denaro: create/edit/delete transazione (con cambio conto), allocazione rimborso, import batch — idealmente integration test su Supabase locale (CLI) | P1 | T2.1 | L | Suite copre i 3 flussi critici |
-| T3.11 | **(nuovo, da D2) Onboarding nuovo utente**: set di categorie/sottocategorie di default alla registrazione (seed via trigger o primo login); eliminare la dipendenza dalla categoria `'ASSET & INVESTIMENTI'` cercata per nome (usare un flag/slug sulla categoria) | P1 | T3.7 | M | Un utente appena registrato può usare tutte le pagine senza setup manuale |
+| T3.11 | ✅ **FATTO 2026-07-18** (migration 20260718_onboarding_default_categories: `categories.slug` + `seed_default_categories()` chiamata da handle_new_user — 18 categorie/65 sottocategorie di default; lookup asset per slug in financeCache; verificato con signup simulato in transazione. NB: i parser di import restano hardcoded → T4.10) — **(nuovo, da D2) Onboarding nuovo utente**: set di categorie/sottocategorie di default alla registrazione; eliminare la dipendenza dalla categoria `'ASSET & INVESTIMENTI'` cercata per nome (slug sulla categoria) | P1 | T3.7 | M | Un utente appena registrato può usare tutte le pagine senza setup manuale |
 
 ## 4. FASE 4 — Completamento modulo Finance
 
