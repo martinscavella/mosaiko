@@ -73,8 +73,8 @@ export default function AccountDetailPage() {
   }
 
   // Movimenti/rimborsi/trasferimenti/asset di questo account, derivati dalla
-  // cache già caricata globalmente (nessuna query aggiuntiva). Rimborsi e
-  // trasferimenti in cache espongono solo account_name (non account_id).
+  // cache già caricata globalmente (nessuna query aggiuntiva). Match per
+  // account_id (T3.8): due conti omonimi non si contaminano.
   const accountTransactions = useMemo(() => {
     if (!financeData || !account) return []
     return financeData.transactions.filter((t) => t.account_id === account.id)
@@ -82,12 +82,12 @@ export default function AccountDetailPage() {
 
   const accountRefunds = useMemo(() => {
     if (!financeData || !account) return []
-    return financeData.refunds.filter((r) => r.account_name === account.name)
+    return financeData.refunds.filter((r) => r.account_id === account.id)
   }, [financeData, account])
 
   const accountFundsTransfer = useMemo(() => {
     if (!financeData || !account) return []
-    return financeData.fundsTransfer.filter((f) => f.account_name === account.name)
+    return financeData.fundsTransfer.filter((f) => f.account_id === account.id)
   }, [financeData, account])
 
   const accountAssets = useMemo(() => {

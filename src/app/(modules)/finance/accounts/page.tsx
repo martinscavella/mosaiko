@@ -63,13 +63,13 @@ export default function AccountsPage() {
 
     return cacheAccounts.map((account) => {
       const accountTransactions = financeData.transactions.filter(
-        (transaction) => transaction.account_name === account.name
+        (transaction) => transaction.account_id === account.id
       )
       const accountFundsTransfers = financeData.fundsTransfer.filter(
-        (transfer) => transfer.account_name === account.name
+        (transfer) => transfer.account_id === account.id
       )
       const accountRefunds = financeData.refunds.filter(
-        (refund) => refund.account_name === account.name
+        (refund) => refund.account_id === account.id
       )
 
       const allOperationDates: string[] = [
@@ -103,8 +103,8 @@ export default function AccountsPage() {
   }, [cacheAccounts, financeData])
 
   // Storico collegato per account (per bloccare l'eliminazione fisica quando
-  // ci sono dati da preservare). Stessa logica di match usata sopra: per
-  // rimborsi/trasferimenti la cache espone solo account_name, non account_id.
+  // ci sono dati da preservare). Match per account_id (T3.8): due conti
+  // omonimi non si contaminano le statistiche.
   const usageByAccountId = useMemo(() => {
     const map = new Map<string, AccountUsage>()
     if (!financeData) return map
@@ -112,8 +112,8 @@ export default function AccountsPage() {
     for (const account of cacheAccounts) {
       map.set(account.id, {
         transactionsCount: financeData.transactions.filter((t) => t.account_id === account.id).length,
-        refundsCount: financeData.refunds.filter((r) => r.account_name === account.name).length,
-        fundsTransferCount: financeData.fundsTransfer.filter((f) => f.account_name === account.name).length,
+        refundsCount: financeData.refunds.filter((r) => r.account_id === account.id).length,
+        fundsTransferCount: financeData.fundsTransfer.filter((f) => f.account_id === account.id).length,
         assetsCount: financeData.assets.filter((a) => a.account_id === account.id).length
       })
     }

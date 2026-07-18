@@ -55,6 +55,7 @@ export interface Refund {
   refund_date: string;
   refund_details: string | null;
   current_amount: number;
+  account_id?: string | null;
   account_name?: string;
   refund_code?: string | null;
   user_id: string;
@@ -67,6 +68,7 @@ export interface FundsTransfer {
   funds_transfer_date: string;
   funds_transfer_details: string | null;
   amount: number;
+  account_id?: string | null;
   account_name?: string;
   funds_transfer_code?: string | null;
   user_id: string;
@@ -408,6 +410,7 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
         refund_date: item.refund_date,
         refund_details: item.refund_details,
         current_amount: item.current_amount,
+        account_id: item.account_id || null,
         account_name: item.account_name || null,
         refund_code: item.refund_code,
         user_id: item.user_id,
@@ -420,6 +423,7 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
         funds_transfer_date: item.funds_transfer_date,
         funds_transfer_details: item.funds_transfer_details,
         amount: item.amount,
+        account_id: item.account_id || null,
         account_name: item.account_name || null,
         funds_transfer_code: item.funds_transfer_code,
         user_id: item.user_id,

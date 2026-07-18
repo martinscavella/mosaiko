@@ -685,9 +685,9 @@ export default function ReportsPage() {
         color: account.color
       }))
 
-    // Transazioni per account nel periodo filtrato
+    // Transazioni per account nel periodo filtrato (match per id, T3.8)
     const accountTransactionsInPeriod = filteredAccountsData.map(account => {
-      const accountFilteredTransactions = filteredTransactions.filter(t => t.account_name === account.name)
+      const accountFilteredTransactions = filteredTransactions.filter(t => t.account_id === account.id)
       return {
         ...account,
         transactionsCount: accountFilteredTransactions.length,
