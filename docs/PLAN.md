@@ -63,7 +63,7 @@ la roadmap, lo scope dei nuovi moduli (§7) e il backlog (§8).
 | --- | --- | --- | --- | --- | --- |
 | T4.1 | Caricamento incrementale transazioni (ex I2): fetch iniziale 12-24 mesi + `loadMore(range)`; adattare Reports/Transactions/Assets/TotalBalanceChart | P1 | T3.10 | XL | Login scarica una finestra limitata; "tutto lo storico" on-demand |
 | T4.2 | Split del useMemo monolitico in Reports + memoizzazione calcoli dashboard | P3 | — | S | TODO a reports/page.tsx:129 chiuso |
-| T4.3 | Prezzi: rimuovere `generateMockHistory` e il default `'bitcoin'`; 404 esplicito + UI "storico non disponibile"; `encodeURIComponent` sui parametri | P1 | — | S | Nessun path restituisce dati inventati |
+| T4.3 | ✅ **FATTO 2026-07-18** (price-history: rimossi mock e default bitcoin, mapping CoinGecko completo con null→404; encodeURIComponent su tutti i parametri lato API e client; empty state esplicito nel grafico) — Prezzi: rimuovere `generateMockHistory` e il default `'bitcoin'`; 404 esplicito + UI "storico non disponibile"; `encodeURIComponent` sui parametri | P1 | — | S | Nessun path restituisce dati inventati |
 | T4.4 | Rate limiting o auth sugli endpoint prezzi | P2 | — | S | Endpoint non abusabili come proxy |
 | T4.5 | Export PDF report reale (jspdf già presente) — oggi è un alert "prossimamente" | P2 (D4) | — | M | Bottone esporta un PDF reale |
 | T4.6 | Budget mensile per categoria: riprendere/riscrivere `feat/reports-budget-tracking` sopra i totali corretti (`categories.monthly_budget` già in schema) | P2 (D4) | T3.1 | L | Budget vs speso visibile in Reports |

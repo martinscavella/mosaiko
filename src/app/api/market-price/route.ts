@@ -32,7 +32,7 @@ async function fetchYahooPrice(symbol: string) {
     console.log(`📡 Fetching from Yahoo Finance: ${symbol}`)
     
     const response = await fetch(
-      `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=2d`,
+      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=2d`,
       { 
         headers: { 'Accept': 'application/json' },
         next: { revalidate: 300 } // Cache per 5 minuti

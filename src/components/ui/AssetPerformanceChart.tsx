@@ -130,7 +130,7 @@ export default function AssetPerformanceChart({
     }
 
     try {
-      const response = await fetch(`/api/market-price?symbol=${asset.symbol}&type=${asset.type}`)
+      const response = await fetch(`/api/market-price?symbol=${encodeURIComponent(asset.symbol)}&type=${encodeURIComponent(asset.type)}`)
 
       if (response.ok) {
         const data = await response.json()
@@ -255,7 +255,7 @@ export default function AssetPerformanceChart({
         }
 
         // Recupera lo storico prezzi dall'API
-        const response = await fetch(`/api/price-history?symbol=${asset.symbol}&type=${asset.type}&days=${daysToFetch}`)
+        const response = await fetch(`/api/price-history?symbol=${encodeURIComponent(asset.symbol)}&type=${encodeURIComponent(asset.type)}&days=${daysToFetch}`)
 
         if (response.ok) {
           const historyData = await response.json()
@@ -417,7 +417,7 @@ export default function AssetPerformanceChart({
         <div className="h-48 flex items-center justify-center text-ink-muted">
           <div className="text-center">
             <BarChart3 className="w-8 h-8 mx-auto mb-2" />
-            <p>Nessun dato disponibile</p>
+            <p>Storico prezzi non disponibile per questo asset</p>
           </div>
         </div>      ) : (
         <div className="h-48 relative">

@@ -14,19 +14,16 @@ export async function GET(request: NextRequest) {
     console.log(`📊 Fetching ${days} days of history for ${symbol} (${assetType})`)
     
     let historyData = null
-    
+
     // 1. CRYPTO - usa CoinGecko per storico
     if (isCryptoSymbol(symbol)) {
       historyData = await getCryptoPriceHistory(symbol, days)
     }
-    // 2. AZIONI/ETF - usa Yahoo Finance per storico  
+    // 2. AZIONI/ETF - usa Yahoo Finance per storico
     else if (isStockOrETF(symbol, assetType)) {
       historyData = await getStockPriceHistory(symbol, days)
     }
-    // 3. FALLBACK - genera dati mock
-    else {
-      historyData = await generateMockHistory(symbol, days)
-    }
+    // 3. Nessuna fonte per questo simbolo: 404 esplicito, mai dati inventati (T4.3)
 
     if (!historyData || historyData.length === 0) {
       return NextResponse.json({ error: 'History not found' }, { status: 404 })
@@ -59,8 +56,9 @@ function isStockOrETF(symbol: string, assetType: string): boolean {
 async function getCryptoPriceHistory(symbol: string, days: number) {
   try {
     const cryptoId = getCoinGeckoId(symbol)
+    if (!cryptoId) return null
     const response = await fetch(
-      `https://api.coingecko.com/api/v3/coins/${cryptoId}/market_chart?vs_currency=eur&days=${days}&interval=daily`,
+      `https://api.coingecko.com/api/v3/coins/${encodeURIComponent(cryptoId)}/market_chart?vs_currency=eur&days=${encodeURIComponent(String(days))}&interval=daily`,
       { 
         headers: { 'Accept': 'application/json' },
         next: { revalidate: 300 }
@@ -82,16 +80,22 @@ async function getCryptoPriceHistory(symbol: string, days: number) {
   }
 }
 
-function getCoinGeckoId(symbol: string): string {
+// Simbolo → id CoinGecko; null se sconosciuto (niente default 'bitcoin':
+// meglio un 404 che uno storico di un altro asset, T4.3)
+function getCoinGeckoId(symbol: string): string | null {
   const mapping: Record<string, string> = {
     'BTC': 'bitcoin',
     'ETH': 'ethereum',
     'ADA': 'cardano',
     'SOL': 'solana',
     'DOT': 'polkadot',
-    'MATIC': 'polygon'
+    'MATIC': 'polygon',
+    'USDT': 'tether',
+    'BNB': 'binancecoin',
+    'XRP': 'ripple',
+    'DOGE': 'dogecoin'
   }
-  return mapping[symbol.toUpperCase()] || 'bitcoin'
+  return mapping[symbol.toUpperCase()] ?? null
 }
 
 // Storico azioni/ETF da Yahoo Finance
@@ -105,7 +109,7 @@ async function getStockPriceHistory(symbol: string, days: number) {
     console.log(`📈 Fetching Yahoo Finance history: ${mappedSymbol}`)
     
     const response = await fetch(
-      `https://query1.finance.yahoo.com/v8/finance/chart/${mappedSymbol}?interval=1d&period1=${Math.floor(startDate.getTime()/1000)}&period2=${Math.floor(endDate.getTime()/1000)}`,
+      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(mappedSymbol)}?interval=1d&period1=${Math.floor(startDate.getTime()/1000)}&period2=${Math.floor(endDate.getTime()/1000)}`,
       { 
         headers: { 'Accept': 'application/json' },
         next: { revalidate: 300 }
@@ -144,27 +148,4 @@ function mapToYahooSymbol(symbol: string): string {
   
   const cleanSymbol = symbol.toUpperCase().replace(/[^A-Z0-9_]/g, '_')
   return mapping[cleanSymbol] || mapping[symbol.toUpperCase()] || symbol
-}
-
-// Dati mock per fallback
-async function generateMockHistory(symbol: string, days: number) {
-  const basePrice = 100 + Math.random() * 100
-  const history = []
-  
-  for (let i = 0; i < days; i++) {
-    const date = new Date()
-    date.setDate(date.getDate() - (days - 1 - i))
-    
-    const volatility = 0.02
-    const trend = Math.sin((i / days) * Math.PI) * 0.1
-    const noise = (Math.random() - 0.5) * volatility
-    const price = basePrice * (1 + trend + noise)
-    
-    history.push({
-      date: date.toISOString().split('T')[0],
-      price: Math.max(0.01, price)
-    })
-  }
-  
-  return history
 }
