@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 import { useAuth } from '@/lib/auth'
 import { useAllTransactions, useFinanceCache, useAssets, useAssetOperations, type Transaction } from '@/lib/financeCache'
 import { DollarSign, Calendar, FileText, Tag, CreditCard, TrendingUp, TrendingDown, ArrowRightLeft, Check, ChevronDown, Hash, Package } from 'lucide-react'
@@ -92,7 +92,7 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, editTr
     if (!user) return
 
     try {
-      const supabase = createClientComponentClient()
+      const supabase = createSupabaseBrowserClient()
       
       // Carica accounts
       const { data: accountsData } = await supabase
@@ -242,7 +242,7 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, editTr
 
     setLoading(true)
     try {
-      const supabase = createClientComponentClient()
+      const supabase = createSupabaseBrowserClient()
 
       // Determina se l'importo è positivo o negativo in base al tipo di transazione
       const finalAmount = isPositiveTransactionType(formData.transaction_type)

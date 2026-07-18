@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 import { AlertTriangle, PowerOff } from 'lucide-react'
 import Modal, { ModalButton } from './Modal'
 import { useAccountOperations } from '@/lib/financeCache'
@@ -40,7 +40,7 @@ export default function DeleteAccountModal({ isOpen, onClose, account, usage, on
   // "permesso" per errore cancellerebbe lo storico: riverifica i conteggi
   // direttamente sul server quando il modale si apre.
   const [serverUsage, setServerUsage] = useState<AccountUsage | null>(null)
-  const supabase = createClientComponentClient()
+  const supabase = createSupabaseBrowserClient()
 
   useEffect(() => {
     if (!isOpen || !account) {

@@ -6,7 +6,7 @@ import ModuleHeader from "@/components/ui/ModuleHeader";
 import CacheStatus from "@/components/ui/CacheStatus";
 import { useAuth } from "@/lib/auth";
 import { useFinanceCache, useAccounts } from "@/lib/financeCache";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
   RotateCcw,
   Plus,
@@ -81,7 +81,7 @@ export default function RefundsPage() {
     isDataStale,
   } = useFinanceCache();
   const { accounts } = useAccounts();
-  const supabase = createClientComponentClient();
+  const supabase = createSupabaseBrowserClient();
 
   const [refunds, setRefunds] = useState<ExtendedRefund[]>([]);
   const [refundTransactions, setRefundTransactions] = useState<

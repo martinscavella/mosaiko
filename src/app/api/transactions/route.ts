@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
+import { createSupabaseServerClient } from '@/lib/supabase/server'
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
@@ -11,8 +10,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const cookieStore = cookies()
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
+    const supabase = await createSupabaseServerClient()
 
     // Verifica esplicita dell'autenticazione: prima ci si affidava solo alle
     // RLS, senza difesa in profondità se una policy fosse mai stata

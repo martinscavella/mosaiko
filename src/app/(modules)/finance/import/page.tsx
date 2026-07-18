@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback, ReactNode } from "react";
 import { useAuth } from "@/lib/auth";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import ModuleLayout from "@/components/ModuleLayout";
 import ModuleHeader from "@/components/ui/ModuleHeader";
 import {
@@ -72,7 +72,7 @@ interface BankParser {
 
 export default function ImportPage() {
   const { user, loading: authLoading } = useAuth();
-  const supabase = createClientComponentClient();
+  const supabase = createSupabaseBrowserClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [isUploading, setIsUploading] = useState(false);

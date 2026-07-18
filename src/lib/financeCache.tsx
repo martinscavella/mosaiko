@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState, useCallback, useRef, ReactNode, useMemo } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { normalizeAssetTransaction, aggregateAssetPurchaseData, type NormalizedAssetTransaction } from '@/lib/helpers/assetPurchaseData';
 
@@ -209,7 +209,7 @@ const normalizeEmbedded = <T,>(value: T | T[] | null): T | null => {
 // discendente. `since` limita alla finestra iniziale (>=), `before` scarica
 // solo il periodo precedente alla finestra (<) per loadFullTransactionHistory.
 async function fetchTransactionsRange(
-  supabase: ReturnType<typeof createClientComponentClient>,
+  supabase: ReturnType<typeof createSupabaseBrowserClient>,
   userId: string,
   bounds: { since?: string | null; before?: string | null }
 ): Promise<Transaction[]> {
@@ -295,7 +295,7 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
   const { user } = useAuth();
-  const supabase = createClientComponentClient();
+  const supabase = createSupabaseBrowserClient();
 
   // Ref sincronizzati con data/loading: permettono a fetchFinanceData di leggere
   // sempre il valore corrente senza doverli includere nelle dipendenze di
@@ -644,7 +644,7 @@ export function useAccounts() {
 export function useAccountOperations() {
   const { refetch } = useFinanceCache()
   const { user } = useAuth()
-  const supabase = createClientComponentClient()
+  const supabase = createSupabaseBrowserClient()
 
   const createAccount = useCallback(async (accountData: {
     name: string
@@ -823,7 +823,7 @@ export function useAssetStats() {
 // Hook per recuperare le transazioni correlate a un asset
 export function useAssetTransactions(assetId: string | null) {
   const { user } = useAuth()
-  const supabase = createClientComponentClient()
+  const supabase = createSupabaseBrowserClient()
   const [assetTransactions, setAssetTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -900,7 +900,7 @@ export function useAssetTransactions(assetId: string | null) {
 export function useAssetOperations() {
   const { refetch } = useFinanceCache()
   const { user } = useAuth()
-  const supabase = createClientComponentClient()
+  const supabase = createSupabaseBrowserClient()
 
   const createAsset = useCallback(async (assetData: Omit<Asset, 'id' | 'created_at' | 'updated_at' | 'user_id'>) => {
     if (!user) throw new Error('User not authenticated')
@@ -1116,7 +1116,7 @@ interface CategoryAmounts {
 // Hook per recuperare le transazioni non collegate ad asset con categoria specifica
 export function useUnlinkedAssetTransactions() {
   const { user } = useAuth()
-  const supabase = createClientComponentClient()
+  const supabase = createSupabaseBrowserClient()
   const [unlinkedTransactions, setUnlinkedTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)

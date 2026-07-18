@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 import { AlertTriangle } from 'lucide-react'
 import Modal, { ModalButton } from './Modal'
 import { useAllTransactions, useFinanceCache, type Transaction } from '@/lib/financeCache'
@@ -29,7 +29,7 @@ export default function DeleteTransactionModal({
   const handleDelete = async () => {
     setLoading(true)
     try {
-      const supabase = createClientComponentClient()
+      const supabase = createSupabaseBrowserClient()
 
       const { error } = await supabase
         .from('transactions')

@@ -2,10 +2,6 @@ import { describe, it, expect, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { GET } from './route'
 
-vi.mock('next/headers', () => ({
-  cookies: () => ({}),
-}))
-
 const getUserMock = vi.fn()
 const queryChain = {
   select: vi.fn().mockReturnThis(),
@@ -13,8 +9,8 @@ const queryChain = {
   not: vi.fn().mockReturnThis(),
   order: vi.fn().mockResolvedValue({ data: [], error: null }),
 }
-vi.mock('@supabase/auth-helpers-nextjs', () => ({
-  createRouteHandlerClient: () => ({
+vi.mock('@/lib/supabase/server', () => ({
+  createSupabaseServerClient: async () => ({
     auth: { getUser: getUserMock },
     from: () => queryChain,
   }),

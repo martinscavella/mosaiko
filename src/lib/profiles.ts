@@ -1,4 +1,4 @@
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 
 export type ProfileData = {
   first_name: string
@@ -15,7 +15,7 @@ export type ProfileData = {
 }
 
 export const updateUserProfile = async (userId: string, profileData: Partial<ProfileData>) => {
-  const supabase = createClientComponentClient()
+  const supabase = createSupabaseBrowserClient()
   
   const { data, error } = await supabase
     .from('profiles')
@@ -30,7 +30,7 @@ export const updateUserProfile = async (userId: string, profileData: Partial<Pro
 }
 
 export const getUserProfile = async (userId: string) => {
-  const supabase = createClientComponentClient()
+  const supabase = createSupabaseBrowserClient()
   
   const { data, error } = await supabase
     .from('profiles')

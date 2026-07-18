@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/lib/auth'
 import { useAccounts } from '@/lib/financeCache'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 import NewTransactionModal from './NewTransactionModal'
 import { Wallet, Dumbbell, Trophy, Coins, LucideIcon } from 'lucide-react'
 import { clsx } from 'clsx'
@@ -89,7 +89,7 @@ export default function CashQuickActions() {
 
   const [prefilledData, setPrefilledData] = useState<PrefilledData | null>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const supabase = createClientComponentClient()
+  const supabase = createSupabaseBrowserClient()
 
   useEffect(() => {
     // Trova l'account contanti con logica migliorata, solo tra quelli attivi
