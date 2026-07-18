@@ -24,7 +24,7 @@ export const modules: Module[] = [
     name: 'House',
     icon: Home,
     description: 'Gestisci casa, bollette e manutenzioni',
-    status: 'coming_soon',
+    status: 'active',
     accentClasses: 'bg-module-house-subtle text-module-house'
   },
   {

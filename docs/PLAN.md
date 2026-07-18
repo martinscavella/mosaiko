@@ -102,6 +102,17 @@ Health ha un modello dati proprio e interconnessioni verso più moduli.
 | T6.2 | ✅ **FATTO 2026-07-18** (House=orange-600, Grocery=lime-600 — amber e teal erano già presi da Learning/Tasks; token in globals.css light+dark, tailwind.config, designtoken.md; House e Grocery aggiunti al registry modules.ts come coming_soon con accent dedicato) — **Estensione design token**: accent color per House e Grocery | P2 | — | XS | Card home e ModuleLayout renderizzano i nuovi moduli con accent dedicato |
 | T6.3 | ✅ **FATTO 2026-07-18** (factory `createModuleDataProvider` in src/lib/moduleData.tsx: provider scoped montato nel layout del modulo, fetch on-demand al primo ingresso, context memoizzato; guida in docs/guides/MODULE_DATA_PROVIDER.md. L'adozione da parte di House avverrà col modulo) — **Provider dati per-modulo** | P1 | T4.1 | S | Template documentato e usato da House |
 
+### Stato avanzamento moduli
+
+- **House — primo incremento FATTO 2026-07-18**: migration
+  `20260718_house_module_schema` (7 tabelle MVP con RLS 4-policy ciascuna,
+  trigger `set_updated_at` condiviso, `bill_payments` come prima tabella di
+  link T6.0), provider `houseData.tsx` dal template T6.3, layout scoped,
+  dashboard con CRUD proprietà (crea/lista, KPI bollette da pagare); modulo
+  `active` nel registry. **Prossimi incrementi**: pagina Bollette (upload PDF
+  T6.1 + `LinkEntityPicker` verso Finance = chiusura T6.0), Manutenzioni,
+  Affitto/Mutuo, Inventario, Contatti.
+
 ### Pattern comune per ogni modulo (rodato da Finance)
 
 1. Schema DB + RLS + migration versionata (prerequisito T2.2)
