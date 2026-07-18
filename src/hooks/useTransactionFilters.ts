@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import type { Transaction } from '@/lib/financeCache'
 import { isInDateRange, type DateRangeType } from '@/lib/helpers/dateRange'
+import { transactionTypeKind } from '@/lib/transactionTypes'
 
 export type TransactionFilterType = 'all' | 'income' | 'expense' | 'transfer' | 'refunded' | 'assets'
 export type TransactionSortField = string
@@ -96,13 +97,13 @@ export function useTransactionFilters(transactions: Transaction[]) {
     if (filters.type !== 'all') {
       switch (filters.type) {
         case 'income':
-          result = result.filter(t => t.current_amount > 0 || t.transaction_type === 'income')
+          result = result.filter(t => t.current_amount > 0 || (t.current_amount === 0 && transactionTypeKind(t.transaction_type) === 'income'))
           break
         case 'expense':
-          result = result.filter(t => t.current_amount < 0 || t.transaction_type === 'expense')
+          result = result.filter(t => t.current_amount < 0 || (t.current_amount === 0 && transactionTypeKind(t.transaction_type) === 'expense'))
           break
         case 'transfer':
-          result = result.filter(t => t.transaction_type === 'transfer')
+          result = result.filter(t => transactionTypeKind(t.transaction_type) === 'transfer')
           break
         case 'refunded':
           result = result.filter(t => t.is_refunded === true)

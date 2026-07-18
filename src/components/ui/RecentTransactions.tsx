@@ -117,7 +117,7 @@ export default function RecentTransactions({ limit = 5, onTransactionClick }: Re
         {transactions
           .filter(t => t.current_amount !== 0)
           .map((transaction: Transaction) => {
-            const isIncome = transaction.transaction_type === 'income' || transaction.current_amount > 0
+            const isIncome = transaction.current_amount > 0
             const amount = Math.abs(transaction.current_amount)
 
             return (

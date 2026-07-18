@@ -1,6 +1,7 @@
 import { ArrowUpRight, ArrowDownLeft, TrendingUp } from 'lucide-react'
 import type { Transaction } from '@/lib/financeCache'
 import { formatCurrency } from './format'
+import { transactionTypeKind } from '@/lib/transactionTypes'
 
 /** Formattazione/colori condivisi tra la pagina Transazioni e il dettaglio account,
  * per non farli divergere silenziosamente in due posti diversi. */
@@ -18,7 +19,7 @@ export function formatTransactionDate(dateString: string): string {
 export function getTransactionIcon(transaction: Pick<Transaction, 'current_amount' | 'transaction_type'>) {
   if (transaction.current_amount > 0) {
     return <ArrowDownLeft className="h-4 w-4 text-success-strong" />
-  } else if (transaction.transaction_type === 'investment') {
+  } else if (transactionTypeKind(transaction.transaction_type) === 'investment') {
     return <TrendingUp className="h-4 w-4 text-primary" />
   } else {
     return <ArrowUpRight className="h-4 w-4 text-danger" />
@@ -30,7 +31,7 @@ export function getTransactionColor(transaction: Pick<Transaction, 'current_amou
     return 'text-success-strong'
   } else if (transaction.current_amount > 0) {
     return 'text-success-strong'
-  } else if (transaction.transaction_type === 'investment') {
+  } else if (transactionTypeKind(transaction.transaction_type) === 'investment') {
     return 'text-primary'
   } else {
     return 'text-danger'

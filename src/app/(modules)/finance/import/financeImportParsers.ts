@@ -32,21 +32,6 @@ const createAccountMappings = (accounts: Account[]): { [key: string]: string } =
 
 // --- Costanti e helper comuni ---
 
-export const TRANSACTION_TYPE_MAP: Record<string, string> = {
-  'Spesa': 'expense',
-  'Entrata': 'income',
-  'Rimborso': 'refund',
-  'Trasferimento': 'transfer',
-  'Acquisto': 'expense',
-  'Ricarica': 'income',
-  'Refund': 'refund',
-  'Bonifico': 'transfer',
-  'Prelievo': 'expense',
-  'Stipendio': 'income',
-  'Ordine': 'expense',
-  'Ordine cloud': 'income',
-};
-
 // Funzione helper per trovare un valore dato un header tra possibili nomi
 export const findValue = (headers: string[], values: string[], possibleNames: string[]): string | undefined => {
   // Normalizza header e nomi possibili: lowercase, trim, rimuovi spazi
@@ -604,10 +589,7 @@ export const BANK_PARSERS: BankParser[] = [
         targetTable,
         // Usa sempre l'etichetta italiana (type) anche per transactionType:
         // la picklist UI (TransactionTypeCombobox) e la validazione in
-        // page.tsx accettano solo le label italiane (es. "Spesa"), non i
-        // valori inglesi usati internamente per il mapping DB ("expense").
-        // La conversione verso l'enum DB avviene comunque a valle tramite
-        // TRANSACTION_TYPE_MAP in processImport.
+        // page.tsx accettano solo i tipi canonici di lib/transactionTypes.
         transactionType: type,
         currency
       };
@@ -1096,7 +1078,7 @@ export async function parseCSV(file: File, accountId?: string, setDetectedBank?:
           initialAmount: parsedRow.amount || '',
           currentAmount: parsedRow.amount || '',
           note: '',
-          transactionType: parsedRow.transactionType || parsedRow.type || 'expense'
+          transactionType: parsedRow.transactionType || parsedRow.type || 'Spesa'
         };
 
         rows.push(row);
@@ -1126,7 +1108,7 @@ export async function parseCSV(file: File, accountId?: string, setDetectedBank?:
           initialAmount: amountNum.toString(),
           currentAmount: amountNum.toString(),
           note: '',
-          transactionType: type === 'Entrata' ? 'income' : 'expense'
+          transactionType: type
         };
         rows.push(row);
       }
@@ -1224,7 +1206,7 @@ export async function parseExcel(file: File, accountId?: string, setDetectedBank
           initialAmount: parsedRow.amount || '',
           currentAmount: parsedRow.amount || '',
           note: '',
-          transactionType: parsedRow.transactionType || parsedRow.type || 'expense'
+          transactionType: parsedRow.transactionType || parsedRow.type || 'Spesa'
         };
         rows.push(row);
       } else {
@@ -1278,7 +1260,7 @@ export function parseEdenredExcel(jsonData: string[][], accountId?: string): Imp
     }
   }
   const rows: ImportRow[] = [];
-  const grouped: { [key: string]: { date: string, description: string, amount: number, type: string, transactionType: string } } = {};
+  const grouped: { [key: string]: { date: string, description: string, amount: number, type: string } } = {};
   const headers = jsonData[headerRowIndex].map(h => h?.toString().toLowerCase() || '');
   for (let i = headerRowIndex + 1; i < jsonData.length; i++) {
     const values = jsonData[i].map(v => v?.toString() || '');
@@ -1312,15 +1294,12 @@ export function parseEdenredExcel(jsonData: string[][], accountId?: string): Imp
     }
     const tipoMov = (values[1] || '').toLowerCase();
     let tipo = 'Spesa';
-    let transactionType = 'expense';
     if (tipoMov.includes('utilizzo')) {
       amount = -Math.abs(amount);
       tipo = 'Acquisto';
-      transactionType = 'expense';
     } else if (tipoMov.includes('ordine cloud')) {
       amount = Math.abs(amount);
       tipo = 'Ricarica';
-      transactionType = 'income';
     }
     let description = values[1]?.toString() || '';
     if (tipoMov.includes('ordine cloud')) {
@@ -1359,7 +1338,7 @@ export function parseEdenredExcel(jsonData: string[][], accountId?: string): Imp
     }
     const groupKey = ora ? `${dataISO} ${ora}` : dataISO;
     if (!grouped[groupKey]) {
-      grouped[groupKey] = { date: dataISO, description, amount, type: tipo, transactionType };
+      grouped[groupKey] = { date: dataISO, description, amount, type: tipo };
     } else {
       grouped[groupKey].amount += amount;
     }

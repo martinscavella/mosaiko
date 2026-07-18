@@ -3,34 +3,7 @@
 import { useState, Fragment, useCallback } from "react";
 import { Combobox, Transition } from "@headlessui/react";
 import { Check, ChevronsUpDown } from "lucide-react";
-
-const TRANSACTION_TYPES = [
-  "Abbonamento",
-  "Acquisto",
-  "AZIONE",
-  "Bonifico",
-  "Buono fruttifero",
-  "Cancellazione rimborso",
-  "Commissione",
-  "Competenze",
-  "Delivery",
-  "Eccesso Rimborso",
-  "Entrata",
-  "ETF",
-  "Imposte",
-  "Iscrizione",
-  "Ordine",
-  "Ordine cloud",
-  "Prelievo",
-  "Quattordicesima",
-  "Rata",
-  "Refund",
-  "Ricarica",
-  "Spesa",
-  "Stipendio",
-  "TFR",
-  "Tredicesima",
-];
+import { TRANSACTION_TYPE_VALUES } from "@/lib/transactionTypes";
 
 interface TransactionTypeComboboxProps {
   value: string | null;
@@ -50,8 +23,8 @@ export function TransactionTypeCombobox({
 
   const filteredTypes =
     query === ""
-      ? TRANSACTION_TYPES
-      : TRANSACTION_TYPES.filter((type) =>
+      ? TRANSACTION_TYPE_VALUES
+      : TRANSACTION_TYPE_VALUES.filter((type) =>
           type
             .toLowerCase()
             .replace(/\s+/g, "")

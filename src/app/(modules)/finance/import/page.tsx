@@ -22,6 +22,10 @@ import {
   parseEdenredExcel,
 } from "./financeImportParsers";
 import { TransactionTypeCombobox } from "@/components/ui/TransactionTypeCombobox";
+import {
+  isTransactionType,
+  normalizeTransactionType,
+} from "@/lib/transactionTypes";
 
 interface ImportRow {
   id: string;
@@ -331,22 +335,6 @@ export default function ImportPage() {
     }
   };
 
-  const TRANSACTION_TYPE_MAP: Record<string, string> = {
-    Spesa: "expense",
-    Entrata: "income",
-    Rimborso: "refund",
-    Trasferimento: "transfer",
-    Acquisto: "expense",
-    Ricarica: "income",
-    Refund: "refund",
-    Bonifico: "transfer",
-    Prelievo: "expense",
-    Stipendio: "income",
-    Ordine: "expense",
-    "Ordine cloud": "income",
-    // ...aggiungi altri mapping se necessario...
-  };
-
   const validateRow = (row: ImportRow): string[] => {
     const errors: string[] = [];
 
@@ -428,35 +416,8 @@ export default function ImportPage() {
         }
 
         // Valida tipo transazione
-        const tipoOptions = [
-          "Abbonamento",
-          "Acquisto",
-          "AZIONE",
-          "Bonifico",
-          "Buono fruttifero",
-          "Cancellazione rimborso",
-          "Commissione",
-          "Competenze",
-          "Delivery",
-          "Eccesso Rimborso",
-          "Entrata",
-          "ETF",
-          "Imposte",
-          "Iscrizione",
-          "Ordine",
-          "Ordine cloud",
-          "Prelievo",
-          "Quattordicesima",
-          "Rata",
-          "Refund",
-          "Ricarica",
-          "Spesa",
-          "Stipendio",
-          "TFR",
-          "Tredicesima",
-        ];
         const selectedTypeLabel = row.transactionType;
-        if (selectedTypeLabel && !tipoOptions.includes(selectedTypeLabel)) {
+        if (selectedTypeLabel && !isTransactionType(selectedTypeLabel)) {
           errors.push("Tipo transazione non valido");
         }
         break;
@@ -604,10 +565,9 @@ export default function ImportPage() {
             insertData = {
               ...insertData,
               transaction_date: transactionDate,
-              transaction_type:
-                TRANSACTION_TYPE_MAP[row.transactionType || ""] ||
-                row.transactionType ||
-                "expense",
+              // Salva sempre il tipo canonico (lib/transactionTypes):
+              // i vecchi import salvavano i valori inglesi ('expense', …)
+              transaction_type: normalizeTransactionType(row.transactionType),
               transaction_details: row.description.trim(),
               transaction_code: row.code || null,
               account_id: row.account || null,

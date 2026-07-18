@@ -7,6 +7,14 @@ import { useAllTransactions, useFinanceCache, useAssets, useAssetOperations, typ
 import { DollarSign, Calendar, FileText, Tag, CreditCard, TrendingUp, TrendingDown, ArrowRightLeft, Check, ChevronDown, Hash, Package } from 'lucide-react'
 import clsx from 'clsx'
 import Modal, { ModalButton } from './Modal'
+import {
+  TRANSACTION_TYPE_VALUES,
+  ASSET_TRANSACTION_TYPES,
+  DEFAULT_TRANSACTION_TYPE,
+  isPositiveTransactionType,
+  transactionTypeKind,
+  type TransactionType,
+} from '@/lib/transactionTypes'
 
 interface Account {
   id: string
@@ -49,8 +57,6 @@ interface NewTransactionModalProps {
   }
 }
 
-type TransactionType = 'Abbonamento' | 'Acquisto' | 'AZIONE' | 'Bonifico' | 'Buono fruttifero' | 'Cancellazione rimborso' | 'Commissione' | 'Competenze' | 'Delivery' | 'Eccesso Rimborso' | 'Entrata' | 'ETF' | 'Imposte' | 'Iscrizione' | 'Ordine' | 'Prelievo' | 'Quattordicesima' | 'Rata' | 'Refund' | 'Ricarica' | 'Spesa' | 'Stipendio' | 'TFR' | 'Tredicesima'
-
 export default function NewTransactionModal({ isOpen, onClose, onSuccess, editTransaction, prefilledData }: NewTransactionModalProps) {
   const { user } = useAuth()
   const { refetch } = useAllTransactions()
@@ -72,7 +78,7 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, editTr
     category_id: '',
     subcategory_id: '',
     transaction_date: new Date().toISOString().split('T')[0],
-    transaction_type: 'Spesa' as TransactionType,
+    transaction_type: DEFAULT_TRANSACTION_TYPE as TransactionType,
     transaction_note: '',
     transaction_code: '',
     currency: 'EUR',
@@ -163,7 +169,7 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, editTr
         category_id: editTransaction.category_id || '',
         subcategory_id: editTransaction.subcategory_id || '',
         transaction_date: editTransaction.transaction_date?.split('T')[0] || new Date().toISOString().split('T')[0],
-        transaction_type: (editTransaction.transaction_type as TransactionType) || 'Spesa',
+        transaction_type: (editTransaction.transaction_type as TransactionType) || DEFAULT_TRANSACTION_TYPE,
         transaction_note: editTransaction.transaction_note || '',
         transaction_code: editTransaction.transaction_code || '',
         currency: editTransaction.currency || 'EUR',
@@ -188,7 +194,7 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, editTr
       category_id: prefilledData?.category_id || '',
       subcategory_id: prefilledData?.subcategory_id || '',
       transaction_date: prefilledData?.transaction_date || new Date().toISOString().split('T')[0],
-      transaction_type: (prefilledData?.transaction_type as TransactionType) || 'Spesa',
+      transaction_type: (prefilledData?.transaction_type as TransactionType) || DEFAULT_TRANSACTION_TYPE,
       transaction_note: prefilledData?.transaction_note || '',
       transaction_code: '',
       currency: 'EUR',
@@ -225,8 +231,7 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, editTr
     const amount = parseFloat(formData.amount)
 
     // Controlla se l'account selezionato ha saldo sufficiente per transazioni negative
-    const positiveTypes = ['Entrata', 'Stipendio', 'Quattordicesima', 'Tredicesima', 'TFR', 'Ricarica', 'Refund', 'Eccesso Rimborso', 'Cancellazione rimborso']
-    const isNegativeTransaction = !positiveTypes.includes(formData.transaction_type)
+    const isNegativeTransaction = !isPositiveTransactionType(formData.transaction_type)
     const selectedAccount = accounts.find(acc => acc.id === formData.account_id)
 
     // Il controllo saldo vale solo in creazione: in modifica l'importo era già contabilizzato
@@ -240,7 +245,7 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, editTr
       const supabase = createClientComponentClient()
 
       // Determina se l'importo è positivo o negativo in base al tipo di transazione
-      const finalAmount = positiveTypes.includes(formData.transaction_type)
+      const finalAmount = isPositiveTransactionType(formData.transaction_type)
         ? Math.abs(amount)
         : -Math.abs(amount)
 
@@ -338,18 +343,15 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, editTr
   }
 
   const getTransactionTypeIcon = (type: string) => {
-    const positiveTypes = ['Entrata', 'Stipendio', 'Quattordicesima', 'Tredicesima', 'TFR', 'Ricarica', 'Refund', 'Eccesso Rimborso', 'Cancellazione rimborso']
-    const investmentTypes = ['AZIONE', 'ETF', 'Buono fruttifero']
-    const transferTypes = ['Bonifico', 'Prelievo']
-    
-    if (positiveTypes.includes(type)) {
-      return <TrendingUp className="w-5 h-5 text-success-strong" />
-    } else if (investmentTypes.includes(type)) {
-      return <TrendingUp className="w-5 h-5 text-primary" />
-    } else if (transferTypes.includes(type)) {
-      return <ArrowRightLeft className="w-5 h-5 text-module-health" />
-    } else {
-      return <TrendingDown className="w-5 h-5 text-danger" />
+    switch (transactionTypeKind(type)) {
+      case 'income':
+        return <TrendingUp className="w-5 h-5 text-success-strong" />
+      case 'investment':
+        return <TrendingUp className="w-5 h-5 text-primary" />
+      case 'transfer':
+        return <ArrowRightLeft className="w-5 h-5 text-module-health" />
+      default:
+        return <TrendingDown className="w-5 h-5 text-danger" />
     }
   }
 
@@ -415,30 +417,9 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, editTr
                     className="w-full px-4 py-3 border border-edge rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all appearance-none bg-surface hover:bg-canvas text-ink font-medium"
                     required
                   >
-                    <option value="Abbonamento">Abbonamento</option>
-                    <option value="Acquisto">Acquisto</option>
-                    <option value="AZIONE">AZIONE</option>
-                    <option value="Bonifico">Bonifico</option>
-                    <option value="Buono fruttifero">Buono fruttifero</option>
-                    <option value="Cancellazione rimborso">Cancellazione rimborso</option>
-                    <option value="Commissione">Commissione</option>
-                    <option value="Competenze">Competenze</option>
-                    <option value="Delivery">Delivery</option>
-                    <option value="Eccesso Rimborso">Eccesso Rimborso</option>
-                    <option value="Entrata">Entrata</option>
-                    <option value="ETF">ETF</option>
-                    <option value="Imposte">Imposte</option>
-                    <option value="Iscrizione">Iscrizione</option>
-                    <option value="Ordine">Ordine</option>
-                    <option value="Prelievo">Prelievo</option>
-                    <option value="Quattordicesima">Quattordicesima</option>
-                    <option value="Rata">Rata</option>
-                    <option value="Refund">Refund</option>
-                    <option value="Ricarica">Ricarica</option>
-                    <option value="Spesa">Spesa</option>
-                    <option value="Stipendio">Stipendio</option>
-                    <option value="TFR">TFR</option>
-                    <option value="Tredicesima">Tredicesima</option>
+                    {TRANSACTION_TYPE_VALUES.map(type => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
                   </select>
                   <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none">
                     <div className="flex items-center space-x-2">
@@ -665,7 +646,7 @@ export default function NewTransactionModal({ isOpen, onClose, onSuccess, editTr
             </div>
 
             {/* Collega ad Asset + Quantità - per transazioni investment (AZIONE, ETF, Buono fruttifero) */}
-            {['AZIONE', 'ETF', 'Buono fruttifero'].includes(formData.transaction_type) && (
+            {ASSET_TRANSACTION_TYPES.includes(formData.transaction_type) && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="space-y-3">
                   <label className="flex items-center text-sm font-medium text-ink-secondary">
