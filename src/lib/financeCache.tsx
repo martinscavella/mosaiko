@@ -124,6 +124,8 @@ interface CachedData {
   assets: Asset[];
   lastFetch: number;
   isStale: boolean;
+  /** Data (YYYY-MM-DD) da cui sono caricate le transazioni; null = storico completo (T4.1) */
+  transactionsSince: string | null;
 }
 
 interface FinanceCacheContextType {
@@ -133,12 +135,27 @@ interface FinanceCacheContextType {
   refetch: () => Promise<void>;
   invalidateCache: () => void;
   isDataStale: boolean;
+  /** true quando in cache c'è tutto lo storico transazioni (T4.1) */
+  hasFullTransactionHistory: boolean;
+  /** Scarica on-demand le transazioni più vecchie della finestra iniziale (T4.1) */
+  loadFullTransactionHistory: () => Promise<void>;
 }
 
 const FinanceCacheContext = createContext<FinanceCacheContextType | undefined>(undefined);
 
 const CACHE_DURATION = 60 * 60 * 1000; // 1 ora per dati freschi
 const STALE_TIME = 30 * 60 * 1000; // 30 minuti (quando considerare i dati obsoleti ma utilizzabili)
+
+// Finestra iniziale delle transazioni (T4.1): al login si scaricano solo gli
+// ultimi N mesi; lo storico completo si carica on-demand con
+// loadFullTransactionHistory (Reports "tutto lo storico", grafico "Tutto", …).
+const TRANSACTIONS_WINDOW_MONTHS = 24;
+
+const transactionsWindowStart = (): string => {
+  const d = new Date();
+  return new Date(d.getFullYear(), d.getMonth() - TRANSACTIONS_WINDOW_MONTHS, 1)
+    .toISOString().slice(0, 10);
+};
 
 const initialStats: FinanceStats = {
   totalBalance: 0,
@@ -152,6 +169,125 @@ const initialStats: FinanceStats = {
   currentMonth: 'Nessun dato',
   monthYear: ''
 };
+
+// Forma esatta delle colonne richieste nella select() di fetchTransactionsRange:
+// evita `any` e fa emergere subito eventuali disallineamenti tra select e
+// mapping. Il client Supabase (senza i tipi generati dello schema) inferisce le
+// relazioni embedded come array anche quando a runtime sono oggetti singoli
+// (relazione many-to-one via FK): normalizeEmbedded gestisce entrambe le forme
+// senza assumere quale sia quella reale.
+type RawTransactionRow = {
+  id: string
+  transaction_date: string
+  transaction_details: string
+  current_amount: number
+  initial_amount: number
+  transaction_type: string
+  transaction_code: string | null
+  transaction_note: string | null
+  currency: string
+  is_refunded: boolean | null
+  account_id: string | null
+  account_name: string | null
+  category_id: string | null
+  subcategory_id: string | null
+  asset_id: string | null
+  asset_quantity: number | null
+  created_at: string
+  updated_at: string
+  accounts: { type: string } | { type: string }[] | null
+  categories: { name: string } | { name: string }[] | null
+  subcategories: { name: string } | { name: string }[] | null
+}
+
+const normalizeEmbedded = <T,>(value: T | T[] | null): T | null => {
+  if (!value) return null
+  return Array.isArray(value) ? (value[0] ?? null) : value
+}
+
+// Scarica le transazioni a batch di 1000 (limite PostgREST), ordinate per data
+// discendente. `since` limita alla finestra iniziale (>=), `before` scarica
+// solo il periodo precedente alla finestra (<) per loadFullTransactionHistory.
+async function fetchTransactionsRange(
+  supabase: ReturnType<typeof createClientComponentClient>,
+  userId: string,
+  bounds: { since?: string | null; before?: string | null }
+): Promise<Transaction[]> {
+  let all: Transaction[] = [];
+  let hasMore = true;
+  let offset = 0;
+  const batchSize = 1000;
+
+  while (hasMore) {
+    let query = supabase
+      .from('transactions')
+      .select(`
+        id,
+        transaction_date,
+        transaction_details,
+        current_amount,
+        initial_amount,
+        transaction_type,
+        transaction_code,
+        transaction_note,
+        currency,
+        is_refunded,
+        account_id,
+        account_name,
+        category_id,
+        subcategory_id,
+        asset_id,
+        asset_quantity,
+        created_at,
+        updated_at,
+        accounts(type),
+        categories(name),
+        subcategories(name)
+      `)
+      .eq('user_id', userId)
+      .order('transaction_date', { ascending: false })
+      .range(offset, offset + batchSize - 1);
+
+    if (bounds.since) query = query.gte('transaction_date', bounds.since);
+    if (bounds.before) query = query.lt('transaction_date', bounds.before);
+
+    const transactionsBatch = await query;
+
+    if (transactionsBatch.error) {
+      throw transactionsBatch.error;
+    }
+
+    const batchData: Transaction[] = ((transactionsBatch.data || []) as RawTransactionRow[]).map((item) => ({
+      id: item.id,
+      transaction_date: item.transaction_date,
+      transaction_details: item.transaction_details,
+      current_amount: item.current_amount,
+      initial_amount: item.initial_amount,
+      transaction_type: item.transaction_type,
+      transaction_code: item.transaction_code,
+      transaction_note: item.transaction_note,
+      currency: item.currency,
+      is_refunded: item.is_refunded ?? undefined,
+      account_id: item.account_id,
+      account_name: item.account_name ?? undefined,
+      category_id: item.category_id,
+      subcategory_id: item.subcategory_id,
+      asset_id: item.asset_id,
+      asset_quantity: item.asset_quantity,
+      created_at: item.created_at,
+      updated_at: item.updated_at,
+      accounts: normalizeEmbedded(item.accounts),
+      categories: normalizeEmbedded(item.categories),
+      subcategories: normalizeEmbedded(item.subcategories)
+    }));
+    all = [...all, ...batchData];
+
+    hasMore = batchData.length === batchSize;
+    offset += batchSize;
+  }
+
+  return all;
+}
 
 export function FinanceCacheProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<CachedData | null>(null);
@@ -203,109 +339,10 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
         supabase.from('funds_transfer').select('*').eq('user_id', user.id).order('funds_transfer_date', { ascending: false })
       ]);
 
-      let allTransactions: Transaction[] = [];
-      let hasMore = true;
-      let offset = 0;
-      const batchSize = 1000;
-
-      while (hasMore) {
-        const transactionsBatch = await supabase
-          .from('transactions')
-          .select(`
-            id,
-            transaction_date,
-            transaction_details,
-            current_amount,
-            initial_amount,
-            transaction_type,
-            transaction_code,
-            transaction_note,
-            currency,
-            is_refunded,
-            account_id,
-            account_name,
-            category_id,
-            subcategory_id,
-            asset_id,
-            asset_quantity,
-            created_at,
-            updated_at,
-            accounts(type),
-            categories(name),
-            subcategories(name)
-          `)
-          .eq('user_id', user.id)
-          .order('transaction_date', { ascending: false })
-          .range(offset, offset + batchSize - 1);
-
-        if (transactionsBatch.error) {
-          throw transactionsBatch.error;
-        }
-
-        // Map Supabase data to Transaction type
-        // Forma esatta delle colonne richieste nella select() sopra: evita `any`
-        // e fa emergere subito eventuali disallineamenti tra select e mapping.
-        // Il client Supabase (senza i tipi generati dello schema) inferisce le
-        // relazioni embedded come array anche quando a runtime sono oggetti
-        // singoli (relazione many-to-one via FK): normalizeEmbedded gestisce
-        // entrambe le forme senza assumere quale sia quella reale.
-        type RawTransactionRow = {
-          id: string
-          transaction_date: string
-          transaction_details: string
-          current_amount: number
-          initial_amount: number
-          transaction_type: string
-          transaction_code: string | null
-          transaction_note: string | null
-          currency: string
-          is_refunded: boolean | null
-          account_id: string | null
-          account_name: string | null
-          category_id: string | null
-          subcategory_id: string | null
-          asset_id: string | null
-          asset_quantity: number | null
-          created_at: string
-          updated_at: string
-          accounts: { type: string } | { type: string }[] | null
-          categories: { name: string } | { name: string }[] | null
-          subcategories: { name: string } | { name: string }[] | null
-        }
-
-        const normalizeEmbedded = <T,>(value: T | T[] | null): T | null => {
-          if (!value) return null
-          return Array.isArray(value) ? (value[0] ?? null) : value
-        }
-
-        const batchData: Transaction[] = ((transactionsBatch.data || []) as RawTransactionRow[]).map((item) => ({
-          id: item.id,
-          transaction_date: item.transaction_date,
-          transaction_details: item.transaction_details,
-          current_amount: item.current_amount,
-          initial_amount: item.initial_amount,
-          transaction_type: item.transaction_type,
-          transaction_code: item.transaction_code,
-          transaction_note: item.transaction_note,
-          currency: item.currency,
-          is_refunded: item.is_refunded ?? undefined,
-          account_id: item.account_id,
-          account_name: item.account_name ?? undefined,
-          category_id: item.category_id,
-          subcategory_id: item.subcategory_id,
-          asset_id: item.asset_id,
-          asset_quantity: item.asset_quantity,
-          created_at: item.created_at,
-          updated_at: item.updated_at,
-          accounts: normalizeEmbedded(item.accounts),
-          categories: normalizeEmbedded(item.categories),
-          subcategories: normalizeEmbedded(item.subcategories)
-        }));
-        allTransactions = [...allTransactions, ...batchData];
-
-        hasMore = batchData.length === batchSize;
-        offset += batchSize;
-      }
+      // Finestra iniziale (T4.1): se lo storico completo era già stato caricato
+      // in questa sessione, un refetch lo mantiene completo.
+      const since = dataRef.current?.transactionsSince === null ? null : transactionsWindowStart();
+      const allTransactions = await fetchTransactionsRange(supabase, user.id, { since });
 
       const accounts = accountsResult.data || [];
       const goals = goalsResult.data || [];
@@ -440,7 +477,8 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
         accounts: accounts as Account[],
         assets,
         lastFetch: Date.now(),
-        isStale: false
+        isStale: false,
+        transactionsSince: since
       };
 
       dataRef.current = newCacheData;
@@ -484,6 +522,39 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
     setError(null)
   }, [])
 
+  // Ref per non far partire due download dello storico in parallelo
+  const loadingFullHistoryRef = useRef(false)
+
+  const loadFullTransactionHistory = useCallback(async () => {
+    const current = dataRef.current
+    if (!user || !current || current.transactionsSince === null) return
+    if (loadingFullHistoryRef.current) return
+
+    try {
+      loadingFullHistoryRef.current = true
+      const older = await fetchTransactionsRange(supabase, user.id, {
+        before: current.transactionsSince
+      })
+
+      // Ricontrolla dopo l'await: un refetch concorrente può aver sostituito i dati
+      const base = dataRef.current
+      if (!base || base.transactionsSince === null) return
+
+      const updated: CachedData = {
+        ...base,
+        // le liste sono entrambe ordinate per data discendente: append diretto
+        transactions: [...base.transactions, ...older],
+        transactionsSince: null
+      }
+      dataRef.current = updated
+      setData(updated)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Errore nel caricamento dello storico')
+    } finally {
+      loadingFullHistoryRef.current = false
+    }
+  }, [user, supabase])
+
   // Memoizzato: il provider wrappa l'intero layout, senza useMemo ogni cambio
   // di stato interno ricreerebbe l'oggetto e ri-renderizzerebbe tutti i
   // consumer di useFinanceCache (fix I4, perso in un merge e ripristinato).
@@ -493,8 +564,10 @@ export function FinanceCacheProvider({ children }: { children: ReactNode }) {
     error,
     refetch,
     invalidateCache,
-    isDataStale: data ? isDataStale(data.lastFetch) : false
-  }), [data, loading, error, refetch, invalidateCache, isDataStale]);
+    isDataStale: data ? isDataStale(data.lastFetch) : false,
+    hasFullTransactionHistory: data ? data.transactionsSince === null : false,
+    loadFullTransactionHistory
+  }), [data, loading, error, refetch, invalidateCache, isDataStale, loadFullTransactionHistory]);
 
   return <FinanceCacheContext.Provider value={contextValue}>{children}</FinanceCacheContext.Provider>;
 }

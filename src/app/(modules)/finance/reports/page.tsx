@@ -1,6 +1,6 @@
 'use client' 
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { 
   BarChart3, 
   TrendingUp, 
@@ -67,15 +67,26 @@ export default function ReportsPage() {
   const { operations: allOperations, transactions } = useAllFinancialOperations()
   const { accounts } = useAccounts()
   const { assets } = useAssets()
-  const { refetch, isDataStale } = useFinanceCache()
-  
+  const { refetch, isDataStale, data: cacheData, hasFullTransactionHistory, loadFullTransactionHistory } = useFinanceCache()
+
   const [activeTab, setActiveTab] = useState<ReportTab>('overview')
-  
+
   // Filtri dinamici — default: ultimi 12 mesi
   const [dateRange, setDateRange] = useState<DateRange>({
     start: new Date(new Date().getFullYear(), new Date().getMonth() - 11, 1),
     end: new Date()
   })
+
+  // T4.1: la cache parte con una finestra di 24 mesi; se il filtro chiede un
+  // periodo che inizia prima (o nessun limite), scarica lo storico completo
+  useEffect(() => {
+    if (hasFullTransactionHistory) return
+    const since = cacheData?.transactionsSince
+    if (!since) return
+    if (!dateRange.start || dateRange.start < new Date(since)) {
+      loadFullTransactionHistory()
+    }
+  }, [dateRange.start, hasFullTransactionHistory, cacheData?.transactionsSince, loadFullTransactionHistory])
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>([])
   const [showFilters, setShowFilters] = useState(false)
   const [showExportModal, setShowExportModal] = useState(false)

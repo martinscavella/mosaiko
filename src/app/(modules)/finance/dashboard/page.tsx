@@ -31,7 +31,7 @@ export default function FinanceDashboard() {
   // Recupera dati finanziari (statistiche, stato di caricamento, errori)
   const { stats, loading, error } = useFinanceData();
   // Gestisce la cache e il refetch dei dati
-  const { refetch, isDataStale, data } = useFinanceCache();
+  const { refetch, isDataStale, data, hasFullTransactionHistory, loadFullTransactionHistory } = useFinanceCache();
   // Recupera info utente e stato autenticazione
   const { user, loading: authLoading } = useAuth();
 
@@ -203,12 +203,14 @@ export default function FinanceDashboard() {
             </div>
             {/* Destra: grafico saldo totale */}
             <div className="flex flex-col h-full">
-              <TotalBalanceChart 
+              <TotalBalanceChart
                 data={data ? {
                   transactions: data.transactions,
                   accounts: data.accounts,
                   assets: data.assets
-                } : null} 
+                } : null}
+                hasFullHistory={hasFullTransactionHistory}
+                onLoadFullHistory={loadFullTransactionHistory}
               />
             </div>
           </div>

@@ -21,7 +21,17 @@ import {
 
 export default function TransactionsPage() {
   const { transactions, loading, error, refetch } = useAllTransactions()
-  const { isDataStale } = useFinanceCache()
+  const { isDataStale, hasFullTransactionHistory, loadFullTransactionHistory } = useFinanceCache()
+  const [loadingFullHistory, setLoadingFullHistory] = useState(false)
+
+  const handleLoadFullHistory = async () => {
+    setLoadingFullHistory(true)
+    try {
+      await loadFullTransactionHistory()
+    } finally {
+      setLoadingFullHistory(false)
+    }
+  }
   const { user, loading: authLoading } = useAuth()
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(10)
@@ -489,6 +499,22 @@ export default function TransactionsPage() {
             availableSubcategories={availableSubcategories}
           />
         </div>
+
+        {/* Finestra parziale (T4.1): offri il caricamento dello storico completo */}
+        {!hasFullTransactionHistory && !loading && (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 bg-surface border border-edge rounded-lg p-4">
+            <p className="text-sm text-ink-secondary">
+              Sono mostrate le transazioni degli ultimi 24 mesi.
+            </p>
+            <button
+              onClick={handleLoadFullHistory}
+              disabled={loadingFullHistory}
+              className="px-3 py-1.5 text-sm font-medium text-primary bg-primary-subtle hover:bg-primary-subtle/80 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loadingFullHistory ? 'Caricamento…' : 'Carica tutto lo storico'}
+            </button>
+          </div>
+        )}
 
         {error && (
           <div className="mt-4 bg-danger-subtle border border-danger-subtle rounded-lg p-6">

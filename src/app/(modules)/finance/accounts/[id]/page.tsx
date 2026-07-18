@@ -39,7 +39,7 @@ export default function AccountDetailPage() {
   const router = useRouter()
   const { user, loading: authLoading } = useAuth()
   const { accounts, loading: accountsLoading } = useAccounts()
-  const { data: financeData, loading: dataLoading } = useFinanceCache()
+  const { data: financeData, loading: dataLoading, hasFullTransactionHistory, loadFullTransactionHistory } = useFinanceCache()
   const { setAccountActive, recalculateAccountBalance } = useAccountOperations()
 
   const account = useMemo(() => accounts.find((a) => a.id === accountId) || null, [accounts, accountId])
@@ -398,6 +398,8 @@ export default function AccountDetailPage() {
               title="Andamento Saldo"
               emptyLabel="Andamento del saldo di questo account"
               icon={<Wallet className="h-5 w-5" />}
+              hasFullHistory={hasFullTransactionHistory}
+              onLoadFullHistory={loadFullTransactionHistory}
             />
           </div>
           <div className="bg-surface border border-edge rounded-lg shadow-card p-5">

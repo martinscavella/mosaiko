@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { AlertTriangle, PowerOff } from 'lucide-react'
 import Modal, { ModalButton } from './Modal'
 import { useAccountOperations } from '@/lib/financeCache'
@@ -33,9 +34,56 @@ export default function DeleteAccountModal({ isOpen, onClose, account, usage, on
   const { deleteAccount } = useAccountOperations()
   const [loading, setLoading] = useState(false)
 
+  // La usage passata dal chiamante deriva dalla cache, che dalla T4.1 contiene
+  // solo una finestra dello storico: un account con soli movimenti vecchi
+  // sembrerebbe vuoto. Le FK in DB sono ON DELETE CASCADE, quindi un delete
+  // "permesso" per errore cancellerebbe lo storico: riverifica i conteggi
+  // direttamente sul server quando il modale si apre.
+  const [serverUsage, setServerUsage] = useState<AccountUsage | null>(null)
+  const supabase = createClientComponentClient()
+
+  useEffect(() => {
+    if (!isOpen || !account) {
+      setServerUsage(null)
+      return
+    }
+    let cancelled = false
+    const verify = async () => {
+      const countFor = async (table: string) => {
+        const { count, error } = await supabase
+          .from(table)
+          .select('*', { count: 'exact', head: true })
+          .eq('account_id', account.id)
+        if (error) throw error
+        return count || 0
+      }
+      try {
+        const [transactionsCount, refundsCount, fundsTransferCount, assetsCount] = await Promise.all([
+          countFor('transactions'),
+          countFor('refunds'),
+          countFor('funds_transfer'),
+          countFor('assets')
+        ])
+        if (!cancelled) {
+          setServerUsage({ transactionsCount, refundsCount, fundsTransferCount, assetsCount })
+        }
+      } catch (error) {
+        console.error('Errore nella verifica dello storico account:', error)
+        // In dubbio, blocca l'eliminazione fisica come se ci fosse storico
+        if (!cancelled) {
+          setServerUsage({ transactionsCount: 1, refundsCount: 0, fundsTransferCount: 0, assetsCount: 0 })
+        }
+      }
+    }
+    verify()
+    return () => { cancelled = true }
+  }, [isOpen, account, supabase])
+
   if (!isOpen || !account) return null
 
-  const hasHistory = usage.transactionsCount + usage.refundsCount + usage.fundsTransferCount + usage.assetsCount > 0
+  const effectiveUsage = serverUsage ?? usage
+  const verifying = serverUsage === null
+  const hasHistory = effectiveUsage.transactionsCount + effectiveUsage.refundsCount + effectiveUsage.fundsTransferCount + effectiveUsage.assetsCount > 0
 
   const handleDelete = async () => {
     setLoading(true)
@@ -76,8 +124,8 @@ export default function DeleteAccountModal({ isOpen, onClose, account, usage, on
             <ModalButton variant="secondary" onClick={onClose} disabled={loading}>
               Annulla
             </ModalButton>
-            <ModalButton variant="danger" onClick={handleDelete} loading={loading}>
-              Elimina definitivamente
+            <ModalButton variant="danger" onClick={handleDelete} loading={loading} disabled={verifying}>
+              {verifying ? 'Verifica storico…' : 'Elimina definitivamente'}
             </ModalButton>
           </>
         )
@@ -97,10 +145,10 @@ export default function DeleteAccountModal({ isOpen, onClose, account, usage, on
             <div>
               <p className="font-medium mb-1">Questo account ha storico collegato:</p>
               <ul className="list-disc list-inside space-y-0.5">
-                {usage.transactionsCount > 0 && <li>{usage.transactionsCount} transazioni</li>}
-                {usage.refundsCount > 0 && <li>{usage.refundsCount} rimborsi</li>}
-                {usage.fundsTransferCount > 0 && <li>{usage.fundsTransferCount} trasferimenti</li>}
-                {usage.assetsCount > 0 && <li>{usage.assetsCount} asset collegati</li>}
+                {effectiveUsage.transactionsCount > 0 && <li>{effectiveUsage.transactionsCount} transazioni</li>}
+                {effectiveUsage.refundsCount > 0 && <li>{effectiveUsage.refundsCount} rimborsi</li>}
+                {effectiveUsage.fundsTransferCount > 0 && <li>{effectiveUsage.fundsTransferCount} trasferimenti</li>}
+                {effectiveUsage.assetsCount > 0 && <li>{effectiveUsage.assetsCount} asset collegati</li>}
               </ul>
               <p className="mt-2">
                 Per non perdere questi dati, l&apos;eliminazione è bloccata. Disattiva l&apos;account per escluderlo dalle scelte future mantenendo lo storico.

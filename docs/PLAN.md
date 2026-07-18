@@ -61,7 +61,7 @@ la roadmap, lo scope dei nuovi moduli (§7) e il backlog (§8).
 
 | ID | Task | Pri | Dip. | Stima | Definition of Done |
 | --- | --- | --- | --- | --- | --- |
-| T4.1 | Caricamento incrementale transazioni (ex I2): fetch iniziale 12-24 mesi + `loadMore(range)`; adattare Reports/Transactions/Assets/TotalBalanceChart | P1 | T3.10 | XL | Login scarica una finestra limitata; "tutto lo storico" on-demand |
+| T4.1 | ✅ **FATTO 2026-07-18** (finestra iniziale 24 mesi in financeCache + `loadFullTransactionHistory()` on-demand; TotalBalanceChart ancorato all'indietro dal saldo attuale così è corretto anche su finestra parziale, range "Tutto" scarica lo storico; banner "carica tutto" in Transazioni; Reports carica lo storico se il filtro data inizia prima della finestra; DeleteAccountModal riverifica lo storico server-side — le FK sono CASCADE. Limite noto: la ricerca transazione nella pagina Rimborsi vede solo la finestra finché non si carica lo storico) — Caricamento incrementale transazioni (ex I2) | P1 | T3.10 | XL | Login scarica una finestra limitata; "tutto lo storico" on-demand |
 | T4.2 | Split del useMemo monolitico in Reports + memoizzazione calcoli dashboard | P3 | — | S | TODO a reports/page.tsx:129 chiuso |
 | T4.3 | ✅ **FATTO 2026-07-18** (price-history: rimossi mock e default bitcoin, mapping CoinGecko completo con null→404; encodeURIComponent su tutti i parametri lato API e client; empty state esplicito nel grafico) — Prezzi: rimuovere `generateMockHistory` e il default `'bitcoin'`; 404 esplicito + UI "storico non disponibile"; `encodeURIComponent` sui parametri | P1 | — | S | Nessun path restituisce dati inventati |
 | T4.4 | Rate limiting o auth sugli endpoint prezzi | P2 | — | S | Endpoint non abusabili come proxy |

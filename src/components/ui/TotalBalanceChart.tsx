@@ -33,6 +33,10 @@ interface TotalBalanceChartProps {
   title?: string;
   emptyLabel?: string;
   icon?: ReactNode;
+  /** false quando `data.transactions` è la finestra parziale della cache (T4.1) */
+  hasFullHistory?: boolean;
+  /** Chiamata quando l'utente seleziona "Tutto" e lo storico non è completo (T4.1) */
+  onLoadFullHistory?: () => Promise<void> | void;
 }
 
 interface BalancePoint {
@@ -57,7 +61,11 @@ const isValidDate = (date: Date | string | null | undefined): date is string => 
   return !isNaN(dateObj.getTime());
 };
 
-// Storia giornaliera del saldo: un punto per giorno con transazioni (ultimo valore del giorno)
+// Storia giornaliera del saldo: un punto per giorno con transazioni (ultimo
+// valore del giorno). Ancorata ALL'INDIETRO dal saldo attuale degli account
+// (T4.1): l'ultimo punto coincide sempre con il saldo reale, e la curva resta
+// corretta anche quando `transactions` è solo la finestra recente della cache
+// (i movimenti precedenti alla finestra sono già dentro current_balance).
 const computeDailyBalanceHistory = (
   transactions: Transaction[],
   accounts: Account[]
@@ -73,21 +81,25 @@ const computeDailyBalanceHistory = (
 
   if (validTransactions.length === 0) return [];
 
-  const initialBalance = accounts.reduce((sum, account) => sum + (account.initial_balance || 0), 0);
+  const endBalance = accounts.reduce((sum, account) => sum + (account.current_balance || 0), 0);
+
+  // Somma cumulata in avanti, poi trasla la curva perché l'ultimo punto
+  // coincida con il saldo attuale
+  let running = 0;
+  const cumulative = validTransactions.map(t => (running += t.current_amount));
+  const offset = endBalance - running;
 
   const history: BalancePoint[] = [];
-  let currentBalance = initialBalance;
-
-  for (const transaction of validTransactions) {
-    currentBalance += transaction.current_amount;
+  validTransactions.forEach((transaction, i) => {
     const day = (transaction.transaction_date as string).slice(0, 10);
+    const balance = cumulative[i] + offset;
     const last = history[history.length - 1];
     if (last && last.date === day) {
-      last.balance = currentBalance;
+      last.balance = balance;
     } else {
-      history.push({ date: day, balance: currentBalance });
+      history.push({ date: day, balance });
     }
-  }
+  });
 
   return history;
 };
@@ -112,8 +124,19 @@ const compactCurrency = (value: number) =>
     ? `€${(value / 1000).toLocaleString('it-IT', { maximumFractionDigits: 1 })}k`
     : `€${value.toLocaleString('it-IT', { maximumFractionDigits: 0 })}`;
 
-export default function TotalBalanceChart({ data, className = '', title = 'Patrimonio', emptyLabel = 'Andamento del tuo patrimonio', icon }: TotalBalanceChartProps) {
+export default function TotalBalanceChart({ data, className = '', title = 'Patrimonio', emptyLabel = 'Andamento del tuo patrimonio', icon, hasFullHistory = true, onLoadFullHistory }: TotalBalanceChartProps) {
   const [range, setRange] = useState<Range>('1A');
+  const [loadingFullHistory, setLoadingFullHistory] = useState(false);
+
+  const handleRangeChange = (r: Range) => {
+    setRange(r);
+    // "Tutto" con finestra parziale: scarica lo storico completo on-demand;
+    // il grafico si aggiorna da solo quando la cache cambia
+    if (r === 'Tutto' && !hasFullHistory && onLoadFullHistory && !loadingFullHistory) {
+      setLoadingFullHistory(true);
+      Promise.resolve(onLoadFullHistory()).finally(() => setLoadingFullHistory(false));
+    }
+  };
 
   const dailyHistory = useMemo(() => {
     if (!data?.transactions?.length || !data?.accounts) return [];
@@ -183,7 +206,7 @@ export default function TotalBalanceChart({ data, className = '', title = 'Patri
           {RANGES.map(r => (
             <button
               key={r.id}
-              onClick={() => setRange(r.id)}
+              onClick={() => handleRangeChange(r.id)}
               className={clsx(
                 'px-2.5 py-1 rounded-md text-xs font-medium transition-colors',
                 range === r.id
@@ -197,7 +220,11 @@ export default function TotalBalanceChart({ data, className = '', title = 'Patri
         </div>
       </div>
 
-      {chartData.length === 0 ? (
+      {loadingFullHistory ? (
+        <div className="flex-1 flex items-center justify-center text-ink-muted text-sm">
+          Caricamento dello storico completo…
+        </div>
+      ) : chartData.length === 0 ? (
         <div className="flex-1 flex items-center justify-center text-ink-muted">
           Nessun dato disponibile
         </div>
