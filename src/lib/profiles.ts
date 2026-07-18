@@ -14,38 +14,6 @@ export type ProfileData = {
   subscription_type?: string | null
 }
 
-export const createUserProfile = async (userId: string, profileData: ProfileData) => {
-  const supabase = createClientComponentClient()
-
-  // Prepariamo solo i campi che esistono nella tabella profiles (esclusi quelli auto-generati)
-  const insertData = {
-    id: userId,
-    first_name: profileData.first_name,
-    last_name: profileData.last_name,
-    birth_date: profileData.birth_date,
-    phone_number: profileData.phone_number,
-    address: profileData.address || null,
-    bio: profileData.bio || null,
-    avatar_url: profileData.avatar_url || null,
-    language: profileData.language || 'it',
-    app_theme: profileData.app_theme || 'dark',
-    notifications_enabled: profileData.notifications_enabled !== undefined ? profileData.notifications_enabled : true,
-    subscription_type: profileData.subscription_type || null
-    // Non includiamo: full_name (auto-generato), created_at, updated_at (auto-generati)
-  }
-
-  const { data, error } = await supabase
-    .from('profiles')
-    .insert([insertData])
-    .select()
-
-  if (error) {
-    console.error('Errore creazione profilo:', error.code, error.message)
-  }
-
-  return { data, error }
-}
-
 export const updateUserProfile = async (userId: string, profileData: Partial<ProfileData>) => {
   const supabase = createClientComponentClient()
   
