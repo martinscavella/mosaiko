@@ -1,4 +1,4 @@
-import { Wallet, HeartPulse, CheckSquare, BookOpen, LucideIcon } from 'lucide-react'
+import { Wallet, HeartPulse, CheckSquare, BookOpen, Home, ShoppingBasket, LucideIcon } from 'lucide-react'
 
 export type Module = {
   id: string;
@@ -18,6 +18,22 @@ export const modules: Module[] = [
     description: 'Gestisci le tue finanze personali',
     status: 'active',
     accentClasses: 'bg-module-finance-subtle text-module-finance'
+  },
+  {
+    id: 'house',
+    name: 'House',
+    icon: Home,
+    description: 'Gestisci casa, bollette e manutenzioni',
+    status: 'coming_soon',
+    accentClasses: 'bg-module-house-subtle text-module-house'
+  },
+  {
+    id: 'grocery',
+    name: 'Grocery',
+    icon: ShoppingBasket,
+    description: 'Dispensa, lista della spesa e prezzi',
+    status: 'coming_soon',
+    accentClasses: 'bg-module-grocery-subtle text-module-grocery'
   },
   {
     id: 'health',

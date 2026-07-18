@@ -27,6 +27,8 @@ leggibilità in dashboard data-heavy. Evitare estetiche generiche da template.
 
   --teal-600: #0D9488;
   --violet-600: #7C3AED;
+  --orange-600: #EA580C;
+  --lime-600: #65A30D;
 
   --slate-900: #0F172A;
   --slate-700: #334155;
@@ -75,6 +77,8 @@ leggibilità in dashboard data-heavy. Evitare estetiche generiche da template.
   --color-module-tasks: var(--teal-600);
   --color-module-health: var(--violet-600);
   --color-module-learning: var(--amber-600);
+  --color-module-house: var(--orange-600);   /* T6.2: calore domestico, distinto dall'amber di Learning */
+  --color-module-grocery: var(--lime-600);   /* T6.2: freschezza; lime ≠ green di stato (già in palette chart) */
   /* Ogni accent ha la variante -subtle (bg-100) per chip e icone */
 }
 ```
@@ -92,7 +96,7 @@ sempre queste, mai la palette Tailwind di default:
 | `text-success-strong`, `bg-success`, `bg-success-subtle` | positivo |
 | `text-danger`, `bg-danger`, `bg-danger-subtle` | negativo/alert |
 | `text-warning`, `bg-warning`, `bg-warning-subtle` | attenzione |
-| `bg-module-finance` … `bg-module-learning` (+ `-subtle`) | accent moduli |
+| `bg-module-finance` … `bg-module-grocery` (+ `-subtle`) | accent moduli (finance, tasks, health, learning, house, grocery) |
 | `shadow-card` / `shadow-elevated` | elevazione |
 | `font-amount` (classe CSS) | importi: JetBrains Mono + tabular-nums |
 
@@ -125,6 +129,8 @@ sempre queste, mai la palette Tailwind di default:
   --color-module-tasks: #2DD4BF;
   --color-module-health: #A78BFA;
   --color-module-learning: #FBBF24;
+  --color-module-house: #FB923C;
+  --color-module-grocery: #A3E635;
 }
 ```
 

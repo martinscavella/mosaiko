@@ -26,6 +26,10 @@
     --teal-100: #CCFBF1;
     --violet-600: #7C3AED;
     --violet-100: #EDE9FE;
+    --orange-600: #EA580C;
+    --orange-100: #FFEDD5;
+    --lime-600: #65A30D;
+    --lime-100: #ECFCCB;
 
     --slate-900: #0F172A;
     --slate-700: #334155;
@@ -71,6 +75,10 @@
     --color-module-health-subtle: var(--violet-100);
     --color-module-learning: var(--amber-600);
     --color-module-learning-subtle: var(--amber-100);
+    --color-module-house: var(--orange-600);
+    --color-module-house-subtle: var(--orange-100);
+    --color-module-grocery: var(--lime-600);
+    --color-module-grocery-subtle: var(--lime-100);
 
     /* --- Elevation --- */
     --shadow-card: 0px 2px 8px rgba(15, 23, 42, 0.06);
@@ -125,6 +133,10 @@
     --color-module-health-subtle: #4C1D95;
     --color-module-learning: #FBBF24;
     --color-module-learning-subtle: #78350F;
+    --color-module-house: #FB923C;
+    --color-module-house-subtle: #7C2D12;
+    --color-module-grocery: #A3E635;
+    --color-module-grocery-subtle: #365314;
 
     --shadow-card: 0px 2px 8px rgba(0, 0, 0, 0.35);
     --shadow-elevated: 0px 4px 16px rgba(0, 0, 0, 0.50);

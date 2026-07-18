@@ -77,6 +77,14 @@ module.exports = {
             DEFAULT: 'var(--color-module-learning)',
             subtle: 'var(--color-module-learning-subtle)',
           },
+          house: {
+            DEFAULT: 'var(--color-module-house)',
+            subtle: 'var(--color-module-house-subtle)',
+          },
+          grocery: {
+            DEFAULT: 'var(--color-module-grocery)',
+            subtle: 'var(--color-module-grocery-subtle)',
+          },
         },
       },
       borderColor: {
