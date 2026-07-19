@@ -10,6 +10,7 @@ import clsx from "clsx";
 import {
   Home,
   Banknote,
+  House,
   User,
   ChevronRight,
   Settings,
@@ -27,8 +28,8 @@ const navigation = [
     icon: Home,
     type: "single"
   },
-  { 
-    name: "Finanze", 
+  {
+    name: "Finanze",
     icon: Banknote,
     type: "module",
     basePath: "/finance",
@@ -40,6 +41,20 @@ const navigation = [
       { name: "Rimborsi", href: "/finance/refunds" },
       { name: "Import Dati", href: "/finance/import" },
       { name: "Report", href: "/finance/reports" },
+    ]
+  },
+  {
+    name: "Casa",
+    icon: House,
+    type: "module",
+    basePath: "/house",
+    children: [
+      { name: "Dashboard", href: "/house/dashboard" },
+      { name: "Bollette", href: "/house/bills" },
+      { name: "Manutenzioni", href: "/house/maintenances" },
+      { name: "Affitto e mutuo", href: "/house/housing" },
+      { name: "Inventario", href: "/house/inventory" },
+      { name: "Fornitori e contatti", href: "/house/contacts" },
     ]
   }
 ];
