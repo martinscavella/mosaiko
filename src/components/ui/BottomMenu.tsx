@@ -24,7 +24,9 @@ import {
   Wrench,
   KeyRound,
   Package,
-  Users
+  Users,
+  ShoppingBasket,
+  ShoppingCart
 } from "lucide-react";
 import NewTransactionModal from "./NewTransactionModal";
 
@@ -36,6 +38,7 @@ export function BottomMenu() {
 
   const isFinanceModule = pathname.startsWith("/finance");
   const isHouseModule = pathname.startsWith("/house");
+  const isGroceryModule = pathname.startsWith("/grocery");
 
   // Menu principale - cambia in base al modulo attivo
   const mainMenuItems = useMemo(() => {
@@ -70,6 +73,17 @@ export function BottomMenu() {
       ];
     }
 
+    if (isGroceryModule) {
+      // In Spesa: Dashboard | Dispensa | Aggiungi | Lista | Menu
+      return [
+        { name: "Spesa", href: "/grocery/dashboard", icon: ShoppingBasket, active: pathname === "/grocery/dashboard" },
+        { name: "Dispensa", href: "/grocery/pantry", icon: Package, active: pathname === "/grocery/pantry" },
+        { name: "Aggiungi", action: handleFabClick, icon: Plus, active: false, isFab: true },
+        { name: "Lista", href: "/grocery/shopping-list", icon: ShoppingCart, active: pathname === "/grocery/shopping-list" },
+        { name: "Altro", action: () => setShowMoreMenu(!showMoreMenu), icon: Menu, active: false },
+      ];
+    }
+
     // Home o altre sezioni: Home | Finanze | Aggiungi | Profilo
     return [
       { name: "Home", href: "/", icon: Home, active: pathname === "/" },
@@ -77,7 +91,7 @@ export function BottomMenu() {
       { name: "Aggiungi", action: handleFabClick, icon: Plus, active: false, isFab: true },
       { name: "Profilo", action: () => setShowMoreMenu(!showMoreMenu), icon: User, active: pathname.startsWith("/profile") },
     ];
-  }, [pathname, isFinanceModule, isHouseModule, showMoreMenu]);
+  }, [pathname, isFinanceModule, isHouseModule, isGroceryModule, showMoreMenu]);
 
   // Menu secondario - voci che vanno nel popup "Altro/Profilo"
   const secondaryMenuItems = useMemo(() => {
@@ -102,10 +116,18 @@ export function BottomMenu() {
       ];
     }
 
+    if (isGroceryModule) {
+      return [
+        { name: "Scontrini e prezzi", href: "/grocery/receipts", icon: Receipt },
+        { type: "divider" },
+        { name: "Profilo", href: "/profile", icon: Settings },
+      ];
+    }
+
     return [
       { name: "Impostazioni", href: "/profile", icon: Settings },
     ];
-  }, [isFinanceModule, isHouseModule]);
+  }, [isFinanceModule, isHouseModule, isGroceryModule]);
 
   const handleSignOut = async () => {
     await signOut();

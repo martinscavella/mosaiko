@@ -139,7 +139,7 @@ export default function LinkTransactionModal({
                   disabled={linkingId !== null}
                   className="w-full flex items-center gap-3 p-3 rounded-lg bg-canvas hover:bg-inset text-left transition-colors disabled:opacity-50"
                 >
-                  <div className="w-9 h-9 flex items-center justify-center rounded-lg bg-module-house-subtle text-module-house shrink-0">
+                  <div className="w-9 h-9 flex items-center justify-center rounded-lg bg-primary-subtle text-primary shrink-0">
                     {linkingId === transaction.id ? (
                       <Check className="w-4 h-4" />
                     ) : (

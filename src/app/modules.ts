@@ -32,7 +32,7 @@ export const modules: Module[] = [
     name: 'Grocery',
     icon: ShoppingBasket,
     description: 'Dispensa, lista della spesa e prezzi',
-    status: 'coming_soon',
+    status: 'active',
     accentClasses: 'bg-module-grocery-subtle text-module-grocery'
   },
   {

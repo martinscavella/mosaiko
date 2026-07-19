@@ -11,6 +11,7 @@ import {
   Home,
   Banknote,
   House,
+  ShoppingBasket,
   User,
   ChevronRight,
   Settings,
@@ -55,6 +56,18 @@ const navigation = [
       { name: "Affitto e mutuo", href: "/house/housing" },
       { name: "Inventario", href: "/house/inventory" },
       { name: "Fornitori e contatti", href: "/house/contacts" },
+    ]
+  },
+  {
+    name: "Spesa",
+    icon: ShoppingBasket,
+    type: "module",
+    basePath: "/grocery",
+    children: [
+      { name: "Dashboard", href: "/grocery/dashboard" },
+      { name: "Dispensa", href: "/grocery/pantry" },
+      { name: "Lista della spesa", href: "/grocery/shopping-list" },
+      { name: "Scontrini e prezzi", href: "/grocery/receipts" },
     ]
   }
 ];

@@ -130,7 +130,29 @@ Health ha un modello dati proprio e interconnessioni verso più moduli.
       (tel:), email (mailto:), conteggio manutenzioni collegate; delete gestito
       da ON DELETE SET NULL su `house_maintenances.contact_id`.
     - Dashboard House con navigazione a tutte e 5 le sezioni.
-  - **Modulo House MVP: COMPLETO.** Prossimo modulo per D3: **Grocery**.
+  - **Modulo House MVP: COMPLETO.**
+  - *Navigazione (2026-07-19)*: voce "Casa" nella sidebar desktop e menu
+    mobile `BottomMenu` House-aware (FAB → `openNewItemModal`, intercettato da
+    ogni pagina House).
+
+- **Grocery — FATTO 2026-07-19** (modulo standalone, PLAN §7.2):
+  - Migration `20260719_grocery_module_schema`: `grocery_items` (catalogo +
+    dispensa: `current_quantity` è la giacenza), `grocery_shopping_list`,
+    `grocery_receipt_lines` (link T6.0 transazione→righe scontrino); RLS
+    4-policy per tabella, trigger `set_updated_at` condiviso.
+  - Provider `groceryData.tsx` dal template T6.3; modulo `active` nel registry;
+    accent lime (T6.2); nav in sidebar + BottomMenu (Grocery-aware).
+  - **Dispensa** (`/grocery/pantry`): CRUD articoli (nome, unità, categoria,
+    giacenza, scorta minima), +/- rapidi sulla giacenza, badge sotto scorta,
+    ricerca.
+  - **Lista della spesa** (`/grocery/shopping-list`): aggiunta rapida con
+    autocomplete dal catalogo (collega `item_id`), spunta, "Concludi spesa"
+    che carica in dispensa le voci comprate collegate.
+  - **Scontrini e prezzi** (`/grocery/receipts`): "esplodi una spesa" collega
+    una transazione Finance (riuso `LinkTransactionModal`, T6.0) e vi aggiunge
+    righe (articolo, quantità, prezzo unitario) → opzionale carico dispensa +
+    **storico prezzi per articolo** (ultimo/min/max/media €/unità).
+  - **Modulo Grocery MVP: COMPLETO.** Prossimo modulo per D3: **Tasks**.
 
 ### Pattern comune per ogni modulo (rodato da Finance)
 

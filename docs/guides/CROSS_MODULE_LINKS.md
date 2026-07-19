@@ -78,5 +78,8 @@ storico" (`loadFullTransactionHistory`) quando la ricerca non trova risultati.
 ## Definition of Done (per T6.0 completo)
 
 - [x] Questo documento
-- [ ] `bill_payments` + RLS con la migration del modulo House
-- [ ] `LinkEntityPicker` usato dal flusso "segna bolletta come pagata"
+- [x] `bill_payments` + RLS con la migration del modulo House
+- [x] `LinkEntityPicker` (`LinkTransactionModal`) usato dal flusso "segna
+  bolletta come pagata"
+- [x] Secondo utilizzo del pattern: `grocery_receipt_lines` (transazione→righe
+  scontrino) con lo stesso `LinkTransactionModal` in `/grocery/receipts`
