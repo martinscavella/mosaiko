@@ -118,7 +118,19 @@ Health ha un modello dati proprio e interconnessioni verso più moduli.
     ricerca transazioni dalla cache, ordina per vicinanza d'importo, gestisce
     la finestra T4.1 offrendo "cerca in tutto lo storico". Scollegamento e
     delete bolletta (con rimozione allegato) inclusi.
-  - **Prossimi incrementi**: Manutenzioni, Affitto/Mutuo, Inventario, Contatti.
+  - *Sezioni rimanenti (2026-07-19)* — **MVP House completo**:
+    - **Manutenzioni** (`/house/maintenances`): CRUD con tipo periodica/
+      straordinaria, intervallo mesi, ultima/prossima scadenza (badge "in
+      ritardo"), costo, collegamento a un contatto, allegato.
+    - **Affitto/Mutuo** (`/house/housing`): contratti per proprietà con rata
+      mensile, giorno di scadenza, periodo; KPI totale mensile.
+    - **Inventario** (`/house/inventory`): oggetti con categoria, valore, date
+      acquisto/garanzia (badge garanzia attiva/scaduta), allegato scontrino.
+    - **Fornitori/contatti** (`/house/contacts`): CRUD con ruolo, telefono
+      (tel:), email (mailto:), conteggio manutenzioni collegate; delete gestito
+      da ON DELETE SET NULL su `house_maintenances.contact_id`.
+    - Dashboard House con navigazione a tutte e 5 le sezioni.
+  - **Modulo House MVP: COMPLETO.** Prossimo modulo per D3: **Grocery**.
 
 ### Pattern comune per ogni modulo (rodato da Finance)
 

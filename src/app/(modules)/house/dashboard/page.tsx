@@ -9,9 +9,17 @@ import { useAuth } from '@/lib/auth'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 import { formatCurrency } from '@/lib/helpers/format'
 import { useHouseData, type HouseProperty } from '../houseData'
-import { Home, Plus, Receipt, Wrench, Star, MapPin } from 'lucide-react'
+import { Home, Plus, Receipt, Wrench, Star, MapPin, KeyRound, Package, Users } from 'lucide-react'
 
 const PROPERTY_TYPES: HouseProperty['type'][] = ['casa', 'appartamento', 'box', 'terreno', 'altro']
+
+const SECTIONS = [
+  { href: '/house/bills', icon: Receipt, title: 'Bollette', desc: 'Utenze con PDF e collegamento a Finance' },
+  { href: '/house/maintenances', icon: Wrench, title: 'Manutenzioni', desc: 'Interventi periodici e straordinari con scadenze' },
+  { href: '/house/housing', icon: KeyRound, title: 'Affitto e mutuo', desc: 'Contratti ricorrenti e rate mensili' },
+  { href: '/house/inventory', icon: Package, title: 'Inventario', desc: 'Oggetti, garanzie e documenti' },
+  { href: '/house/contacts', icon: Users, title: 'Fornitori e contatti', desc: 'Idraulici, elettricisti, amministratori' },
+] as const
 
 export default function HouseDashboard() {
   const { user, loading: authLoading } = useAuth()
@@ -166,33 +174,27 @@ export default function HouseDashboard() {
         {/* Sezioni del modulo */}
         <section>
           <h2 className="text-lg font-semibold text-ink mb-4">Sezioni</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <button
-              onClick={() => router.push('/house/bills')}
-              className="bg-surface border border-edge rounded-lg shadow-card p-5 text-left hover:border-module-house transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-module-house-subtle text-module-house">
-                  <Receipt className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-ink">Bollette</h3>
-                  <p className="text-sm text-ink-muted">Storico utenze con PDF allegato e collegamento a Finance</p>
-                </div>
-              </div>
-            </button>
-            <div className="bg-surface border border-edge rounded-lg shadow-card p-5 opacity-70">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-module-house-subtle text-module-house">
-                  <Wrench className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-ink">Manutenzioni</h3>
-                  <p className="text-sm text-ink-muted">Interventi periodici e straordinari con scadenze</p>
-                  <p className="text-xs text-ink-muted mt-0.5">In arrivo</p>
-                </div>
-              </div>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {SECTIONS.map(section => {
+              const Icon = section.icon
+              return (
+                <button
+                  key={section.href}
+                  onClick={() => router.push(section.href)}
+                  className="bg-surface border border-edge rounded-lg shadow-card p-5 text-left hover:border-module-house transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-module-house-subtle text-module-house shrink-0">
+                      <Icon className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-ink">{section.title}</h3>
+                      <p className="text-sm text-ink-muted">{section.desc}</p>
+                    </div>
+                  </div>
+                </button>
+              )
+            })}
           </div>
         </section>
       </div>
