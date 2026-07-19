@@ -85,9 +85,18 @@ export interface HouseInventoryItem {
   notes: string | null
 }
 
+export interface BillPayment {
+  id: string
+  bill_id: string
+  transaction_id: string
+  amount: number | null
+  created_at: string
+}
+
 export interface HouseData {
   properties: HouseProperty[]
   bills: HouseBill[]
+  billPayments: BillPayment[]
   maintenances: HouseMaintenance[]
   contacts: HouseContact[]
   housing: HouseHousing[]
@@ -98,22 +107,24 @@ export const { Provider: HouseDataProvider, useModuleData: useHouseData } =
   createModuleDataProvider<HouseData>({
     moduleId: 'house',
     fetchData: async (supabase, userId) => {
-      const [properties, bills, maintenances, contacts, housing, inventory] = await Promise.all([
+      const [properties, bills, billPayments, maintenances, contacts, housing, inventory] = await Promise.all([
         supabase.from('house_properties').select('*').eq('user_id', userId).order('is_primary', { ascending: false }).order('name'),
         supabase.from('house_bills').select('*').eq('user_id', userId).order('due_date', { ascending: false }),
+        supabase.from('bill_payments').select('*').eq('user_id', userId),
         supabase.from('house_maintenances').select('*').eq('user_id', userId).order('next_due_date', { ascending: true }),
         supabase.from('house_contacts').select('*').eq('user_id', userId).order('name'),
         supabase.from('house_housing').select('*').eq('user_id', userId),
         supabase.from('house_inventory_items').select('*').eq('user_id', userId).order('name'),
       ])
 
-      const firstError = [properties, bills, maintenances, contacts, housing, inventory]
+      const firstError = [properties, bills, billPayments, maintenances, contacts, housing, inventory]
         .map(r => r.error).find(Boolean)
       if (firstError) throw firstError
 
       return {
         properties: (properties.data ?? []) as HouseProperty[],
         bills: (bills.data ?? []) as HouseBill[],
+        billPayments: (billPayments.data ?? []) as BillPayment[],
         maintenances: (maintenances.data ?? []) as HouseMaintenance[],
         contacts: (contacts.data ?? []) as HouseContact[],
         housing: (housing.data ?? []) as HouseHousing[],

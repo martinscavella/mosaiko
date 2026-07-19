@@ -163,11 +163,14 @@ export default function HouseDashboard() {
           )}
         </section>
 
-        {/* Prossime sezioni del modulo */}
+        {/* Sezioni del modulo */}
         <section>
-          <h2 className="text-lg font-semibold text-ink mb-4">In costruzione</h2>
+          <h2 className="text-lg font-semibold text-ink mb-4">Sezioni</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-surface border border-edge rounded-lg shadow-card p-5 opacity-70">
+            <button
+              onClick={() => router.push('/house/bills')}
+              className="bg-surface border border-edge rounded-lg shadow-card p-5 text-left hover:border-module-house transition-colors"
+            >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-module-house-subtle text-module-house">
                   <Receipt className="w-5 h-5" />
@@ -177,7 +180,7 @@ export default function HouseDashboard() {
                   <p className="text-sm text-ink-muted">Storico utenze con PDF allegato e collegamento a Finance</p>
                 </div>
               </div>
-            </div>
+            </button>
             <div className="bg-surface border border-edge rounded-lg shadow-card p-5 opacity-70">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-module-house-subtle text-module-house">
@@ -186,6 +189,7 @@ export default function HouseDashboard() {
                 <div>
                   <h3 className="font-semibold text-ink">Manutenzioni</h3>
                   <p className="text-sm text-ink-muted">Interventi periodici e straordinari con scadenze</p>
+                  <p className="text-xs text-ink-muted mt-0.5">In arrivo</p>
                 </div>
               </div>
             </div>

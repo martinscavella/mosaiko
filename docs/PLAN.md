@@ -97,21 +97,28 @@ Health ha un modello dati proprio e interconnessioni verso più moduli.
 
 | ID | Task | Pri | Dip. | Stima | Definition of Done |
 | --- | --- | --- | --- | --- | --- |
-| T6.0 | 🔶 **DOC FATTO 2026-07-18** (docs/guides/CROSS_MODULE_LINKS.md: tabelle di link dedicate per coppia con FK+RLS+unique, mappa delle 6 tabelle previste, spec del componente `LinkEntityPicker`; resta la prima implementazione `bill_payments` + picker, che arriva con la migration del modulo House) — **Meccanismo di collegamento tra moduli** | P1 | T3.x completate | M | Doc di design + prima implementazione funzionante (House↔Finance) |
+| T6.0 | ✅ **FATTO 2026-07-19** (design in docs/guides/CROSS_MODULE_LINKS.md: tabelle di link dedicate per coppia con FK+RLS+unique, mappa delle 6 tabelle previste; prima implementazione funzionante House↔Finance: tabella `bill_payments` + componente riusabile `LinkTransactionModal` usato dal flusso "Segna bolletta come pagata") — **Meccanismo di collegamento tra moduli** | P1 | T3.x completate | M | Doc di design + prima implementazione funzionante (House↔Finance) |
 | T6.1 | ✅ **FATTO 2026-07-18** (migration 20260718_attachments_storage: bucket privato `attachments` con limite 10MB e MIME pdf+immagini, 4 policy RLS sul path `<user_id>/…`; helper client src/lib/attachments.ts con upload/URL firmato/delete e validazione. La prova end-to-end da UI arriverà con le bollette House) — **Storage allegati** (Supabase Storage) | P1 | — | M | Upload/download/delete di un PDF funzionante con isolamento utente |
 | T6.2 | ✅ **FATTO 2026-07-18** (House=orange-600, Grocery=lime-600 — amber e teal erano già presi da Learning/Tasks; token in globals.css light+dark, tailwind.config, designtoken.md; House e Grocery aggiunti al registry modules.ts come coming_soon con accent dedicato) — **Estensione design token**: accent color per House e Grocery | P2 | — | XS | Card home e ModuleLayout renderizzano i nuovi moduli con accent dedicato |
 | T6.3 | ✅ **FATTO 2026-07-18** (factory `createModuleDataProvider` in src/lib/moduleData.tsx: provider scoped montato nel layout del modulo, fetch on-demand al primo ingresso, context memoizzato; guida in docs/guides/MODULE_DATA_PROVIDER.md. L'adozione da parte di House avverrà col modulo) — **Provider dati per-modulo** | P1 | T4.1 | S | Template documentato e usato da House |
 
 ### Stato avanzamento moduli
 
-- **House — primo incremento FATTO 2026-07-18**: migration
-  `20260718_house_module_schema` (7 tabelle MVP con RLS 4-policy ciascuna,
-  trigger `set_updated_at` condiviso, `bill_payments` come prima tabella di
-  link T6.0), provider `houseData.tsx` dal template T6.3, layout scoped,
-  dashboard con CRUD proprietà (crea/lista, KPI bollette da pagare); modulo
-  `active` nel registry. **Prossimi incrementi**: pagina Bollette (upload PDF
-  T6.1 + `LinkEntityPicker` verso Finance = chiusura T6.0), Manutenzioni,
-  Affitto/Mutuo, Inventario, Contatti.
+- **House — FATTO 2026-07-18/19**:
+  - *Schema + scaffold*: migration `20260718_house_module_schema` (7 tabelle
+    MVP con RLS 4-policy ciascuna, trigger `set_updated_at` condiviso,
+    `bill_payments` come prima tabella di link T6.0), provider `houseData.tsx`
+    dal template T6.3, layout scoped, dashboard con CRUD proprietà; modulo
+    `active` nel registry.
+  - *Pagina Bollette (2026-07-19)*: CRUD bollette con **upload PDF/immagine**
+    (primo uso reale di T6.1 via `uploadAttachment`/`getAttachmentUrl`), e
+    flusso "Segna pagata" che **collega la bolletta a una transazione Finance**
+    (`bill_payments`, chiude l'implementazione di T6.0). Componente riusabile
+    `LinkTransactionModal` (implementazione concreta di `LinkEntityPicker`):
+    ricerca transazioni dalla cache, ordina per vicinanza d'importo, gestisce
+    la finestra T4.1 offrendo "cerca in tutto lo storico". Scollegamento e
+    delete bolletta (con rimozione allegato) inclusi.
+  - **Prossimi incrementi**: Manutenzioni, Affitto/Mutuo, Inventario, Contatti.
 
 ### Pattern comune per ogni modulo (rodato da Finance)
 
