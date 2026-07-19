@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import ModuleLayout from '@/components/ModuleLayout'
 import ModuleHeader from '@/components/ui/ModuleHeader'
@@ -47,6 +47,13 @@ export default function HouseDashboard() {
     const today = new Date().toISOString().slice(0, 10)
     return (data?.maintenances ?? []).filter(m => m.next_due_date && m.next_due_date >= today)
   }, [data?.maintenances])
+
+  // FAB della navbar mobile: apre "Nuova Proprietà"
+  useEffect(() => {
+    const handler = () => setShowNewProperty(true)
+    window.addEventListener('openNewItemModal', handler)
+    return () => window.removeEventListener('openNewItemModal', handler)
+  }, [])
 
   if (!authLoading && !user) {
     router.push('/auth/login')

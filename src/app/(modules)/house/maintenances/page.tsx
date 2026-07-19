@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import ModuleLayout from '@/components/ModuleLayout'
 import ModuleHeader from '@/components/ui/ModuleHeader'
@@ -65,17 +65,23 @@ export default function HouseMaintenancesPage() {
     [maintenances, today]
   )
 
-  if (!authLoading && !user) {
-    router.push('/auth/login')
-    return null
-  }
-
-  const openNew = () => {
+  const openNew = useCallback(() => {
     setEditing(null)
     setForm({ ...emptyForm, property_id: properties[0]?.id ?? '' })
     setFile(null)
     setFileError(null)
     setShowModal(true)
+  }, [properties])
+
+  // FAB della navbar mobile: apre "Nuova Manutenzione"
+  useEffect(() => {
+    window.addEventListener('openNewItemModal', openNew)
+    return () => window.removeEventListener('openNewItemModal', openNew)
+  }, [openNew])
+
+  if (!authLoading && !user) {
+    router.push('/auth/login')
+    return null
   }
 
   const openEdit = (m: HouseMaintenance) => {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import ModuleLayout from '@/components/ModuleLayout'
 import ModuleHeader from '@/components/ui/ModuleHeader'
@@ -47,15 +47,21 @@ export default function HouseHousingPage() {
     [housing]
   )
 
-  if (!authLoading && !user) {
-    router.push('/auth/login')
-    return null
-  }
-
-  const openNew = () => {
+  const openNew = useCallback(() => {
     setEditing(null)
     setForm({ ...emptyForm, property_id: properties[0]?.id ?? '' })
     setShowModal(true)
+  }, [properties])
+
+  // FAB della navbar mobile: apre "Nuovo Contratto"
+  useEffect(() => {
+    window.addEventListener('openNewItemModal', openNew)
+    return () => window.removeEventListener('openNewItemModal', openNew)
+  }, [openNew])
+
+  if (!authLoading && !user) {
+    router.push('/auth/login')
+    return null
   }
 
   const openEdit = (h: HouseHousing) => {

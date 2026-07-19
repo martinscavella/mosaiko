@@ -5,9 +5,9 @@ import { usePathname } from "next/navigation";
 import { useState, useMemo } from "react";
 import { useAuth } from "@/lib/auth";
 import { clsx } from "clsx";
-import { 
-  Home, 
-  PiggyBank, 
+import {
+  Home,
+  PiggyBank,
   Plus,
   Receipt,
   User,
@@ -19,7 +19,12 @@ import {
   RotateCcw,
   Upload,
   BarChart3,
-  Menu
+  Menu,
+  House,
+  Wrench,
+  KeyRound,
+  Package,
+  Users
 } from "lucide-react";
 import NewTransactionModal from "./NewTransactionModal";
 
@@ -30,14 +35,15 @@ export function BottomMenu() {
   const [showMoreMenu, setShowMoreMenu] = useState(false);
 
   const isFinanceModule = pathname.startsWith("/finance");
+  const isHouseModule = pathname.startsWith("/house");
 
   // Menu principale - cambia in base al modulo attivo
   const mainMenuItems = useMemo(() => {
     // Determina l'azione del FAB in base al pathname
     const handleFabClick = () => {
       // Emette un evento custom che le pagine possono intercettare
-      const event = new CustomEvent('openNewItemModal', { 
-        detail: { pathname } 
+      const event = new CustomEvent('openNewItemModal', {
+        detail: { pathname }
       });
       window.dispatchEvent(event);
     };
@@ -52,7 +58,18 @@ export function BottomMenu() {
         { name: "Altro", action: () => setShowMoreMenu(!showMoreMenu), icon: Menu, active: false },
       ];
     }
-    
+
+    if (isHouseModule) {
+      // In Casa: Dashboard | Bollette | Aggiungi | Manutenzioni | Menu
+      return [
+        { name: "Casa", href: "/house/dashboard", icon: House, active: pathname === "/house/dashboard" },
+        { name: "Bollette", href: "/house/bills", icon: Receipt, active: pathname === "/house/bills" },
+        { name: "Aggiungi", action: handleFabClick, icon: Plus, active: false, isFab: true },
+        { name: "Manutenzioni", href: "/house/maintenances", icon: Wrench, active: pathname === "/house/maintenances" },
+        { name: "Altro", action: () => setShowMoreMenu(!showMoreMenu), icon: Menu, active: false },
+      ];
+    }
+
     // Home o altre sezioni: Home | Finanze | Aggiungi | Profilo
     return [
       { name: "Home", href: "/", icon: Home, active: pathname === "/" },
@@ -60,7 +77,7 @@ export function BottomMenu() {
       { name: "Aggiungi", action: handleFabClick, icon: Plus, active: false, isFab: true },
       { name: "Profilo", action: () => setShowMoreMenu(!showMoreMenu), icon: User, active: pathname.startsWith("/profile") },
     ];
-  }, [pathname, isFinanceModule, showMoreMenu]);
+  }, [pathname, isFinanceModule, isHouseModule, showMoreMenu]);
 
   // Menu secondario - voci che vanno nel popup "Altro/Profilo"
   const secondaryMenuItems = useMemo(() => {
@@ -74,11 +91,21 @@ export function BottomMenu() {
         { name: "Profilo", href: "/profile", icon: Settings },
       ];
     }
-    
+
+    if (isHouseModule) {
+      return [
+        { name: "Affitto e mutuo", href: "/house/housing", icon: KeyRound },
+        { name: "Inventario", href: "/house/inventory", icon: Package },
+        { name: "Fornitori e contatti", href: "/house/contacts", icon: Users },
+        { type: "divider" },
+        { name: "Profilo", href: "/profile", icon: Settings },
+      ];
+    }
+
     return [
       { name: "Impostazioni", href: "/profile", icon: Settings },
     ];
-  }, [isFinanceModule]);
+  }, [isFinanceModule, isHouseModule]);
 
   const handleSignOut = async () => {
     await signOut();

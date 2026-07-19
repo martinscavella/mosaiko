@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import ModuleLayout from '@/components/ModuleLayout'
 import ModuleHeader from '@/components/ui/ModuleHeader'
@@ -88,16 +88,22 @@ export default function HouseBillsPage() {
     [bills]
   )
 
-  if (!authLoading && !user) {
-    router.push('/auth/login')
-    return null
-  }
-
-  const openNewBill = () => {
+  const openNewBill = useCallback(() => {
     setForm({ ...emptyForm, property_id: properties[0]?.id ?? '' })
     setFile(null)
     setFileError(null)
     setShowNewBill(true)
+  }, [properties])
+
+  // FAB della navbar mobile: apre "Nuova Bolletta"
+  useEffect(() => {
+    window.addEventListener('openNewItemModal', openNewBill)
+    return () => window.removeEventListener('openNewItemModal', openNewBill)
+  }, [openNewBill])
+
+  if (!authLoading && !user) {
+    router.push('/auth/login')
+    return null
   }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {

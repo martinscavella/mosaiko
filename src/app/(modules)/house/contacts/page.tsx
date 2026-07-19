@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import ModuleLayout from '@/components/ModuleLayout'
 import ModuleHeader from '@/components/ui/ModuleHeader'
@@ -32,6 +32,17 @@ export default function HouseContactsPage() {
     }
     return map
   }, [maintenances])
+
+  // FAB della navbar mobile: apre "Nuovo Contatto"
+  useEffect(() => {
+    const handler = () => {
+      setEditing(null)
+      setForm(emptyForm)
+      setShowModal(true)
+    }
+    window.addEventListener('openNewItemModal', handler)
+    return () => window.removeEventListener('openNewItemModal', handler)
+  }, [])
 
   if (!authLoading && !user) {
     router.push('/auth/login')
