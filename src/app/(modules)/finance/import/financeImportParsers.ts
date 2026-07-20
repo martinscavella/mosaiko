@@ -440,6 +440,7 @@ export const BANK_PARSERS: BankParser[] = [
     // - sottocategoria: Sottocategoria (es. Ristorante, Padel)
     parseRow: (headers: string[], values: string[], accountMappings?: { [key: string]: string }) => {
       // Header tipici: Type, Product, Started Date, Completed Date, Description, Amount, Fee, Currency, State, Balance
+      // Fee viene sottratta da Amount per ottenere direttamente il netto (vedi sotto).
       const state = findValue(headers, values, ['state', 'stato']) || '';
       if (state.toUpperCase() === 'REVERTED') {
         // Riga da ignorare
@@ -447,8 +448,9 @@ export const BANK_PARSERS: BankParser[] = [
       }
 
       const typeRaw = findValue(headers, values, ['type']) || '';
-      const description = findValue(headers, values, ['description', 'descrizione']) || '';
+      let description = findValue(headers, values, ['description', 'descrizione']) || '';
       const amountStr = findValue(headers, values, ['amount', 'importo']) || '';
+      const feeStr = findValue(headers, values, ['fee', 'commissione']) || '';
       const date = findValue(headers, values, ['Started Date', 'data']) || '';
       const currency = findValue(headers, values, ['currency', 'valuta']) || 'EUR';
       const productRaw = findValue(headers, values, ['product']) || '';
@@ -463,6 +465,21 @@ export const BANK_PARSERS: BankParser[] = [
         if (isNaN(amountNum)) amountNum = 0;
       }
 
+      // Revolut espone Amount (lordo) e Fee separati: la Fee è sempre un
+      // costo (valore >= 0), quindi va sottratta indipendentemente dal segno
+      // di Amount per ottenere il netto (es. -25 lordo, 1 fee → -26 netto;
+      // 100 lordo, 1 fee → 99 netto).
+      let feeNum = 0;
+      if (feeStr) {
+        feeNum = parseLocaleAmount(feeStr);
+        if (isNaN(feeNum)) feeNum = 0;
+      }
+      if (feeNum !== 0) {
+        // Arrotonda a 2 decimali: la sottrazione tra float può introdurre
+        // residui binari (es. 4.32 - 0.001 = 4.319000000000001).
+        amountNum = Math.round((amountNum - feeNum) * 100) / 100;
+      }
+
       // Somma tax se presente
       amountNum = applyTax(amountNum, headers, values);
 
@@ -473,8 +490,8 @@ export const BANK_PARSERS: BankParser[] = [
       }
       // Determina tipo transazione picklist e normalizzato
       let type = '';
-      const category = findValue(headers, values, ['categoria', 'category']);
-      const subcategory = findValue(headers, values, ['sottocategoria', 'subcategory']);
+      let category = findValue(headers, values, ['categoria', 'category']);
+      let subcategory = findValue(headers, values, ['sottocategoria', 'subcategory']);
       let targetTable: 'transactions' | 'refunds' | 'funds_transfer' = 'transactions';
 
       // Se abbiamo il Tipo dal CSV (formato italiano), usalo
@@ -578,6 +595,21 @@ export const BANK_PARSERS: BankParser[] = [
         }
       }
 
+      // Interessi maturati sul Conto deposito senza vincoli: categorizza
+      // automaticamente (se non già impostata via colonne CSV custom).
+      const descLower = description.toLowerCase();
+      if (
+        !category &&
+        type === 'Entrata' &&
+        productUpper === 'DEPOSIT' &&
+        descLower.includes('net interest paid to') &&
+        descLower.includes('conto deposito senza vincoli')
+      ) {
+        category = 'INCOME & SALARY';
+        subcategory = 'Interessi maturati';
+        description = 'Revolut Deposit: Pagamento degli interessi';
+      }
+
       return {
         date: dateISO,
         description,
@@ -591,7 +623,8 @@ export const BANK_PARSERS: BankParser[] = [
         // la picklist UI (TransactionTypeCombobox) e la validazione in
         // page.tsx accettano solo i tipi canonici di lib/transactionTypes.
         transactionType: type,
-        currency
+        currency,
+        note: feeNum !== 0 ? `Commissione: €${Math.abs(feeNum).toFixed(2)}` : undefined
       };
     },
     transformDate: (date: string) => {

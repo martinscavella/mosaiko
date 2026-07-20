@@ -79,4 +79,59 @@ describe('Revolut parser transactionType', () => {
     const row = revolut.parseRow(headers, values)
     expect(row).toEqual({})
   })
+
+  it('subtracts the Fee from Amount to store the net value on an expense', () => {
+    const headers = ['Type', 'Product', 'Started Date', 'Description', 'Amount', 'Fee', 'Currency', 'State']
+    const values = ['CARD_PAYMENT', 'Current', '2025-01-01', 'Prelievo ATM', '-100.00', '1.99', 'EUR', 'COMPLETED']
+    const row = revolut.parseRow(headers, values)
+    expect(row.amount).toBe('-101.99')
+    expect(row.note).toBe('Commissione: €1.99')
+  })
+
+  it('subtracts the Fee from Amount on a topup (positive amount)', () => {
+    const headers = ['Type', 'Product', 'Started Date', 'Description', 'Amount', 'Fee', 'Currency', 'State']
+    const values = ['TOPUP', 'Current', '2025-01-01', 'Ricarica carta', '100.00', '1.99', 'EUR', 'COMPLETED']
+    const row = revolut.parseRow(headers, values)
+    expect(row.amount).toBe('98.01')
+  })
+
+  it('rounds the net amount to 2 decimals to avoid floating point residue', () => {
+    const headers = ['Type', 'Product', 'Started Date', 'Description', 'Amount', 'Fee', 'Currency', 'State']
+    // 4.32 - 0.001 = 4.319000000000001 in IEEE 754 float arithmetic
+    const values = ['INTEREST', 'Deposit', '2025-01-01', 'Interessi', '4.32', '0.001', 'EUR', 'COMPLETED']
+    const row = revolut.parseRow(headers, values)
+    expect(row.amount).toBe('4.32')
+  })
+
+  it('leaves amount and note untouched when Fee is absent or zero', () => {
+    const headers = ['Type', 'Product', 'Started Date', 'Description', 'Amount', 'Fee', 'Currency', 'State']
+    const values = ['CARD_PAYMENT', 'Current', '2025-01-01', 'Supermercato', '-25.50', '0', 'EUR', 'COMPLETED']
+    const row = revolut.parseRow(headers, values)
+    expect(row.amount).toBe('-25.5')
+    expect(row.note).toBeUndefined()
+  })
+
+  it('categorizes deposit interest income as INCOME & SALARY / Interessi maturati', () => {
+    const headers = ['Type', 'Product', 'Started Date', 'Description', 'Amount', 'Currency', 'State']
+    const values = ['INTEREST', 'Deposit', '2025-01-01', "Net Interest Paid to 'Conto deposito senza vincoli' for December", '4.32', 'EUR', 'COMPLETED']
+    const row = revolut.parseRow(headers, values)
+    expect(row.category).toBe('INCOME & SALARY')
+    expect(row.subcategory).toBe('Interessi maturati')
+    expect(row.description).toBe('Revolut Deposit: Pagamento degli interessi')
+  })
+
+  it('does not auto-categorize deposit interest when a CSV category override is present', () => {
+    const headers = ['Type', 'Product', 'Started Date', 'Description', 'Amount', 'Currency', 'State', 'categoria']
+    const values = ['INTEREST', 'Deposit', '2025-01-01', "Net Interest Paid to 'Conto deposito senza vincoli' for December", '4.32', 'EUR', 'COMPLETED', 'ALTRO']
+    const row = revolut.parseRow(headers, values)
+    expect(row.category).toBe('ALTRO')
+    expect(row.description).toBe("Net Interest Paid to 'Conto deposito senza vincoli' for December")
+  })
+
+  it('does not auto-categorize interest on other products (e.g. Savings)', () => {
+    const headers = ['Type', 'Product', 'Started Date', 'Description', 'Amount', 'Currency', 'State']
+    const values = ['INTEREST', 'Savings', '2025-01-01', "Net Interest Paid to 'Conto deposito senza vincoli' for December", '4.32', 'EUR', 'COMPLETED']
+    const row = revolut.parseRow(headers, values)
+    expect(row.category).toBeUndefined()
+  })
 })
